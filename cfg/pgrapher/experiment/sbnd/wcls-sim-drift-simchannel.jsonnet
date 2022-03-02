@@ -23,6 +23,10 @@ local params = base {
 };
 
 local tools = tools_maker(params);
+// local tools_all = tools_maker(params);
+// local tools = tools_all {
+//     anodes: [tools_all.anodes[0]]
+// };
 
 local sim_maker = import 'pgrapher/experiment/sbnd/sim.jsonnet';
 local sim = sim_maker(params, tools);
@@ -41,7 +45,7 @@ local output = 'wct-sim-ideal-sig.npz';
 local wcls_maker = import "pgrapher/ui/wcls/nodes.jsonnet";
 local wcls = wcls_maker(params, tools);
 local wcls_input = {
-    depos: wcls.input.depos(name="", art_tag="ionization"),
+    depos: wcls.input.depos(name="", art_tag="ionandscint:priorSCE"),
 };
 
 // Collect all the wc/ls output converters for use below.  Note the
@@ -141,9 +145,9 @@ local wcls_simchannel_sink = g.pnode({
   },
 }, nin=1, nout=1, uses=tools.anodes);
 
-// local magoutput = 'sbnd-data-check.root';
-// local magnify = import 'pgrapher/experiment/sbnd/magnify-sinks.jsonnet';
-// local sinks = magnify(tools, magoutput);
+local magoutput = 'sbnd-sim-check.root';
+local magnify = import 'pgrapher/experiment/sbnd/magnify-sinks.jsonnet';
+local sinks = magnify(tools, magoutput);
 
 local multipass = [
   g.pipeline([

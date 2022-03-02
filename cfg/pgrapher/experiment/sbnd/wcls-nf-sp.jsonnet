@@ -145,9 +145,20 @@ local chsel_pipes = [
   for n in std.range(0, std.length(tools.anodes) - 1)
 ];
 
-local magoutput = 'protodune-data-check.root';
+local magoutput = 'sbnd-sp-check.root';
 local magnify = import 'pgrapher/experiment/sbnd/magnify-sinks.jsonnet';
 local sinks = magnify(tools, magoutput);
+
+// local rio_sp = [g.pnode({
+//         type: 'ROOTFrameTap',
+//         name: 'rio_sp_apa%d' % n,
+//         data: {
+//           output_filename: "rio-%d.root" % n,
+//           anode: wc.tn(tools.anodes[n]),
+//         },
+//     }, nin=1, nout=1),
+//     for n in std.range(0, std.length(tools.anodes) - 1)
+// ];
 
 local nfsp_pipes = [
   g.pipeline([
@@ -159,6 +170,7 @@ local nfsp_pipes = [
 
                sp_pipes[n],
                // sinks.decon_pipe[n],
+               // rio_sp[n],
                // sinks.threshold_pipe[n],
                // sinks.debug_pipe[n], // use_roi_debug_mode=true in sp.jsonnet
              ],
