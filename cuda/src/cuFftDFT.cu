@@ -126,5 +126,3 @@ void Cuda::cuFftDFT::fwd2d(const complex_t* in, complex_t* out, int nrows, int n
 void Cuda::cuFftDFT::inv2d(const complex_t* in, complex_t* out, int nrows, int ncols) const 
 { gen2d(in, out, nrows, ncols, CUFFT_INVERSE); }
 
-void Cuda::cuFftDFT::transpose(const scalar_t* in, scalar_t* out, int nrows, int ncols) const {}
-void Cuda::cuFftDFT::transpose(const complex_t* in, complex_t* out, int nrows, int ncols) const {}

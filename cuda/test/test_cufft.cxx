@@ -69,7 +69,7 @@ void div_arr(complex_t *arr, float m, int n)
 void test_1d_unit()
 {
     complex_t *in, *out;
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     int n = 24; // Size of the array to test with
 
     in = (complex_t *)calloc(n, sizeof(complex_t));
@@ -88,7 +88,7 @@ void test_1d_unit()
 void test_1d_rand()
 {
     complex_t *in, *out;
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     int n = 24; // Size of the array to test with
 
     // Test 1: [1, 0, 0, ...]
@@ -109,7 +109,7 @@ void test_1d_rand()
 
 void test_1b_unit()
 {
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     complex_t *in, *out;
 
     // Length of each signal and batch size
@@ -146,7 +146,7 @@ void test_1b_unit()
 
 void test_1b_rand()
 {
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     complex_t *in, *out;
 
     // Length of each signal and batch size
@@ -177,7 +177,7 @@ void test_1b_rand()
 
 void test_2d_unit()
 {
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     complex_t *in, *out;
 
     // Length of each signal and batch size
@@ -201,7 +201,7 @@ void test_2d_unit()
 
 void test_2d_rand()
 {
-    Cuda::cuFftDFT fftObj = Cuda::cuFftDFT();
+    Cuda::cuFftDFT fftObj;
     complex_t *in, *out;
 
     // Length of each signal and batch size
