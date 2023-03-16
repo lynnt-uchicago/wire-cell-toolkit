@@ -97,7 +97,7 @@ local wc = import "wirecell.jsonnet";
     // See intern() for general purpose aggregation of a subgraph.
     pnode(inode, nin=0, nout=0, uses=[], name=null):: {
         type: "Pnode",
-        name: $.prune_array([name, inode.name, ""])[0],
+        name: $.prune_array([name, wc.cname(inode), ""])[0],
         edges: [],
         uses: uses + [inode],
         iports: [$.port(inode, n) for n in std.range(0,nin)][:nin],

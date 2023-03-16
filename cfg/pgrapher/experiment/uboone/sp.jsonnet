@@ -146,18 +146,20 @@ function(params, tools) {
         }
     }, nin=2, nout=1),
 
-    return: g.intern([rawsplit], [l1merge], [sigproc, sigsplit, chsel, l1spfilter, rawsigmerge, l1merge],
-                          edges=[
-                              g.edge(rawsplit, sigproc),
-                              g.edge(sigproc, sigsplit),
-                              g.edge(sigsplit, rawsigmerge),
-                              g.edge(sigsplit, l1merge, 1, 1),
+    return: g.intern(innodes=[rawsplit],
+                     outnodes=[l1merge],
+                     centernodes=[sigproc, sigsplit, chsel, l1spfilter, rawsigmerge, l1merge],
+                     edges=[
+                         g.edge(rawsplit, sigproc),
+                         g.edge(sigproc, sigsplit),
+                         g.edge(sigsplit, rawsigmerge),
+                         g.edge(sigsplit, l1merge, 1, 1),
 
-                              g.edge(rawsplit, rawsigmerge, 1, 1),
-                              g.edge(rawsigmerge, chsel),
-                              g.edge(chsel, l1spfilter),
-                              g.edge(l1spfilter, l1merge),
-                          ],
-                          name="L1SP"),
+                         g.edge(rawsplit, rawsigmerge, 1, 1),
+                         g.edge(rawsigmerge, chsel),
+                         g.edge(chsel, l1spfilter),
+                         g.edge(l1spfilter, l1merge),
+                     ],
+                     name="L1SP"),
 
 }.return
