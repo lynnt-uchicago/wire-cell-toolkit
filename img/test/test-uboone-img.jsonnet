@@ -187,13 +187,14 @@ local make_depos(depos="depos.npz") =
 
 local sp = sp_maker(params, tools);
 
+// Top level function with TLAs
 local make_graph(depos="depos.npz", outimg="blobs-img.npz", outtru="blobs-tru.npz") =
     local ds = make_depos(depos);
     local catcher = make_catcher(outtru);
 
     local pl = pg.pipeline([
         ds, 
-        sim.signal,
+        sim.signal_sets,
         sim.add_noise(sim.make_noise_model(anode, sim.miscfg_csdb)),
         sim.digitizer(anode, tag="orig"),
         nf_maker(params, tools, chndb),
@@ -213,9 +214,10 @@ local make_graph(depos="depos.npz", outimg="blobs-img.npz", outtru="blobs-tru.np
     local graph = pg.intern(centernodes=[pl2],
                             edges=[pg.edge(ds, catcher, 1, 1)],
                             name="graph");
-
+    local engine = 'TbbFlow';
     local app = {
-        type: 'Pgrapher',
+        // type: 'Pgrapher',
+        type: engine,
         name: "",
         data: {
             edges: pg.edges(graph),
@@ -225,8 +227,11 @@ local make_graph(depos="depos.npz", outimg="blobs-img.npz", outtru="blobs-tru.np
         type: "wire-cell",
         name: "",
         data: {
-            plugins: ["WireCellGen", "WireCellPgraph", "WireCellSio", "WireCellSigProc", "WireCellRoot", "WireCellImg"],
-            apps: ["Pgrapher"]
+            plugins: [
+                "WireCellPgraph", "WireCellTbb", "WireCellSio",
+                "WireCellGen", "WireCellSigProc", "WireCellImg",
+            ],
+            apps: [wc.tn(app)]
         }
     };
     [cmdline] + pg.uses(graph) + [app];

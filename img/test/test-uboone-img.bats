@@ -6,24 +6,115 @@
 # Note: this test may break for a while as we consolidate the testing
 # system and test data repo.
 
-@test "generate gnn data" {
-
-    # FIXME: after consolidation, use wcb-bats.sh library.  For now,
-    # user must add the directory holding data files to WIRECELL_PATH.
-    celltree=""
-    for maybe in $(echo ${WIRECELL_PATH} | tr ":" "\n")
-    do
-        if [ -f "${maybe}/celltreeOVERLAY.root" ] ; then
-            celltree="${maybe}/celltreeOVERLAY.root"
-            break
-        fi
+##############
+# Fixme: these are temporary replacements for what are provided in
+# wct-bats.sh, once we merge check-test we should remove them.
+function top () {
+    dirname $(dirname $(realpath $BASH_SOURCE))
+}    
+function tname () {
+    basename "$BATS_TEST_FILENAME" .bats
+}
+function tdir () {
+    dirname "$BATS_TEST_FILENAME"
+}
+function resolve_path () {
+    local want="$1"; shift
+    if [[ "$want" =~ ^/.* ]] ; then
+        echo $want
+    fi
+    for pathlst in "$(tdir)" $@ ; do
+        for maybe in $(echo ${pathlst} | tr ":" "\n")
+        do
+            if [ -f "${maybe}/$want" ] ; then
+                echo "${maybe}/$want"
+                echo "Found: ${maybe}/$want" 1>&3
+                return
+            else
+                echo "Not found: ${maybe}/$want" 1>&3
+            fi
+        done
     done
-    [[ -n "$celltree" ]]
-    [[ -f "$celltree" ]]
+}
+function saveout_path () {
+    src="$1" ; shift
+    tgt="$1"
+    name="$(tname)"
+    if [ -z "$tgt" ] ; then
+        tgt="$(basename $src)"
+    fi
+    echo "$(top)/build/output/${name}/${tgt}"
+}
+function saveout () {
+    src="$1" ; shift
+    tgt="$(saveout_path $src $1)"
+    mkdir -p "$(dirname $tgt)"
+    cp "$src" "$tgt"
+}
+function cd_tmp () {
+    pwd
+    if [ -n "$WCTEST_TMPDIR" ] ; then
+        mkdir -p "$WCTEST_TMPDIR"
+        cd "$WCTEST_TMPDIR"
+    else 
+        cd "$BATS_TEST_TMPDIR"
+    fi
+}
+##############
 
-    run wire-cell -A celltree="$celltree" -c test-gnn-fodder.jsonnet
+bimg="blobs-img.npz"
+btru="blobs-tru.npz"
+
+function setup_file () {
+
+    # fixme: replace this with WCTEST_{IN,OUT}PUT to allow for variant
+    # test.
+    local depos="$(resolve_path test/data/muon-depos.npz $(top))"
+    local log="wire-cell.log"
+    local cfg="$(resolve_path test-uboone-img.jsonnet)"
+    [[ -s "$cfg" ]] # temporary test of internal resolve_path
+    
+    cd "$BATS_FILE_TMPDIR"
+    cmd="wire-cell -l $log -L debug -A depos=$depos -A outimg=$bimg -A outtru=$btru -c $cfg"
+    echo $cmd
+    run $cmd
     echo "$output"
     [[ "$status" -eq 0 ]]
+    saveout wire-cell.log
+    # saveout blobs-img.npz
+    # saveout blobs-tru.npz
+    [[ -s $bimg ]]
+    [[ -s $btru ]]
+}                              
 
-    #### to be continued ####
+@test "same blobs in zip" {
+    cd "$BATS_FILE_TMPDIR"
+
+    run bash -c "$(unzip -v $bimg | grep cluster_ | awk '{print $8}')"
+    echo "$output"
+    [[ "$status" -eq 0 ]]
+    local limg="$output"
+
+    run bash -c "$(unzip -v $btru | grep cluster_ | awk '{print $8}')"
+    echo "$output"
+    [[ "$status" -eq 0 ]]
+    local ltru="$output"
+
+    [[ "$(limg)" = "$(ltru)" ]]
+}
+
+@test "same blobs in npz" {
+    cd "$BATS_FILE_TMPDIR"
+
+    run wirecell-util ls $bimg
+    echo "$output"
+    [[ "$status" -eq 0 ]]
+    local limg="$output"
+
+    run wirecell-util ls $btru
+    echo "$output"
+    [[ "$status" -eq 0 ]]
+    local ltru="$output"
+
+    [[ "$(limg)" = "$(ltru)" ]]
 }
