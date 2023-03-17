@@ -187,24 +187,73 @@ local make_depos(depos="depos.npz") =
 
 local sp = sp_maker(params, tools);
 
+local frametaps(out, tags=[], digitize=false) =
+    if std.type(out) == "null" || std.length(out) == 0 then
+        []
+    else
+        local sink = pg.pnode({
+            type: 'FrameFileSink',
+            name: out,
+            data: {
+                outname: out,
+                tags: tags,
+                digitize: digitize,
+            },
+        }, nin=1, nout=0);
+        local fan = pg.pnode({
+            type: 'FrameFanout',
+            name: out,
+            data: { multiplicity: 2 },
+        }, nin=1, nout=2);
+        [pg.intern(innodes=[fan], outnodes=[fan],
+                   centernodes = [sink],
+                   edges=[pg.edge(fan, sink, 1, 0)],
+                   name=out)];
+local depotaps(out) =
+    if std.type(out) == "null" || std.length(out) == 0 then
+        []
+    else
+        local sink = pg.pnode({
+            type: 'DepoFileSink',
+            name: out,
+            data: { outname: out, },
+        }, nin=1, nout=0);
+        local fan = pg.pnode({
+            type: 'DepoFanout',
+            name: out,
+            data: { multiplicity: 2 },
+        }, nin=1, nout=2);
+        [pg.intern(innodes=[fan], outnodes=[fan],
+                   centernodes = [sink],
+                   edges=[pg.edge(fan, sink, 1, 0)],
+                   name=out)];
+                         
+
 // Top level function with TLAs
-local make_graph(depos="depos.npz", outimg="blobs-img.npz", outtru="blobs-tru.npz") =
+local make_graph(depos="depos.npz",
+                 outimg="blobs-img.npz", outtru="blobs-tru.npz",
+                 drifted="", outadc="", outsig="") =
     local ds = make_depos(depos);
     local catcher = make_catcher(outtru);
 
-    local pl = pg.pipeline([
+    local pipeline = [
         ds, 
+    ] + depotaps(drifted) + [
         sim.signal_sets,
         sim.add_noise(sim.make_noise_model(anode, sim.miscfg_csdb)),
-        sim.digitizer(anode, tag="orig"),
+        sim.digitizer(anode, tag="orig")
+    ] + frametaps(outadc, digitize=true) + [
         nf_maker(params, tools, chndb),
         sp,
+    ] + frametaps(outsig, digitize=false) + [
         charge_err,
         slicing("gauss", 109),
         tiling(),
         solving(),
         blob_sink(outimg)
-    ], name='mainpipe');
+    ];
+
+    local pl = pg.pipeline(pipeline, name='mainpipe');
     // Insert the catcher node.
     local pl2 = pg.insert_node(pl, {
         tail: {node: 'BlobGrouping', port: 0},
@@ -235,7 +284,6 @@ local make_graph(depos="depos.npz", outimg="blobs-img.npz", outtru="blobs-tru.np
         }
     };
     [cmdline] + pg.uses(graph) + [app];
-
 
 
 make_graph
