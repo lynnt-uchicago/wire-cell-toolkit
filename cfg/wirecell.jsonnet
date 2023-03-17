@@ -328,8 +328,10 @@
     ///
     /// This function can also be applied to objects which happen to
     /// be produced by pgraph.pnode()
-    tn(cfgobj) :: if self.cname(cfgobj) == ""
-                  then cfgobj.type
+    tn(cfgobj) :: if std.objectHas(cfgobj, "inode") then
+                      $.tn(cfgobj.inode)
+                  else if self.cname(cfgobj) == "" then
+                      cfgobj.type
                   else cfgobj.type + ":" + cfgobj.name,
 
 
