@@ -1472,7 +1472,7 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
     IFrame::trace_summary_t thresholds;
     IFrame::trace_list_t wiener_traces, gauss_traces;
     // here are some trace lists for debug mode
-    IFrame::trace_list_t tight_lf_traces, loose_lf_traces, cleanup_roi_traces, break_roi_loop1_traces,
+    IFrame::trace_list_t decon_2D_init_traces, tight_lf_traces, loose_lf_traces, cleanup_roi_traces, break_roi_loop1_traces,
         break_roi_loop2_traces, shrink_roi_traces, extend_roi_traces;
     IFrame::trace_list_t mp2_roi_traces, mp3_roi_traces;
     IFrame::trace_list_t decon_charge_traces;
@@ -1503,6 +1503,11 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
         decon_2D_init(iplane);  // decon in large matrix
         check_data(iplane, "after 2D init");
 
+        std::vector<double> dummy;
+        if (m_use_roi_debug_mode) {
+            save_data(*itraces, decon_2D_init_traces, iplane, perwire_rmses, dummy, "decon_2D_init");
+        }
+
         // Form tight ROIs
         if (iplane != 2) {  // induction wire planes
             if (m_use_roi_refinement) {
@@ -1520,7 +1525,6 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
         check_data(iplane, "after 2D tight ROI");
 
         // [wgu] save decon result after tight LF
-        std::vector<double> dummy;
         if (m_use_roi_debug_mode and m_use_roi_refinement) {
             save_data(*itraces, tight_lf_traces, iplane, perwire_rmses, dummy, "tight_lf");
         }
@@ -1680,6 +1684,7 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
     }
 
     if (m_use_roi_debug_mode) {
+        sframe->tag_traces("decon_2D_init", decon_2D_init_traces);
         sframe->tag_traces(m_loose_lf_tag, loose_lf_traces);
         if (m_use_roi_refinement) {
             sframe->tag_traces(m_decon_charge_tag, decon_charge_traces);
