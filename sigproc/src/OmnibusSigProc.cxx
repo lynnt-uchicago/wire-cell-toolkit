@@ -43,7 +43,7 @@ OmnibusSigProc::OmnibusSigProc(
     double r_th_peak, double r_sep_peak, double r_low_peak_sep_threshold_pre, int r_max_npeaks, double r_sigma,
     double r_th_percent, std::vector<int> process_planes, int charge_ch_offset, const std::string& wiener_tag,
     const std::string& wiener_threshold_tag, const std::string& decon_charge_tag, const std::string& gauss_tag,
-    bool use_roi_debug_mode, bool use_roi_refinement, const std::string& tight_lf_tag, const std::string& loose_lf_tag,
+    bool use_roi_debug_mode, bool use_roi_refinement, const std::string& decon_2D_init_tag, const std::string& tight_lf_tag, const std::string& loose_lf_tag,
     const std::string& cleanup_roi_tag, const std::string& break_roi_loop1_tag, const std::string& break_roi_loop2_tag,
     const std::string& shrink_roi_tag, const std::string& extend_roi_tag, const std::string& mp3_roi_tag,
     const std::string& mp2_roi_tag)
@@ -93,6 +93,7 @@ OmnibusSigProc::OmnibusSigProc(
   , m_frame_tag("sigproc")
   , m_use_roi_debug_mode(use_roi_debug_mode)
   , m_use_roi_refinement(use_roi_refinement)
+  , m_decon_2D_init_tag(decon_2D_init_tag)
   , m_tight_lf_tag(tight_lf_tag)
   , m_loose_lf_tag(loose_lf_tag)
   , m_cleanup_roi_tag(cleanup_roi_tag)
@@ -199,6 +200,7 @@ void OmnibusSigProc::configure(const WireCell::Configuration& config)
 
     m_use_roi_debug_mode = get(config, "use_roi_debug_mode", m_use_roi_debug_mode);
     m_use_roi_refinement = get(config, "use_roi_refinement", m_use_roi_refinement);
+    m_decon_2D_init_tag  = get(config, "decon_2D_init_tag", m_decon_2D_init_tag);
     m_tight_lf_tag = get(config, "tight_lf_tag", m_tight_lf_tag);
     m_loose_lf_tag = get(config, "loose_lf_tag", m_loose_lf_tag);
     m_cleanup_roi_tag = get(config, "cleanup_roi_tag", m_cleanup_roi_tag);
@@ -339,6 +341,7 @@ WireCell::Configuration OmnibusSigProc::default_configuration() const
 
     cfg["use_roi_debug_mode"] = m_use_roi_debug_mode;  // default false
     cfg["use_roi_refinement"] = m_use_roi_refinement;  // default true
+    cfg["decon_2D_init_tag"] = m_decon_2D_init_tag;
     cfg["tight_lf_tag"] = m_tight_lf_tag;
     cfg["loose_lf_tag"] = m_loose_lf_tag;
     cfg["cleanup_roi_tag"] = m_cleanup_roi_tag;
@@ -1684,7 +1687,7 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
     }
 
     if (m_use_roi_debug_mode) {
-        sframe->tag_traces("decon_2D_init", decon_2D_init_traces);
+        sframe->tag_traces(m_decon_2D_init_tag, decon_2D_init_traces);
         sframe->tag_traces(m_loose_lf_tag, loose_lf_traces);
         if (m_use_roi_refinement) {
             sframe->tag_traces(m_decon_charge_tag, decon_charge_traces);
