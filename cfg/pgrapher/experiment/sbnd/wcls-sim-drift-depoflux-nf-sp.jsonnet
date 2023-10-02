@@ -91,7 +91,7 @@ local wcls_output_sim = {
   sp_signals: wcls.output.signals(name="spsignals", tags=["gauss", "wiener"]),
   // save "threshold" from normal decon for each channel noise
   // used in imaging
-  sp_thresholds: wcls.output.thresholds(name="spthresholds", tags=["threshold"]),
+  sp_thresholds: wcls.output.thresholds(name="spthresholds", tags=["wiener"]),
 };
 
 
@@ -224,18 +224,32 @@ local wcls_output_sp = {
   // art::Event but left as floats for the WCT SP.  Note, the tag
   // "raw" is somewhat historical as the output is not equivalent to
   // "raw data".
-  nf_digits: g.pnode({
-    type: 'wclsFrameSaver',
-    name: 'nfsaver',
-    data: {
-      // anode: wc.tn(tools.anode),
-      anode: wc.tn(mega_anode),
-      digitize: true,  // true means save as RawDigit, else recob::Wire
-      frame_tags: ['raw'],
-      // nticks: params.daq.nticks,
-      chanmaskmaps: ['bad'],
-    },
-  }, nin=1, nout=1, uses=[mega_anode]),
+    nf_digits: [
+    g.pnode({
+      type: 'wclsFrameSaver',
+      name: 'nfsaver0',
+      data: {
+        // anode: wc.tn(tools.anode),
+        anode: wc.tn(tools.anodes[0]),
+        skip_frame: true,
+        // nticks: params.daq.nticks,
+        chanmaskmaps: ['bad','bad0'],
+      },
+    }, nin=1, nout=1)
+    ,
+    g.pnode({
+      type: 'wclsFrameSaver',
+      name: 'nfsaver1',
+      data: {
+        // anode: wc.tn(tools.anode),
+        anode: wc.tn(tools.anodes[1]),
+        skip_frame: true,
+        // nticks: params.daq.nticks,
+        chanmaskmaps: ['bad1'],
+      },
+    }, nin=1, nout=1) 
+  ],
+
 
 
   // The output of signal processing.  Note, there are two signal
@@ -253,11 +267,14 @@ local wcls_output_sp = {
 
       // this may be needed to convert the decon charge [units:e-] to be consistent with the LArSoft default ?unit? e.g. decon charge * 0.005 --> "charge value" to GaussHitFinder
       frame_scale: [0.02, 0.02],
-       nticks: params.daq.nticks,
-      chanmaskmaps: [],
+      nticks: params.daq.nticks,
+      summary_tags: ['wiener'],
+      summary_operator: {threshold: 'set'},
+      chanmaskmaps: ['bad','bad0','bad1'],
       //nticks: -1,
     },
   }, nin=1, nout=1, uses=[mega_anode]),
+
 };
 
 
@@ -279,7 +296,7 @@ local nfsp_pipes = [
                chsel_pipes[n],
                //sinks.orig_pipe[n],
 
-               //nf_pipes[n],
+               nf_pipes[n],
                //sinks.raw_pipe[n],
 
                sp_pipes[n],

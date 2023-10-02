@@ -28,7 +28,7 @@ function(params, anode, field, n, rms_cuts=[])
 
 
     // Externally determined "bad" channels.
-    bad: [],
+    bad: [1000,5000,8000,12000], # set dummy "bad" channels to test cmm
 
     // Overide defaults for specific channels.  If an info is
     // mentioned for a particular channel in multiple objects in this
