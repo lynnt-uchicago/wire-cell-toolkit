@@ -64,8 +64,8 @@ function(params, anode, chndbobj, n, name='', dft=default_dft)
 
         // channel bin ranges are ignored
         // only when the channelmask is merged to `bad`
-        // maskmap: {sticky: "bad", ledge: "bad", noisy: "bad"},
-        maskmap: {chirp: "bad%d" %n, sticky: "bad%d" % n, ledge: "bad%d" % n, noisy: "bad%d" % n},
+        maskmap: {chirp: "bad" , sticky: "bad" , ledge: "bad" , noisy: "bad" },
+        // maskmap: {chirp: "bad%d" %n, sticky: "bad%d" %n, ledge: "bad%d" %n, noisy: "bad%d" %n},
         channel_filters: [
           // wc.tn(sticky),
           wc.tn(single),

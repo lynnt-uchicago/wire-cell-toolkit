@@ -49,6 +49,7 @@ local wcls_input_sim = {
                 model: "",
                 scale: -1, //scale is -1 to correct a sign error in the SimDepoSource converter.
                 art_tag: std.extVar('inputTag'), //name of upstream art producer of depos "label:instance:processName"
+                id_is_track: false,
                 assn_art_tag: "",
             },
         }, nin=0, nout=1),
@@ -70,12 +71,10 @@ local wcls_output_sim = {
     type: 'wclsFrameSaver',
     name: 'simdigits',
     data: {
-      // anode: wc.tn(tools.anode),
       anode: wc.tn(mega_anode),
       digitize: true,  // true means save as RawDigit, else recob::Wire
      frame_tags: ['daq'],
       nticks: params.daq.nticks,
-      // chanmaskmaps: ['bad'],
       pedestal_mean: 'native',
     },
   }, nin=1, nout=1, uses=[mega_anode]),
@@ -106,9 +105,7 @@ local setdrifter = g.pnode({
         uses=[drifter]);
 
 // signal plus noise pipelines
-// local sn_pipes = sim.signal_pipelines;
 local sn_pipes = sim.splusn_pipelines;
-
 
 local rng = tools.random;
 local wcls_depoflux_writer = g.pnode({
@@ -117,28 +114,19 @@ local wcls_depoflux_writer = g.pnode({
   data: {
     anodes: [wc.tn(anode) for anode in tools.anodes],
     field_response: wc.tn(tools.field),
-    // rng: wc.tn(rng),
     tick: 0.5 * wc.us,
-    window_start: -0.2 * wc.ms,
+    window_start: 0.0 * wc.ms,
     window_duration: self.tick * 3400,
     nsigma: 3.0,
 
     reference_time: -1700 * wc.us,
-    // time_offsets: [ 0.0*wc.us, 0.0*wc.us, 0.0*wc.us],
 
     energy: 1, # equivalent to use_energy = true
-    simchan_label: 'simpleSC',  // where to save in art::Event
-
-    debug_file: "wcls-sim-drift-depowriter.log",
-
-
-    // ** the below configurations should be obtained from the field response ** 
-    // drift_speed: params.lar.drift_speed,
-    // u_to_rp: 100 * wc.mm,  // time to collection plane
-    // v_to_rp: 100 * wc.mm,  // time to collection plane
-    // y_to_rp: 100 * wc.mm,
+    simchan_label: 'simpleSC',
+    sed_label: 'ionandscint',
+    sparse: false,
   },
-}, nin=1, nout=1, uses=tools.anodes);
+}, nin=1, nout=1, uses=tools.anodes + [tools.field]);
 
 local sp_maker = import 'pgrapher/experiment/sbnd/sp.jsonnet';
 local sp = sp_maker(params, tools, { sparse: sigoutform == 'sparse' });
@@ -149,7 +137,6 @@ local magnify = import 'pgrapher/experiment/sbnd/magnify-sinks.jsonnet';
 local sinks = magnify(tools, magoutput);
 
 local perfect = import 'pgrapher/experiment/sbnd/chndb-perfect.jsonnet';
-//local base = import 'chndb-base_sbnd.jsonnet';
 
 local chndb = [{
   type: 'OmniChannelNoiseDB',
@@ -175,7 +162,7 @@ local multipass2 = [
                sn_pipes[n],
                //sinks.orig_pipe[n],
                
-               //nf_pipes[n],        
+               nf_pipes[n],        
                //sinks.raw_pipe[n], 
                
                sp_pipes[n], 
@@ -224,32 +211,15 @@ local wcls_output_sp = {
   // art::Event but left as floats for the WCT SP.  Note, the tag
   // "raw" is somewhat historical as the output is not equivalent to
   // "raw data".
-    nf_digits: [
-    g.pnode({
-      type: 'wclsFrameSaver',
-      name: 'nfsaver0',
-      data: {
-        // anode: wc.tn(tools.anode),
-        anode: wc.tn(tools.anodes[0]),
-        skip_frame: true,
-        // nticks: params.daq.nticks,
-        chanmaskmaps: ['bad','bad0'],
-      },
-    }, nin=1, nout=1)
-    ,
-    g.pnode({
-      type: 'wclsFrameSaver',
-      name: 'nfsaver1',
-      data: {
-        // anode: wc.tn(tools.anode),
-        anode: wc.tn(tools.anodes[1]),
-        skip_frame: true,
-        // nticks: params.daq.nticks,
-        chanmaskmaps: ['bad1'],
-      },
-    }, nin=1, nout=1) 
-  ],
-
+  nf_digits: g.pnode({
+    type: 'wclsFrameSaver',
+    name: 'nfsaver',
+    data: {
+      anode: wc.tn(mega_anode),
+      digitize: true,  // true means save as RawDigit, else recob::Wire
+      frame_tags: ['raw'],
+    },
+  }, nin=1, nout=1, uses=[mega_anode]),
 
 
   // The output of signal processing.  Note, there are two signal
@@ -260,18 +230,17 @@ local wcls_output_sp = {
     type: 'wclsFrameSaver',
     name: 'spsaver',
     data: {
-      // anode: wc.tn(tools.anode),
       anode: wc.tn(mega_anode),
       digitize: false,  // true means save as RawDigit, else recob::Wire
       frame_tags: ['gauss', 'wiener'],
 
-      // this may be needed to convert the decon charge [units:e-] to be consistent with the LArSoft default ?unit? e.g. decon charge * 0.005 --> "charge value" to GaussHitFinder
+      // this may be needed to convert the decon charge [units:e-] to be consistent with the LArSoft default
+      // for SBND, this scale is about ~50. Frame scale needed when using LArSoft producers reading in recob::Wire.
       frame_scale: [0.02, 0.02],
       nticks: params.daq.nticks,
       summary_tags: ['wiener'],
       summary_operator: {threshold: 'set'},
-      chanmaskmaps: ['bad','bad0','bad1'],
-      //nticks: -1,
+      chanmaskmaps: ['bad'],
     },
   }, nin=1, nout=1, uses=[mega_anode]),
 
@@ -284,7 +253,6 @@ local chsel_pipes = [
     name: 'chsel%d' % n,
     data: {
       channels: std.range(5632 * n, 5632 * (n + 1) - 1),
-      //tags: ['orig%d' % n], // traces tag
     },
   }, nin=1, nout=1)
   for n in anode_iota
@@ -296,7 +264,7 @@ local nfsp_pipes = [
                chsel_pipes[n],
                //sinks.orig_pipe[n],
 
-               nf_pipes[n],
+               nf_pipes[n], // NEED to include this pipe for channelmaskmaps 
                //sinks.raw_pipe[n],
 
                sp_pipes[n],

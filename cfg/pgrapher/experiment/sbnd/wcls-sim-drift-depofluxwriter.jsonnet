@@ -40,6 +40,7 @@ local wcls_input = {
                 model: "",
                 scale: -1, //scale is -1 to correct a sign error in the SimDepoSource converter.
                 art_tag: std.extVar('inputTag'), //name of upstream art producer of depos "label:instance:processName"
+                id_is_track: false,
                 assn_art_tag: "",
             },
         }, nin=0, nout=1),
@@ -70,19 +71,6 @@ local wcls_output = {
       pedestal_mean: 'native',
     },
   }, nin=1, nout=1, uses=[mega_anode]),
-  // The noise filtered "ADC" values.  These are truncated for
-  // art::Event but left as floats for the WCT SP.  Note, the tag
-  // "raw" is somewhat historical as the output is not equivalent to
-  // "raw data".
-  nf_digits: wcls.output.digits(name="nfdigits", tags=["raw"]),
-  // The output of signal processing.  Note, there are two signal
-  // sets each created with its own filter.  The "gauss" one is best
-  // for charge reconstruction, the "wiener" is best for S/N
-  // separation.  Both are used in downstream WC code.
-  sp_signals: wcls.output.signals(name="spsignals", tags=["gauss", "wiener"]),
-  // save "threshold" from normal decon for each channel noise
-  // used in imaging
-  sp_thresholds: wcls.output.thresholds(name="spthresholds", tags=["threshold"]),
 };
 //local deposio = io.numpy.depos(output);
 local drifter = sim.drifter;
@@ -105,42 +93,27 @@ local chndb = [{
   data: perfect(params, tools.anodes[n], tools.field, n){dft:wc.tn(tools.dft)},
   uses: [tools.anodes[n], tools.field, tools.dft],
 } for n in anode_iota];
-//local chndb_maker = import 'pgrapher/experiment/sbnd/chndb.jsonnet';
-//local noise_epoch = "perfect";
-//local noise_epoch = "after";
-//local chndb_pipes = [chndb_maker(params, tools.anodes[n], tools.fields[n]).wct(noise_epoch)
-//                for n in std.range(0, std.length(tools.anodes)-1)];
-local nf_maker = import 'pgrapher/experiment/sbnd/nf.jsonnet';
-// local nf_pipes = [nf_maker(params, tools.anodes[n], chndb_pipes[n]) for n in std.range(0, std.length(tools.anodes)-1)];
-local nf_pipes = [nf_maker(params, tools.anodes[n], chndb[n], n, name='nf%d' % n) for n in anode_iota];
-local sp_maker = import 'pgrapher/experiment/sbnd/sp.jsonnet';
-local sp = sp_maker(params, tools);
-local sp_pipes = [sp.make_sigproc(a) for a in tools.anodes];
+
 local rng = tools.random;
 local wcls_depoflux_writer = g.pnode({
   type: 'wclsDepoFluxWriter',
   name: 'postdrift',
   data: {
-    anodes_tn: [wc.tn(anode) for anode in tools.anodes],
-    // rng: wc.tn(rng),
+    anodes: [wc.tn(anode) for anode in tools.anodes],
+    field_response: wc.tn(tools.field),
     tick: 0.5 * wc.us,
-    window_start: -0.2 * wc.ms,
+    window_start: 0.0 * wc.ms,
     window_duration: self.tick * 3400,
     nsigma: 3.0,
 
     reference_time: -1700 * wc.us,
-    // time_offsets: [ 0.0*wc.us, 0.0*wc.us, 0.0*wc.us],
 
-    energy: 1,
-    simchan_label: 'simpleSC',  // where to save in art::Event
-
-    // ** the below configurations should be obtained from the field response ** 
-    // drift_speed: params.lar.drift_speed,
-    // u_to_rp: 100 * wc.mm,  // time to collection plane
-    // v_to_rp: 100 * wc.mm,  // time to collection plane
-    // y_to_rp: 100 * wc.mm,
+    energy: 1, # equivalent to use_energy = true
+    simchan_label: 'simpleSC',
+    sed_label: 'ionandscint',
+    sparse: false,
   },
-}, nin=1, nout=1, uses=tools.anodes);
+}, nin=1, nout=1, uses=tools.anodes + [tools.field]);
 // local magoutput = 'sbnd-data-check.root';
 // local magnify = import 'pgrapher/experiment/sbnd/magnify-sinks.jsonnet';
 // local sinks = magnify(tools, magoutput);
@@ -148,8 +121,7 @@ local multipass = [
   g.pipeline([
                sn_pipes[n],
                // sinks.orig_pipe[n],
-               // nf_pipes[n],
-               // sp_pipes[n],
+
              ],
              'multipass%d' % n)
   for n in anode_iota
@@ -175,7 +147,7 @@ local retagger = g.pnode({
 }, nin=1, nout=1);
 //local frameio = io.numpy.frames(output);
 local sink = sim.frame_sink;
-local graph = g.pipeline([wcls_input.depos, drifter, wcls_depoflux_writer, bagger, bi_manifold, retagger, wcls_output.sim_digits, sink]); //<- standard SimDepoSource source and Drifter
+local graph = g.pipeline([wcls_input.deposet, setdrifter, wcls_depoflux_writer, bi_manifold, retagger, wcls_output.sim_digits, sink]); //<- SimDepoFluxWriter and DepoSetDrifter
 local app = {
   type: 'TbbFlow', //TbbFlow Pgrapher changed Ewerton 2023-03-14
   data: {
