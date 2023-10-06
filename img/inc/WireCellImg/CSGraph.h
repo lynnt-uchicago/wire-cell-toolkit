@@ -108,7 +108,8 @@ namespace WireCell::Img::CS {
                              std::back_insert_iterator<graph_vector_t> subgraphs_out);
 
     // Break a cluster_graph into a vector of connected subgraphs
-    // represented by a CS graph_t.
+    // represented by a CS graph_t.  Measurements with value less than
+    // meas_thresh are ignored.
     void unpack(const cluster_graph_t& cgraph,
                 std::back_insert_iterator<graph_vector_t> subgraphs,
                 const value_t& meas_thresh);
@@ -119,17 +120,22 @@ namespace WireCell::Img::CS {
 
     // Solve the graph, returning a new one holding solution in blob nodes
     struct SolveParams {
-        Ress::Params ress;
+        // affect
+        // 1, fitting model config
+        // 2, how to process single blob graph
+        enum Config{uboone=42,simple};
+        Config config{uboone};
         double scale{1000};
         // If true, apply matrix transform of the cholesky
         // decomposition on the measure covariance matrix.  If False,
         // measurement uncertainties are not considered.
         bool whiten{true};
     };
-    graph_t solve(const graph_t& csg, const SolveParams& params);
+    graph_t solve(const graph_t& csg, const SolveParams& params, const bool verbose=false);
 
-    // Return a copy of the input retaining only blobs with charge
-    // above threshold.  Any blobless measures are also removed.
+    // Return a copy of the input retaining only blobs with signal
+    // value above or equal to threshold.  Any blobless measures are
+    // also removed.
     graph_t prune(const graph_t& csg, float threshold=0);
 }
 

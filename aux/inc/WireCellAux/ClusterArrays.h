@@ -3,163 +3,105 @@
 
 #include "ClusterHelpers.h"
 #include "WireCellIface/ICluster.h"
+#include "WireCellIface/ITensorSet.h"
 #include <boost/multi_array.hpp>
 #include <boost/range/counting_range.hpp>
 
-namespace WireCell::Aux {
+#include <vector>
+#include <unordered_map>
+
+namespace WireCell::Aux::ClusterArrays {
+
+    // See aux/docs/ClusterArrays.org document for details.
 
 
-    /**
-       A small helper to it just a bit easier to loop over a node type
-       partition inside a node array using a node type array.
-    
-       ClusterArray ca = ...;
-       for (auto ind : index_range(ca.node_ranges()[4])) {
-           auto d = data_array[ind];
-       }
+    // Node object attributes are all coerced into double precision
+    // floats.
+    using node_element_t = double;
+    using node_array_t = boost::multi_array<node_element_t, 2>;
 
-       See also ca.ntype_range(char code).
-    */
-    template<typename ArrayType>
-    boost::iterator_range<boost::counting_iterator<size_t>>
-    index_range(const ArrayType& arr) {
-        return boost::counting_range(arr[0], arr[0] + arr[1]);
+    // Edges are represented as indices into arrays.
+    using edge_element_t = int;
+    using edge_array_t = boost::multi_array<edge_element_t, 2>;
+
+    // Every node type is a single ASCII letter in "abmsw".  Note,
+    // there is no 'c' nodes as c-node channels are converted into
+    // a-node activities.
+    using node_code_t = char;
+
+    // Edge types are formed by tail and head node type codes in
+    // alphabetical order with tail occupying the upper 8 bits.
+    using edge_code_t = int16_t;
+
+    // Build edge code from two node codes
+    inline edge_code_t edge_code(node_code_t nc1, node_code_t nc2)
+    {
+        if (nc2 < nc1) {
+            std::swap(nc1, nc2);
+        }
+        return ((nc1&0xff)<<8) | (nc2&0xff);
+    }
+    // Edge code as string
+    inline std::string to_string(ClusterArrays::edge_code_t ec) {
+        std::string ret;
+        ret.push_back((char)( (ec&0xff00) >> 8 ));
+        ret.push_back((char)( (ec&0xff) ));
+        return ret;
     }
 
-    /**
-       ClusterArrays produces array representations from ICluster data.
 
-       See also AnodeArrays for array representations all anode wires.
+    // A set of node arrays indexed by their node type.
+    using node_array_set_t = std::unordered_map<node_code_t, node_array_t>;
+    // A set of edge arrays indexed by their ege type.
+    using edge_array_set_t = std::unordered_map<edge_code_t, edge_array_t>;
 
-       See also the aux/docs/ClusterArrays.org document.
-    */
-    class ClusterArrays {
-      public:
-
-        ClusterArrays(const cluster_graph_t& graph);
-
-        // Clear all stored data.  This will invalidate any arrays
-        // previously accessed and held by const reference.
-        void clear();
-
-      public:
-        // Type codes of all nodes.
-        const std::string& node_codes() const;
-      private:
-        mutable std::string m_node_codes;
-
-      public:
-        // A vertext descriptor array (specially indexed by graph
-        // vertex descriptors) holding node array indices.  This array
-        // is only required if node arrays are accessed in graph node
-        // order.
-        using vdesc_indices_t = boost::multi_array<size_t, 1>;
-        const vdesc_indices_t& vdesc_indices() const;
-      private:
-        mutable vdesc_indices_t m_vdesc_indices;
-
-      public:
-        // A node array giving graph vertex descriptors.  This array
-        // is only required if graph nodes are to be accessed in
-        // node-array order.
-        using vdescs_t = boost::multi_array<cluster_vertex_t, 1>;
-        const vdescs_t& graph_vertices() const;
-      private:
-        mutable vdescs_t m_vdescs;
+    inline
+    std::vector<node_code_t> node_codes(const node_array_set_t& nas) {
+        std::vector<node_code_t> ret;
+        for (const auto& [code, arr] : nas) {
+            ret.push_back(code);
+        }
+        return ret;
+    }
+    inline
+    std::vector<edge_code_t> edge_codes(const edge_array_set_t& eas) {
+        std::vector<ClusterArrays::edge_code_t> ret;
+        for (const auto& [code, arr] : eas) {
+            ret.push_back(code);
+        }
+        return ret;
+    }
         
-      public:
-        // Nedge rows, columns are indices (not vdescs!) for
-        // (tail,head) nodes.  Ordered by tail then head.
-        using edges_t = boost::multi_array<size_t, 2>;
-        const edges_t& edges() const;
-      private:
-        mutable edges_t m_edges;
+    // Return the node's code.  This returns the code in the
+    // cluster array schema.  Specifically, 'c' is translated to
+    // 'a'.
+    inline node_code_t node_code(const cluster_node_t& node) {
+        char nc = node.code();
+        if (nc == 'c') return 'a';
+        return nc;
+    }
+
+    // Return new graph same as input but with new channel nodes
+    // appended that represent channels from which activity in the
+    // slice was collected.  Original channel nodes have their pointer
+    // nulled but are otherwise LEFT IN PLACE in order not to
+    // invalidate neither node nor edge descriptors.
+    cluster_graph_t bodge_channel_slice(cluster_graph_t graph);
 
 
-      public:
-        // Helper to get one range by type code.  Eg, iterate over
-        // slices:
-        //
-        // for (auto ind : ca.ntype_range('s') {
-        //    auto d = all_node_data_array[ind];
-        // }
-        boost::iterator_range<boost::counting_iterator<size_t>>
-        ntype_range(char code) const;
-        
-        /// Return (5,2) array of all node parition ranges.
-        using node_ranges_t = boost::multi_array<size_t, 2>;
-        const node_ranges_t& node_ranges() const;
-      private:
-        mutable node_ranges_t m_node_ranges;
+    // Fill array sets from cluster.
+    void to_arrays(const cluster_graph_t& cgraph,
+                   node_array_set_t& nas, edge_array_set_t& eas);
 
-      public:
-        // The full node array of node idents.  Note, m-node idents
-        // are taken as the ident of their first channel.
-        using idents_t = boost::multi_array<int, 1>;
-        const idents_t& idents() const;
-      private:
-        mutable idents_t m_idents;
-
-      public:
-        // The full node array (if code = '0' or otherwise a node
-        // code) or a node type array (if code in "cwbsm") of signals.
-        // First column is central value, second is uncertainty.  A
-        // w-node has zero signal value and uncertainty.
-        using value_t = ISlice::value_t;
-        using signals_t = boost::multi_array<float, 2LU>;
-        const signals_t& signals() const;
-      private:
-        mutable signals_t m_signals;
+    // Return cluster given array sets.  The anodes must provide the
+    // faces referenced by the blobs.
+    using anodes_t = std::vector<IAnodePlane::pointer>;
+    cluster_graph_t to_cluster(const node_array_set_t& nas,
+                               const edge_array_set_t& eas,
+                               const anodes_t& anodes);
 
 
-      public:
-        // Slice node type array of shape (Nslices, 2) giving slice
-        // duration with columns (start time, time span).
-        using slice_durations_t = boost::multi_array<float, 2>;
-        const slice_durations_t& slice_durations() const;
-      private:
-        mutable slice_durations_t m_slice_durations;
-
-      public:
-        // Wire node type array giving wire endpoints. Shape is
-        // (Nwire, 2, 3) where second dimension is first tail and
-        // second head wire endpoint and last dimension is 3-vector in
-        // global detector volume coordinates.
-        using wire_endpoints_t = boost::multi_array<float, 3>;
-        const wire_endpoints_t& wire_endpoints() const;
-      private:
-        mutable wire_endpoints_t m_wire_endpoints;
-
-      public:
-        // Wire addresses is (Nwire, 4) with columns (WIP, segment, channelID, planeID).
-        using wire_addresses_t = boost::multi_array<int, 2>;
-        const wire_addresses_t& wire_addresses() const;
-      private:
-        mutable wire_addresses_t m_wire_addresses;
-
-      public:
-
-        // Blob node type array of shape (Nblobs, 3, 2).  Each (3,2)
-        // "row" gives the bounds of the blob in terms of the WIP
-        // indices for a pair of wires in each of 3 wire planes.
-        // Important note, this provides only partial bounds as blobs
-        // are also bound in the horizontal and vertical direction by
-        // the active area of the anode.  These bounds are not
-        // provided here.  See AnodeArrays for ways access them.
-        using blob_shapes_t = boost::multi_array<int, 3>;
-        const blob_shapes_t& blob_shapes() const;
-      private:
-        mutable blob_shapes_t m_blob_shapes;
-        
-
-      private:
-        // fill node_ranges, vdescs and vdesc_indices arrays
-        void core_nodes() const;
-        // filel wire node type arrays
-        void core_wires() const;
-
-        const cluster_graph_t& m_graph;
-    };
+    /// See TensorDM for conversion between ICluster and ITensor.
 
 }
 

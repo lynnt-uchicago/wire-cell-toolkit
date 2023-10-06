@@ -22,13 +22,18 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/iostreams/device/file.hpp>
 #include <boost/iostreams/device/file_descriptor.hpp>
+// Optional: throws link errors on some systems
+#ifdef CUSTARD_BOOST_USE_LZMA
 #include <boost/iostreams/filter/lzma.hpp>
+#endif
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 
 #include <boost/filesystem.hpp>
+// Optional: boost-interal compiler warning
+#ifdef CUSTARD_BOOST_USE_PROC
 #include <boost/process.hpp>
-
+#endif
 // #define BOOST_SPIRIT_DEBUG
 #include <boost/spirit/include/qi.hpp>
 #include <boost/fusion/adapted/std_pair.hpp>
@@ -214,7 +219,9 @@ namespace custard {
             memset(zip.get(), 0, sizeof(mz_zip_archive));
             if (!mz_zip_reader_init_file(zip.get(), inname.c_str(), 0)) {
                 //std::cerr << "miniz_sink: failed to initialize miniz for " << inname << "\n";
-                throw std::runtime_error("failed to initialize miniz reading from " + inname);
+                auto err = mz_zip_get_last_error(zip.get());
+                std::string errs = mz_zip_get_error_string(err);
+                throw std::runtime_error("failed to initialize miniz reading from " + inname + ": " + errs);
             }
             memnum = mz_zip_reader_get_num_files(zip.get());
             memind = 0;
@@ -297,6 +304,7 @@ namespace custard {
 
 #endif  // miniz
 
+#ifdef CUSTARD_BOOST_USE_PROC
     class proc_sink {
       public:
         typedef char char_type;
@@ -343,6 +351,7 @@ namespace custard {
         };
         std::shared_ptr<impl> p;
     };
+#endif
 
     inline
     bool assuredir(const std::string& pathname)
@@ -542,10 +551,12 @@ namespace custard {
         else if (has("bz2|tbz|tbz2")) {
             in.push(boost::iostreams::bzip2_decompressor());
         }
+#ifdef CUSTARD_BOOST_USE_LZMA
         else if (has("xz|txz|pixz|tix|tpxz")) {
             // pixz makes xz-compatible files
             in.push(boost::iostreams::lzma_decompressor());
         }
+#endif
         else if (has("zip|npz")) {
 #ifdef CUSTARD_BOOST_USE_MINIZ
             in.push(custard::miniz_source(inname));
@@ -586,9 +597,12 @@ namespace custard {
         else if (has("bz2|tbz|tbz2")) {
             out.push(boost::iostreams::bzip2_compressor(level));
         }
+#ifdef CUSTARD_BOOST_USE_LZMA
         else if (has("xz|txz")) {
             out.push(boost::iostreams::lzma_compressor(level));
         }
+#endif
+#ifdef CUSTARD_BOOST_USE_PROC
         else if (has("pixz|tix|tpxz")) {
             // std::stringstream ss;
             // ss << "-p 1 -" << level << " -o " << outname;
@@ -596,6 +610,7 @@ namespace custard {
             out.push(custard::proc_sink("pixz", {"-p", "1", "-1", "-o", outname}));
             return;
         }
+#endif
         else if (has("zip|npz")) {
 #ifdef CUSTARD_BOOST_USE_MINIZ
             out.push(custard::miniz_sink(outname));

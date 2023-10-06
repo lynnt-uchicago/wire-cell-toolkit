@@ -4,6 +4,7 @@
 #include "WireCellUtil/NamedFactory.h"
 #include "WireCellUtil/Units.h"
 #include "WireCellAux/SimpleBlob.h"
+#include "WireCellAux/BlobTools.h"
 
 WIRECELL_FACTORY(GridTiling, WireCell::Img::GridTiling,
                  WireCell::INamed,
@@ -14,8 +15,6 @@ using namespace WireCell::RayGrid;
 
 Img::GridTiling::GridTiling()
     : Aux::Logger("GridTiling", "img")
-    , m_blobs_seen(0)
-    , m_threshold(0.0)
 {
 }
 
@@ -25,6 +24,7 @@ void Img::GridTiling::configure(const WireCell::Configuration& cfg)
 {
     m_anode = Factory::find_tn<IAnodePlane>(cfg["anode"].asString());
     m_face = m_anode->face(cfg["face"].asInt());
+    m_nudge = get(cfg, "nudge", m_nudge);
     if (!m_face) {
         log->error("no such face: {}", cfg["face"]);
         THROW(ValueError() << errmsg{"APA lacks face"});
@@ -41,6 +41,7 @@ WireCell::Configuration Img::GridTiling::default_configuration() const
     cfg["face"] = 0;    // the face number to focus on
     // activity must be bigger than this much to consider.
     cfg["threshold"] = m_threshold;
+    cfg["nudge"] = m_nudge;
     return cfg;
 }
 
@@ -64,9 +65,9 @@ bool Img::GridTiling::operator()(const input_pointer& slice, output_pointer& out
     auto chvs = slice->activity();
 
     if (chvs.empty()) {
-        log->debug("anode={} face={} slice={}, time={} ms no activity",
+        log->trace("anode={} face={} slice={}, time={} ms no activity",
                    anodeid, faceid, slice->ident(),
-                   slice->frame()->time()/units::ms);
+                   slice->start()/units::ms);
         out = make_empty(slice);
         return true;
     }
@@ -140,13 +141,30 @@ bool Img::GridTiling::operator()(const input_pointer& slice, output_pointer& out
 
     // SPDLOG_LOGGER_TRACE(log, "anode={} face={} slice={} making blobs",
     //                     anodeid, faceid, slice->ident());
-    auto blobs = make_blobs(m_face->raygrid(), activities);
+    auto blobs = make_blobs(m_face->raygrid(), activities, m_nudge);
+    /// TODO: remove debug code
+    // int start_tick = std::round(slice->start()/(0.5*WireCell::units::us));
+    // if (start_tick == 1024) {
+    //     std::cout << "GridTiling: " << std::endl;
+    //     for (auto activity : activities) {
+    //         std::cout << activity.as_string() << std::endl;
+    //     }
+    //     for (auto blob : blobs) {
+    //         std::cout << blob.as_string();
+    //     }
+    // }
 
     const float blob_value = 0.0;  // tiling doesn't consider particular charge
     for (const auto& blob : blobs) {
-        Aux::SimpleBlob* sb = new Aux::SimpleBlob(m_blobs_seen++, blob_value,
-                                                  0.0, blob, slice, m_face);
-        sbs->m_blobs.push_back(IBlob::pointer(sb));
+        IBlob::pointer iblob = std::make_shared<Aux::SimpleBlob>(m_blobs_seen++, blob_value,
+                                                                 0.0, blob, slice, m_face);
+        {                       // diagnostic message
+            Aux::BlobCategory bcat(iblob);
+            if (! bcat.ok()) {
+                log->warn("malformed blob: \"{}\"", bcat.str());
+            }
+        }
+        sbs->m_blobs.push_back(iblob);
     }
     SPDLOG_LOGGER_TRACE(log, "anode={} face={} slice={} produced {} blobs",
                         anodeid, faceid, slice->ident(),

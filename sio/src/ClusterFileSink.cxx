@@ -2,13 +2,12 @@
 
 #include "WireCellAux/ClusterHelpers.h"
 #include "WireCellAux/ClusterArrays.h"
+#include "WireCellAux/FrameTools.h"
+#include "WireCellAux/BlobTools.h"
 
 #include "WireCellUtil/Exceptions.h"
 #include "WireCellUtil/NamedFactory.h"
-
-#include "WireCellAux/FrameTools.h"
-
-// This is found at *compile* time in util/inc/.
+#include "WireCellUtil/GraphTools.h"
 #include "WireCellUtil/custard/custard_boost.hpp"
 
 WIRECELL_FACTORY(ClusterFileSink, WireCell::Sio::ClusterFileSink,
@@ -17,6 +16,8 @@ WIRECELL_FACTORY(ClusterFileSink, WireCell::Sio::ClusterFileSink,
                  WireCell::IConfigurable)
 
 using namespace WireCell;
+using namespace WireCell::Aux;
+using WireCell::GraphTools::mir;
 
 Sio::ClusterFileSink::ClusterFileSink()
     : Aux::Logger("ClusterFileSink", "io")
@@ -36,7 +37,6 @@ void Sio::ClusterFileSink::finalize()
 WireCell::Configuration Sio::ClusterFileSink::default_configuration() const
 {
     Configuration cfg;
-    // output json file.  A "%d" type format code may be included to be resolved by a cluster identifier.
     cfg["outname"] = m_outname;
     cfg["prefix"] = m_prefix;
     cfg["format"] = m_format;
@@ -53,7 +53,7 @@ std::string Sio::ClusterFileSink::fqn(const ICluster& cluster, std::string name,
 
 void Sio::ClusterFileSink::jsonify(const ICluster& cluster)
 {
-    auto top = Aux::jsonify(cluster);
+    auto top = Aux::jsonify(cluster.graph());
     std::stringstream topss;
     topss << top;
     auto tops = topss.str();
@@ -66,7 +66,7 @@ void Sio::ClusterFileSink::jsonify(const ICluster& cluster)
 
 void Sio::ClusterFileSink::dotify(const ICluster& cluster)
 {
-    auto top = Aux::dotify(cluster);
+    auto top = Aux::dotify(cluster.graph());
     std::stringstream topss;
     topss << top;
     auto tops = topss.str();
@@ -78,20 +78,28 @@ void Sio::ClusterFileSink::dotify(const ICluster& cluster)
 
 void Sio::ClusterFileSink::numpify(const ICluster& cluster)
 {
-    Aux::ClusterArrays ca(cluster.graph());
-    
     auto fn = [&](const std::string& name) {
         return this->fqn(cluster, name, "npy");
     };
 
-    write_numpy(ca.idents(), fn("idents"));
-    write_numpy(ca.edges(), fn("edges"));
-    write_numpy(ca.node_ranges(), fn("ranges"));
-    write_numpy(ca.signals(), fn("signals"));
-    write_numpy(ca.slice_durations(), fn("slice_durations"));
-    write_numpy(ca.wire_endpoints(), fn("wire_endpoints"));
-    write_numpy(ca.wire_addresses(), fn("wire_addresses"));
-    write_numpy(ca.blob_shapes(), fn("blob_shapes"));
+    Aux::ClusterArrays::node_array_set_t nas;
+    Aux::ClusterArrays::edge_array_set_t eas;
+    Aux::ClusterArrays::to_arrays(cluster.graph(), nas, eas);
+
+    // write nodes
+    for (const auto& [nc,na] : nas) {
+        std::string name = "_nodes";
+        name[0] = nc;
+        write_numpy(na, fn(name));
+    }
+
+    // write edges
+    for (const auto& [ec, ea] : eas) {
+        auto name = Aux::ClusterArrays::to_string(ec);
+        name += "edges";
+        write_numpy(ea, fn(name));
+    }
+
 }
 
 void Sio::ClusterFileSink::configure(const WireCell::Configuration& cfg)
@@ -104,6 +112,10 @@ void Sio::ClusterFileSink::configure(const WireCell::Configuration& cfg)
     }
     m_prefix = get<std::string>(cfg, "prefix", m_prefix);
     m_format = get<std::string>(cfg, "format", m_format);
+    // force-override format if .npz
+    if (String::endswith(m_outname, ".npz")) {
+        m_format = "numpy";
+    }
     if (m_format == "json") {
         m_serializer = [&](const ICluster& cluster){this->jsonify(cluster);};
     }
@@ -113,10 +125,14 @@ void Sio::ClusterFileSink::configure(const WireCell::Configuration& cfg)
     else if (m_format == "numpy") {
         m_serializer = [&](const ICluster& cluster){this->numpify(cluster);};
     }
+    else if (m_format == "dummy") {
+        m_serializer = [&](const ICluster& cluster){};
+    }
     else {
         THROW(ValueError() << errmsg{"ClusterFileSink: unsupported format: " + m_format});
     }
 }
+
 
 bool Sio::ClusterFileSink::operator()(const ICluster::pointer& cluster)
 {
@@ -125,7 +141,22 @@ bool Sio::ClusterFileSink::operator()(const ICluster::pointer& cluster)
         ++m_count;
         return true;
     }
-    
+
+    const auto& gr = cluster->graph();
+    {
+        // fixme: debugging.
+        for (auto vtx : mir(boost::vertices(gr))) {
+            const auto& node = gr[vtx];
+            if (node.code() == 'b') {
+                auto iblob = std::get<IBlob::pointer>(gr[vtx].ptr);
+                Aux::BlobCategory bcat(iblob);
+                if (bcat.ok()) continue;
+                log->warn("malformed blob: {}", bcat.str());
+            }
+        }
+    }
+    log->debug("save cluster {} at call={}: {}", cluster->ident(), m_count, dumps(gr));
+
     m_serializer(*cluster);
 
     ++m_count;
