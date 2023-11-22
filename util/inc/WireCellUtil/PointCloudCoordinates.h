@@ -27,7 +27,7 @@ namespace WireCell::PointCloud {
        coordinate_point.
 
     */
-    template<typename ElementType>
+    template<typename ElementType=double>
     class coordinate_point {
       public:
         using value_type = ElementType;
@@ -102,12 +102,12 @@ namespace WireCell::PointCloud {
         selection_t* selptr;
         size_t index_;
     };
-
+    using real_coordinate_point = coordinate_point<double>;
 
     /**
        An iterator over a coordinate range.
      */
-    template<typename PointType>
+    template<typename PointType = real_coordinate_point>
     class coordinate_iterator
         : public boost::iterator_facade<coordinate_iterator <PointType>
                                         , PointType
@@ -185,9 +185,11 @@ namespace WireCell::PointCloud {
        A transpose of a point cloud selection.
 
      */
-    template<typename PointType>
+    template<typename PointType = real_coordinate_point>
     class coordinate_range {
       public:
+        using point_type = PointType;
+        using element_type = typename PointType::value_type;
         using iterator = coordinate_iterator<PointType>;
         using const_iterator = coordinate_iterator<PointType const>;
 
@@ -231,7 +233,46 @@ namespace WireCell::PointCloud {
         selection_t* selptr;
         
     };
+    using real_coordinate_range = coordinate_range<real_coordinate_point>;
 
+
+    /// Return an unweighted mean point over a range of coordinate points.
+    template<typename PointType = typename std::vector<double>,
+             typename CoordRange = real_coordinate_range>
+    void mean_point(PointType& mu, const CoordRange& pts) {
+        const size_t ndim=pts.begin()->size();
+        size_t num=0;
+        for (const auto& pt : pts) {
+            for (size_t ind=0; ind<ndim; ++ind) {
+                mu[ind] = mu[ind] + pt[ind];
+            }
+            ++num;
+        }
+        for (size_t ind=0; ind<ndim; ++ind) {
+            mu[ind] = mu[ind] / num;
+        }
+    }
+    
+    /// Return a weighted mean point over a range of coordinate points.
+    template<typename CoordRange,
+             typename PointType = typename CoordRange::point_type,
+             typename WeightsType = std::vector<typename PointType::value_type>>
+    void mean_point(PointType& mu, const CoordRange& pts, const WeightsType& wts) {
+        size_t num=0;
+        typename WeightsType::value_type wtot = 0;
+        const size_t ndim=pts.begin()->size();
+        for (const auto& pt : pts) {
+            const typename WeightsType::value_type w = wts[num];
+            for (size_t ind=0; ind<ndim; ++ind) {
+                mu[ind] = mu[ind] + w * pt[ind];
+            }
+            ++num;
+            wtot += w;
+        }
+        for (size_t ind=0; ind<ndim; ++ind) {
+            mu[ind] = mu[ind] / wtot;
+        }
+    }
 
 }
 

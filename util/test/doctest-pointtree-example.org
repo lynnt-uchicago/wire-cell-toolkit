@@ -568,8 +568,11 @@ We will see some of this navigation below but lets first just exercise a k-d tre
       const std::vector<double> origin = {0,0,0};
   
       // Find three nearest neighbors.
-      auto knn = skd.knn(3, origin);
-      CHECK( knn.size() == 3 );
+      const size_t nnn = 10;    
+      REQUIRE(skd.points().size() >= nnn);
+
+      auto knn = skd.knn(nnn, origin);
+      CHECK( knn.size() == nnn );
   
       // Get the underlying scoped PC.
       const auto& spc = sv.pcs();
@@ -584,27 +587,27 @@ We will see some of this navigation below but lets first just exercise a k-d tre
           debug("knn point {} at distance {} from query is in local point cloud {} at index {}",
                 pt_ind, dist, maj_ind, min_ind);
           const Dataset& pc = spc[maj_ind];
-          for (const auto& name : scope.coords) {
-              debug("\t{} = {}", name, pc.get(name)->element<double>(min_ind));
+          const size_t ndim = scope.coords.size();
+          // Iterate over the point's dimensions and compare 
+          // what is in the PC and what is in the iterator.
+          for (size_t dim=0; dim<ndim; ++dim) {
+              std::string const& name = scope.coords[dim];
+              auto arr_from_pc = pc.get(name);
+              double ele_from_pc = arr_from_pc->element(min_ind);
+              double ele_from_it = pit->at(dim);
+              CHECK(ele_from_it == ele_from_pc);
+              debug("\t{} = {}", name, ele_from_pc);
           }
       }
   }
 #+end_src  
-Some of the logging output from this test would be like:
+Suppressing some of the logging output, one may see lines like:
 
 #+begin_example
-knn point 0 at distance 0 from query is in local point cloud 1 at index 37
-	x = 0
-	y = 0
-	z = 0
-knn point 1 at distance 0 from query is in local point cloud 0 at index 37
-	x = 0
-	y = 0
-	z = 0
-knn point 2 at distance 0 from query is in local point cloud 0 at index 36
-	x = 0
-	y = 0
-	z = 0
+ knn point 9 at distance 0.020000000000000004 from query is in local point cloud 0 at index 39
+ 	x = 0
+ 	y = 0.1
+ 	z = 0.1
 #+end_example
 
 This example shows a k-nn query over a scope for the three points nearest the given query point (~origin~).  It ends in a loop over the results.  Each result provides an iterator and a distance (from point to query point).  The iterator is over the ~disjoint_range~ that the k-d tree uses to hold a ~coordinate_range~ representation of each local point cloud.  We convert the iterator to a corresponding major and minor index.  We use the major index to locate the point cloud that provided the point.  The minor index is used to index arrays in the point cloud.  In this example, we merely access the same attributes that supplied the coordinates ("x", "y" and "z").  Had the point cloud provided additional arrays we could off course access their attributes with the minor index as well.
@@ -661,6 +664,53 @@ Very similarly, we may navigate from the k-d tree result iterator via the major 
 Notes:
 - scope is more restrictive than ~depth()~.  Misalignment between ~major_index~ and depth iterator will occur if the ~scope.pcname~ limits which point clouds are in scope
 
+
+* Helper functions
+
+A family of functions are provided to perform common calculations and operations on the data types described above.
+
+** Coordinate means
+
+Weighted and unweighted means can be produced.
+
+#+begin_src c++ :tangle doctest-pointtree-example.cxx
+  #include "WireCellUtil/Point.h"
+  TEST_CASE("point tree example point means")
+  {
+      Dataset pc({
+          {"q", Array({1.0, 2.0, 5.0})},
+          {"x", Array({1.0, 1.0, 1.0})},
+          {"y", Array({2.0, 1.0, 3.0})},
+          {"z", Array({1.0, 4.0, 1.0})}});
+      
+      auto xyz = pc.selection({"x","y","z"});
+      coordinate_range coords(xyz);
+
+      // Find the mean point as a Point type
+      Point mu;
+      mean_point(mu, coords);
+      debug("mean point: ({},{},{})", mu.x(), mu.y(), mu.z());
+      CHECK(mu.x() == 1.0);
+      CHECK(mu.y() == 2.0);
+      CHECK(mu.z() == 2.0);
+
+      // Find the weighted mean point as a std::vector type.  We must pre-size
+      // it.
+      std::vector<double> wmu(3);
+      mean_point(wmu, coords, pc.get("q")->elements());
+      debug("weighted mean point: ({},{},{})", wmu[0], wmu[1], wmu[2]);
+      CHECK(wmu[0] == 1.0);
+      CHECK(wmu[1] == 2.375);
+      CHECK(wmu[2] == 1.75);
+  }
+#+end_src  
+
+
+* To do :noexport:
+
+** Free functions
+- [ ] convert k-d result from iterator to indices
+- [X] compute weighted mean given selection and weights
 
 * File local variables                                     :noexport:
 

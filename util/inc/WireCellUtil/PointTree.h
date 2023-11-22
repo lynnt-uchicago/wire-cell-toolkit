@@ -207,18 +207,21 @@ namespace WireCell::PointCloud::Tree {
 
         const Scope& scope() const { return m_scope; }
 
+        // Access the scoped nodes.
         const nodes_t& nodes() const { return m_nodes; }
 
-        // Access the full point clouds in scope
+        // Access the scoped point cloud
         const pointclouds_t& pcs() const { return m_pcs; }
 
-        // Total number of points
+        // Total number of points across the scoped point cloud
         size_t npoints() const { return m_npoints; }
 
-        // Access the selected arrays
+        // Access scoped point cloud as colleciton of selections.
         const selections_t& selections() const { return m_selections; }
 
-        // Add a node in to our scope.
+      protected:
+        friend class Points;
+        // Add a node that has been added to the tree in our scope.
         virtual void append(node_t* node);
 
       private:

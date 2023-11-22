@@ -1,4 +1,4 @@
-/** Vector a 3-vector of double.
+/** Implement 3-vector arithmetic with std::vector store.
  *
  * See also WireCell::Point.
  */

@@ -328,6 +328,9 @@ namespace WireCell {
             //               n, ldist, major_->first, index_, std::distance(major_, major_end));
         }
     };
+
+    
+
 }
 
 #endif

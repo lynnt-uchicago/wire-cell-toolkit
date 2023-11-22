@@ -200,7 +200,7 @@ namespace WireCell::PointCloud {
         /** Return a constant span of flattened array data assuming
             data elements are of given type.
         */
-        template<typename ElementType>
+        template<typename ElementType=double>
         span_t<const ElementType> elements() const
         {
             if (sizeof(ElementType) != m_ele_size) {
@@ -210,7 +210,7 @@ namespace WireCell::PointCloud {
                 reinterpret_cast<const ElementType*>(m_bytes.data());
             return span_t<const ElementType>(edata, m_bytes.size()/sizeof(ElementType));
         }
-        template<typename ElementType>
+        template<typename ElementType=double>
         span_t<ElementType> elements() 
         {
             if (sizeof(ElementType) != m_ele_size) {
@@ -224,7 +224,7 @@ namespace WireCell::PointCloud {
         /** Return element at index as type, no bounds checking is
             done.
          */
-        template<typename ElementType>
+        template<typename ElementType=double>
         ElementType element(size_t index) const
         {
             const ElementType* edata = reinterpret_cast<const ElementType*>(m_bytes.data());
