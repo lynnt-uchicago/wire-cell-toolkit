@@ -11,6 +11,7 @@ using namespace WireCell;
 using namespace WireCell::PointTesting;
 using namespace WireCell::PointCloud;
 using namespace WireCell::PointCloud::Tree;
+// WireCell::PointCloud::Tree::scoped_pointcloud_t
 using spdlog::debug;
 
 using node_ptr = std::unique_ptr<Points::node_t>;
@@ -109,6 +110,7 @@ TEST_CASE("PointCloudFacade test")
     }
 
     // name, coords, [depth]
+    Scope scope{ "3d", {"x","y","z"}};
     auto const& s3d = rval.scoped_view({ "3d", {"x","y","z"}});
 
     auto const& pc3d = s3d.pcs();
@@ -136,6 +138,18 @@ TEST_CASE("PointCloudFacade test")
     }
     CHECK(knn.size() == 2);
 
+    const auto& all_points = kd.points();
+    for (size_t pt_ind = 0; pt_ind<knn.size(); ++pt_ind) {
+        auto& [pit,dist] = knn[pt_ind];
+        const size_t maj_ind = all_points.major_index(pit);
+        const size_t min_ind = all_points.minor_index(pit);
+        debug("knn point {} at distance {} from query is in local point cloud {} at index {}",
+              pt_ind, dist, maj_ind, min_ind);
+        const Dataset& pc = pc3d[maj_ind];
+        for (const auto& name : scope.coords) {
+            debug("\t{} = {}", name, pc.get(name)->element<double>(min_ind));
+        }
+    }
 
     auto rad = kd.radius(.01, some_point);
     for (auto [it,dist] : rad) {
