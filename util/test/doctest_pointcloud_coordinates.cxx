@@ -13,20 +13,65 @@ using spdlog::debug;
 using namespace WireCell;
 using namespace WireCell::PointCloud;
 
-TEST_CASE("point cloud coordinate iterator")
+// Test coordinate_array in mutable and const version
+template<typename DS>
+void test_ca(DS& ds)
 {
-    using point_type = coordinate_point<double>;
-    using cid = coordinate_iterator<point_type>;
-    Dataset::selection_t empty;
-    cid c1(&empty, 0);
-    cid c2 = c1;
-    cid c3(c2);
-    cid c4(std::move(c3));
-    c1 = c4;
-    c1 = std::move(c4);
+    auto sel = ds.selection({"x","y","z"});
+    coordinate_array ca(sel);
+
+    REQUIRE(ca.size() == 3);
+    for (size_t ind=0; ind<3; ++ind) {
+        REQUIRE(ca[ind].size() == 3);
+    }
+    {
+        const auto& p = ca[0];
+        CHECK(p[0] == 1.0);
+        CHECK(p[1] == 2.0);
+        CHECK(p[2] == 1.0);
+        CHECK(p.at(0) == 1.0);
+        CHECK(p.at(1) == 2.0);
+        CHECK(p.at(2) == 1.0);
+        auto pit = ca.begin() + 0;
+        CHECK(pit->at(0) == 1.0);
+        CHECK(pit->at(1) == 2.0);
+        CHECK(pit->at(2) == 1.0);
+    }
+    {
+        const auto& p = ca[1];
+        CHECK(p[0] == 1.0);
+        CHECK(p[1] == 1.0);
+        CHECK(p[2] == 4.0);
+        CHECK(p.at(0) == 1.0);
+        CHECK(p.at(1) == 1.0);
+        CHECK(p.at(2) == 4.0);
+        auto pit = ca.begin();
+        ++pit;
+        CHECK(pit->at(0) == 1.0);
+        CHECK(pit->at(1) == 1.0);
+        CHECK(pit->at(2) == 4.0);
+    }
+    {
+        const auto& p = ca[2];
+        CHECK(p[0] == 1.0);
+        CHECK(p[1] == 3.0);
+        CHECK(p[2] == 1.0);
+        CHECK(p.at(0) == 1.0);
+        CHECK(p.at(1) == 3.0);
+        CHECK(p.at(2) == 1.0);
+        auto pit = ca.end();
+        --pit;
+        CHECK(pit->at(0) == 1.0);
+        CHECK(pit->at(1) == 3.0);
+        CHECK(pit->at(2) == 1.0);
+    }
+    for (const auto& p : ca) {
+        debug("point cloud coordinate array: p=({},{},{})",
+              p[0], p[1], p[2]);
+    }
 }
 
-TEST_CASE("point cloud coordinate range")
+TEST_CASE("point cloud coordinate array")
 {
     Dataset ds({
             {"x", Array({1.0, 1.0, 1.0})},
@@ -34,109 +79,12 @@ TEST_CASE("point cloud coordinate range")
             {"z", Array({1.0, 4.0, 1.0})},
             {"one", Array({1  ,2  ,3  })},
             {"two", Array({1.1,2.2,3.3})}});
-    auto sel = ds.selection({"x","y","z"});
 
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
-
-    {
-        point_type cp(&sel, 0);
-        CHECK(cp[0] == 1.0);
-        CHECK(cp[1] == 2.0);
-        CHECK(cp[2] == 1.0);
-        point_type cp2(&sel,0);
-        CHECK(cp == cp2);
+    SUBCASE("mutable point index") {
+        test_ca(ds);
     }
-    {
-        point_type cp(&sel,1);
-        CHECK(cp[0] == 1.0);
-        CHECK(cp[1] == 1.0);
-        CHECK(cp[2] == 4.0);
-        point_type cp2(&sel, 0);
-        ++cp2.index();
-        CHECK(cp == cp2);
+    SUBCASE("const point index") {
+        test_ca<Dataset const>(ds);
     }
-
-    {
-        coords_type ccr(sel);
-        debug("coordinate_iterator is type {}", type(ccr.begin()));
-        debug("coordinate_iterator value is type {}", type(*ccr.begin()));
-
-        for (const auto& cp : ccr) {
-            CHECK(cp.size() == sel.size());
-        }
-
-        boost::sub_range<coords_type> sr(ccr);
-        for (const auto& cp : sr) {
-            CHECK(cp.size() == sel.size());
-        }
-
-    }
-    
-}
-
-TEST_CASE("point cloud coordinates")
-{
-    Dataset ds({
-            {"x", Array({1.0, 1.0, 1.0})},
-            {"y", Array({2.0, 1.0, 3.0})},
-            {"z", Array({1.0, 4.0, 1.0})},
-            {"one", Array({1  ,2  ,3  })},
-            {"two", Array({1.1,2.2,3.3})}});
-    auto sel = ds.selection({"x","y","z"});
-
-    debug("doctest_pointcloud_iterator: make iterators");
-    // both a container-like and an iterator
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
-
-    coords_type coords(sel);
-    CHECK(coords.size() == 3); 
-
-    auto beg = coords.begin();
-    auto end = coords.end();
-
-    CHECK(beg != end);
-
-    REQUIRE(std::distance(beg,end) == 3);
-    CHECK(std::distance(beg,beg) == 0);
-    CHECK(std::distance(end,end) == 0);
-
-    debug("doctest_pointcloud_iterator: copy iterator");
-    coords_type coords2 = coords;
-
-    CHECK(coords2.size() == 3); 
-
-    auto cit = coords.begin();
-    CHECK((*cit)[0] == 1.0);
-    CHECK((*cit)[1] == 2.0);
-    CHECK((*cit)[2] == 1.0);
-
-    ++cit;                        // column 2
-
-    CHECK((*cit)[0] == 1.0);
-    CHECK((*cit)[1] == 1.0);
-    CHECK((*cit)[2] == 4.0);
-
-    ++cit;                        // column 3
-
-    CHECK((*cit)[0] == 1.0);
-    CHECK((*cit)[1] == 3.0);
-    CHECK((*cit)[2] == 1.0);
-
-    ++cit;                        // end
-
-    CHECK (cit == end);
-
-    --cit;                      // back to column 3
-
-    CHECK((*cit)[0] == 1.0);
-    CHECK((*cit)[1] == 3.0);
-    CHECK((*cit)[2] == 1.0);
-
-    cit -= 2;                   // back to start
-    CHECK((*cit)[0] == 1.0);
-    CHECK((*cit)[1] == 2.0);
-    CHECK((*cit)[2] == 1.0);
 
 }

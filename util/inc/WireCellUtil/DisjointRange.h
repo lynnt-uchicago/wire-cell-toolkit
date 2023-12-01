@@ -1,12 +1,13 @@
 #ifndef WIRECELLUTIL_DISJOINTRANGE
 #define WIRECELLUTIL_DISJOINTRANGE
 
-// #include "WireCellUtil/Logging.h" // debugging
+#include "WireCellUtil/Logging.h" // debugging
 #include "WireCellUtil/Type.h"
 
 #include <boost/iterator/iterator_adaptor.hpp>
 #include <boost/range.hpp>
 #include <map>
+#include <vector>
 #include <stdexcept>
 
 namespace WireCell {
@@ -23,8 +24,10 @@ namespace WireCell {
           major and minor iterators.
      */
 
-    template<typename MajorIter, typename MinorIter, typename MinorValue>
+    template<typename DisjointRange, typename ElementType>
     class disjoint_cursor;
+
+    using disjoint_index = std::pair<size_t, size_t>;
 
     template<typename UserMinorRangeType>
     class disjoint_range {
@@ -33,63 +36,76 @@ namespace WireCell {
 
         // using minor_range = UserMinorRangeType;
         using minor_range = boost::sub_range<UserMinorRangeType>;
-        using minor_iterator = typename minor_range::iterator;
-        using const_minor_iterator = typename minor_range::const_iterator;
-        using value_type = typename minor_iterator::value_type;
-        using const_value_type = typename minor_iterator::value_type const;
+        using value_type = typename minor_range::value_type;
 
-        // We store ranges of minor iterators with a key giving the
-        // accumulated number of minor iterators prior to each item.
+        // We store minor ranges in vector form to allow fast major/minor indexing.
+        // using accum_minor = std::pair<size_t, minor_range>;
+        // using major_vec = std::vector<accum_minor>;
         using major_map = std::map<size_t, minor_range>;
-        using major_iterator = typename major_map::iterator;
-        using const_major_iterator = typename major_map::const_iterator;
+        using major_vec = std::vector<size_t>; // random-access map-keys.
 
         // The flattened iterator
-        using iterator = disjoint_cursor<major_iterator, minor_iterator, value_type>;
-        using const_iterator = disjoint_cursor<const_major_iterator, const_minor_iterator, const_value_type>;
-
+        using iterator = disjoint_cursor<self_type, value_type>;
+        using const_iterator = disjoint_cursor<self_type const, value_type const>;
 
         disjoint_range()
-            : last(accums.begin(), accums.end())
+            : last(this, {0,0})
         {
+            SPDLOG_TRACE("disjoint_range: ctor empty");
+        }
+        ~disjoint_range()
+        {
+            SPDLOG_TRACE("disjoint_range: dtor size {}", size());
         }
 
+        // construct with container-of-ranges type.
         template<typename Container>
         explicit disjoint_range(Container& con)
-            : last(accums.begin(), accums.end())
+            : last(this, {0,0})
         {
             fill(con);
+            SPDLOG_TRACE("disjoint_range: container ctor size {}", size());
         }
 
+        // construct with a single range
         template<typename RangeIter>
-        explicit disjoint_range(RangeIter beg, RangeIter end)
-            : last(accums.begin(), accums.end())
+        disjoint_range(RangeIter beg, RangeIter end)
+            : last(this, {0,0})
         {
             append(beg, end);
+            SPDLOG_TRACE("disjoint_range: iterator ctor size {}", size());
+        }
+
+
+        // Return the flat index coresponding to major/minor indices.
+        size_t flat_index(const disjoint_index& djind) const
+        {
+            const size_t acc = ind2acc[djind.first];
+            return acc + djind.second;
+            // return ranges[djind.first].first + djind.second;
         }
 
         iterator begin()
         {
-            if (accums.empty()) return end();
-            return iterator(accums.begin(), accums.end());
+            return iterator(this, {0,0});
         }
 
         iterator end()
         {
-            return iterator(accums.end(), accums.end(), size_);
+            return iterator(this, {ind2acc.size(), 0});
         }
 
         const_iterator begin() const
         {
-            if (accums.empty()) return end();
-            return const_iterator(accums.cbegin(), accums.cend());
+            return const_iterator(this, {0,0});
         }
 
         const_iterator end() const
         {
-            return const_iterator(accums.cend(), accums.cend(), size_);
+            return const_iterator(this, {ind2acc.size(),0});
         }
 
+        // Append each range in container of ranges.
         template<typename Container>
         void fill(Container& con) {
             for (auto& r : con) {
@@ -97,61 +113,63 @@ namespace WireCell {
             }
         }
 
+        // Append a range-like
         template<typename Range>
         void append(Range& r) {
             if (r.empty()) return;
-            accums[size_] = minor_range(r);
-            size_ += accums.rbegin()->second.size();
-            last = begin();
+            const size_t olds = size();
+            acc2mai.emplace(olds, minor_range(r));
+            ind2acc.push_back(olds);
+            // ranges.emplace_back(size(), minor_range(r));
         }
+
+        // Append an iteration over a range
         template<typename RangeIter>
         void append(RangeIter ribeg, RangeIter riend) {
-            if (ribeg == riend) return;
-            accums[size_] = minor_range(ribeg, riend);
-            size_ += accums.rbegin()->second.size();
-            last = begin();
+            if (ribeg == riend) {
+                return;
+            }
+            const size_t olds = size();
+            acc2mai.emplace(olds, minor_range(ribeg, riend));
+            ind2acc.push_back(olds);
+            // ranges.emplace_back(size(), minor_range(ribeg, riend));
         }
 
-        size_t size() const { return size_; }
-
-        // Return the index to the major range holding the iterator
-        size_t major_index(iterator it) const {
-            const_major_iterator beg = accums.begin();
-            const_major_iterator mit = it.major();
-            //return std::distance(accums.begin(), it.major());
-            return std::distance(beg, mit);
+        bool empty() const {
+            return ind2acc.empty();
         }
-        size_t major_index(const_iterator it) const {
-            const_major_iterator beg = accums.begin();
-            const_major_iterator mit = it.major();
-            //return std::distance(accums.begin(), it.major());
-            return std::distance(beg, mit);
+        size_t size() const {
+            if (ind2acc.empty()) return 0;
+            size_t ret = ind2acc.back();
+            ret += mai(ret).size();
+            return ret;
         }
-
-        // Return the minor range index to the iterator
-        size_t minor_index(iterator it) const {
-            return std::distance(it.major()->second.begin(), it.minor());
-        }
-        size_t minor_index(const_iterator it) const {
-            return std::distance(it.major()->second.begin(), it.minor());
+        size_t nminors() const {
+            return ind2acc.size();
         }
 
         void clear() {
-            accums.clear();
-            size_ = 0;
-            last = begin();
+            //ranges.clear();
+            acc2mai.clear();
+            ind2acc.clear();
         }
 
         const value_type& operator[](size_t ind) const {
-            const size_t rel = ind - last.index();
+            const size_t rel = ind - last.flat_index();
             last = last + rel;
             return *last;
         }
+
         value_type& operator[](size_t ind) {
-            const size_t rel = ind - last.index();
-            last = last + rel;
+            const size_t flat = last.flat_index();
+            if (ind == flat) {
+                value_type& ref = *last;
+                return ref;
+            }
+            last += ind - flat;
             return *last;
         }
+
         const value_type& at(size_t ind) const {
             if (ind < size()) {
                 return (*this)[ind];
@@ -165,38 +183,88 @@ namespace WireCell {
             throw std::out_of_range("index out of range");
         }
 
+        
+        const value_type& operator[](disjoint_index const& djind) const {
+            return mai(djind)[djind.second];
+        }
+        value_type& operator[](disjoint_index const& djind) {
+            return mai(djind)[djind.second];
+        }
+        const value_type& at(disjoint_index const& djind) const {
+            const auto& mr = mai(djind);
+            if (djind.second < mr.size()) {
+                return mr[djind.second];
+            }
+            throw std::out_of_range("index out of range");
+        }
+        value_type& at(disjoint_index const& djind) {
+            auto& mr = mai(djind);
+            if (djind.second < mr.size()) {
+                return mr[djind.second];
+            }
+            throw std::out_of_range("index out of range");
+        }
+
       private:
             
-        major_map accums;
-        size_t size_{0};
+        friend iterator;
+        friend const_iterator;
 
-        // cache to sometimes speed up random access
+        // fixme: once this all settles down, probably best to try to change
+        // major_vec to hold major_map::iterator to avoid the cost of many map
+        // lookups.
+        //
+        // Note, we put the minor range in the map to assure stable iterators
+        // over the history of filling.
+        major_map acc2mai{};
+        major_vec ind2acc{};
+
+        minor_range& mai(size_t acc) {
+            auto it = acc2mai.find(acc);
+            if (it == acc2mai.end()) {
+                throw std::out_of_range("accumulant out of range");
+            }
+            return it->second;        
+        }
+        const minor_range& mai(size_t acc) const {
+            auto it = acc2mai.find(acc);
+            if (it == acc2mai.end()) {
+                throw std::out_of_range("accumulant out of range");
+            }
+            return it->second;        
+        }
+        minor_range& mai(disjoint_index const& djind) {
+            return mai(ind2acc.at(djind.first));
+        }
+        const minor_range& mai(disjoint_index const& djind) const {
+            return mai(ind2acc.at(djind.first));
+        }
+
+        // Cache last random access by flat index to reduce number of major
+        // jumps to next random access by flat index.  
         mutable iterator last;  
     };
 
         
-    template <typename MajorIter, typename MinorIter, typename MinorValue>
+    template <typename DisjointRange, typename ElementValue>
     class disjoint_cursor
-        : public boost::iterator_facade<disjoint_cursor<MajorIter, MinorIter, MinorValue>
+        : public boost::iterator_facade<disjoint_cursor<DisjointRange, ElementValue>
                                         // value
-                                        , MinorValue
+                                        , ElementValue
                                         // cagegory
                                         , boost::random_access_traversal_tag
                                         // reference
-                                        , MinorValue&
+                                        , ElementValue&
                                         >
     {
       public:
 
-        using major_iterator = MajorIter;
-        using minor_iterator = MinorIter;
-
         // iterator facade types
         using base_type =
-            boost::iterator_facade<disjoint_cursor<MajorIter, MinorIter, MinorValue>
-                                   , MinorValue
+            boost::iterator_facade<disjoint_cursor<DisjointRange, ElementValue>
+                                   , ElementValue
                                    , boost::random_access_traversal_tag
-                                   , MinorValue&
+                                   , ElementValue&
                                    >;
         using difference_type = typename base_type::difference_type;
         using value_type = typename base_type::value_type;
@@ -204,133 +272,170 @@ namespace WireCell {
         using reference = typename base_type::reference;
 
       private:
-        major_iterator major_end;
-        major_iterator major_; // accum->minor_range
-        minor_iterator minor_;
-        size_t index_{0};    // into the flattened iteration
+        DisjointRange* dr;
+        // Major/minor index pair
+        disjoint_index djind{0,0};
 
       public:
 
-        // To create an "end" cursor, pass b==e and index==size.
-        // To create a "begin" cursor, pass b!=e and index==0.
-        disjoint_cursor(major_iterator b, major_iterator e, size_t index=0)
-            : major_end(e)
-            , index_(index)
-        {
-            major_ = b;
-            if (b == e) {
-                // never deref minor_ if major_ == end!
-                return;
-            }
-            minor_ = b->second.begin();
+        // An "end" iterator has major index equal to the major size of the
+        // disjoing range.  Otherwise the maj/mai indices should be valid.
+        disjoint_cursor(DisjointRange* dr, const disjoint_index& djind)
+            : dr(dr), djind(djind) {}
+
+        // copy ctor
+        template<typename OtherDisjointCursor>
+        disjoint_cursor(OtherDisjointCursor& o)
+            : dr(o.dr), djind(o.djind) { }
+
+        // assignment
+        template<typename OtherDisjointCursor>
+        disjoint_cursor& operator=(OtherDisjointCursor& o) {
+            dr = o.dr; djind = o.djind;
         }
 
-        major_iterator major() const { return major_; }
-        minor_iterator minor() const { return minor_; }
-        size_t index() const { return index_; }
+        disjoint_index index() const { return djind; }
+
+        // Number of points before the current minor range.
+        size_t accumulated() const {
+            //return dr->ranges[djind.first].first;
+            return dr->ind2acc[djind.first];
+        }
+
+        // The number of points in the current minor range.
+        size_t minor_size() const {
+            //return dr->ranges[djind.first].second.size();
+            return dr->mai(djind).size();
+        }
+
+        // The flat index of the element at which this iterator resides.
+        size_t flat_index() const
+        {
+            if (dr->empty()) return 0;
+            if (at_end()) {
+                // at end, ignore minor index
+                return dr->size();
+            }
+            return dr->flat_index(djind);
+        }
 
       private:
         friend class boost::iterator_core_access;
 
         bool equal(disjoint_cursor const& o) const {
-            return
-                // both are at end
-                (major_ == major_end && o.major_ == o.major_end)
-                or
-                // same cursor location
-                (major_ == o.major_ && minor_ == o.minor_);
+            return dr == o.dr && flat_index() == o.flat_index();
         }
 
         void increment() {
-            if (major_ == major_end) {
+            if (at_end()) {
                 throw std::out_of_range("increment beyond end");
             }
-            ++minor_;
-            if (minor_ == major_->second.end()) {
-                ++major_;
-                minor_ = major_->second.begin();
+            ++djind.second;
+            if (djind.second == minor_size()) {
+                ++djind.first;
+                djind.second = 0;
             }
-            ++index_;
         }
         void decrement() {
-            if (index_ == 0) {
+            if (djind.first == 0 && djind.second == 0) {
                 throw std::out_of_range("decrement beyond begin");
             }
 
-            // if sitting just off end of major
-            if (major_ == major_end) {
-                --major_;        // back off to end of last range
-                minor_ = major_->second.end();
+            if (at_end()) {
+                djind.second=0;                     // set up for next line
             }
 
-            if (minor_ == major_->second.begin()) {
-                --major_;        // back off to end of previous range
-                minor_ = major_->second.end();
+            // if sitting one into "the next" min range, back up to previous.
+            if (djind.second == 0) {
+                --djind.first;
+                djind.second = minor_size() - 1;
+                return;
             }
-            --minor_;
-            --index_;
+
+            // we are in the middle of a minor range
+            --djind.second;
         }
 
         difference_type distance_to(disjoint_cursor const& other) const
         {
-            return other.index_ - this->index_;
+            return other.flat_index() - this->flat_index();
         }
         
         reference dereference() const
         {
-            return *minor_;
+            return dr->at(djind);
         }
+
+
+        bool at_end() const { return djind.first == dr->nminors(); }
+        bool at_begin() const { return djind.first==0 && djind.second == 0; }
 
         void advance(difference_type n)
         {
-            if (n == 0) return;
-
-            // first, local distance from minor_ to current range begin
-            difference_type ldist = major_->first - index_; // negative
-            // spdlog::debug("hi: n={} ldist={} first={} index={} toend={}",
-            //               n, ldist, major_->first, index_, std::distance(major_, major_end));
-
-            // We are too high, back up.
-            while (n < ldist) {
-                const size_t old_index = index_;
-                --major_;
-                index_ = major_->first;
-                minor_ = major_->second.begin();
-                n += old_index - index_;
-                ldist = 0;
-                // spdlog::debug("hi: n={} ldist={} first={} index={} toend={}",
-                //               n, ldist, major_->first, index_, std::distance(major_, major_end));
+            if (n && dr->empty()) {
+                throw std::out_of_range("advance on empty range");
             }
 
-            // ldist is either still negative or zero.  next find
-            // distance from where we are to the end of the current
-            // range.
-            ldist = major_->second.size() + ldist;
-            // spdlog::debug("lo: n={} ldist={} first={} index={} toend={}",
-            //               n, ldist, major_->first, index_, std::distance(major_, major_end));
+            while (true) {      // state machine on n
 
-            // We are too low, go forward.
-            while (n >= ldist) {
-                const size_t old_index = index_;
-                ++major_;
-                index_ = major_->first;
-                minor_ = major_->second.begin();
-                ldist = major_->second.size();
-                n -= index_ - old_index;
-                // spdlog::debug("lo: n={} ldist={} first={} index={} toend={}",
-                //               n, ldist, major_->first, index_, std::distance(major_, major_end));
+
+                if (n < 0) { // decrementing.
+
+                    if (at_begin()) {
+                        throw std::out_of_range("decrement before begin");
+                    }
+                    
+                    // We are at end or at the start of a minor range.  Jump to
+                    // start of previous range.
+                    if ( at_end() || djind.second == 0) {
+                        --djind.first;
+                        djind.second = 0;
+                        n += minor_size(); // n becomes less negative
+                        continue;
+                    }
+
+                    // We are inside a minor range.
+
+                    // Our jump keeps us in our minor range.  Make last jump.
+                    if (-n <= djind.second) {
+                        djind.second += n;
+                        n = 0;
+                        continue;
+                    }
+
+                    // Need to jump before the start of current minor range.
+                    --djind.first;
+                    n += djind.second + minor_size(); // n becomes less negative
+                    djind.second = 0;
+                    continue;
+                }
+
+                if (n > 0) {    // incrementing
+
+                    if (at_end()) {
+                        throw std::out_of_range("advace beyond end");
+                    }
+
+                    const size_t n_left = minor_size() - djind.second;
+
+                    // Our jump keeps us in the minor range.  Make last jump.
+                    if (n < n_left) {
+                        djind.second += n;
+                        n = 0;
+                        continue;
+                    }
+
+                    // Need to jump beyond current minor range
+                    ++djind.first;
+                    djind.second = 0;
+                    n -= n_left;
+                    continue;
+                }
+
+                return;         // n == 0
             }
-
-            // just right
-            index_ += n;
-            minor_ += n;
-            // spdlog::debug("fi: n={} ldist={} first={} index={} toend={}",
-            //               n, ldist, major_->first, index_, std::distance(major_, major_end));
         }
     };
-
-    
-
 }
 
 #endif

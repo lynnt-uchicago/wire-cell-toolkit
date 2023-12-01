@@ -56,6 +56,10 @@ std::ostream& WireCell::PointCloud::Tree::operator<<(std::ostream& o, WireCell::
 //  Scoped
 //
 
+Tree::ScopedBase::~ScopedBase ()
+{
+}
+
 static void assure_arrays(const std::vector<std::string>& have, // ds keys
                           const Tree::Scope& scope)
 {
@@ -120,9 +124,18 @@ const Tree::ScopedBase* Tree::Points::get_scoped(const Scope& scope) const
     return it->second.get();
 }
 
+Tree::ScopedBase* Tree::Points::get_scoped(const Scope& scope) 
+{
+    auto it = m_scoped.find(scope);
+    if (it == m_scoped.end()) {
+        return nullptr;
+    }
+    return it->second.get();
+}
 
 
-void Tree::Points::init(const Scope& scope) const
+
+void WireCell::PointCloud::Tree::Points::init(const WireCell::PointCloud::Tree::Scope& scope) const
 {
     auto& sv = m_scoped[scope];
     for (auto& node : m_node->depth(scope.depth)) {

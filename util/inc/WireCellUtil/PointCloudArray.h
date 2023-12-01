@@ -225,9 +225,15 @@ namespace WireCell::PointCloud {
             done.
          */
         template<typename ElementType=double>
-        ElementType element(size_t index) const
+        const ElementType& element(size_t index) const
         {
             const ElementType* edata = reinterpret_cast<const ElementType*>(m_bytes.data());
+            return *(edata + index);
+        }
+        template<typename ElementType=double>
+        ElementType& element(size_t index) 
+        {
+            ElementType* edata = reinterpret_cast<ElementType*>(m_bytes.data());
             return *(edata + index);
         }
 

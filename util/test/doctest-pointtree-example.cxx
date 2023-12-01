@@ -10,6 +10,46 @@ using namespace WireCell::PointCloud::Tree; // for "Points"
 using namespace WireCell::PointTesting;     // make_janky_track()
 using namespace spdlog;                     // for debug() etc.
 
+  TEST_CASE("point tree example simple point cloud")
+  {
+      Dataset pc({
+          {"x", Array({1.0, 1.0, 1.0})},
+          {"y", Array({2.0, 1.0, 3.0})},
+          {"z", Array({1.0, 4.0, 1.0})}});
+      
+      // Each array is size 3 and thus the PC has that major axis size
+      CHECK( pc.size_major() == 3 );
+      
+      // Accessing a single element in the PC takes two steps:
+      // get the array by name, get the element by index.
+      auto arr = pc.get("x");
+      CHECK( arr );
+      
+      // We must supply a C++ type in order to extract a value.
+      CHECK( arr->element<double>(0) == 1.0 );
+
+    Dataset::selection_t sel = pc.selection({"x","y","z"});
+
+    // The selection must be the same size as the list of names.
+    CHECK( sel.size() == 3 );
+
+    // Get first array ("x") and the value at its index 0.
+    CHECK( sel[0]->element<double>(0) == 1.0 );
+
+      // Defaults to point elements of type double
+      coordinate_array ca(sel);
+      CHECK( ca.ndims() == sel.size() );
+  
+      // Iterate over the selection, point by point.
+      size_t count = 0;
+      for (const auto& cpt : ca) {
+          // Each cpt is a "column" down the rows of selected arrays.
+          CHECK( cpt.size() == sel.size() );
+          CHECK( cpt[0] == sel[0]->element(count) );
+          ++count;
+      }
+  }
+
 using node_ptr = std::unique_ptr<Points::node_t>;
 
   TEST_CASE("point tree example nodeless points")
@@ -223,25 +263,32 @@ TEST_CASE("point tree example simple tree operations")
           sels.push_back(pc.selection({"x","y","z"}));
       }
       // Then we wrap them as coordinate points.
-      using point_type = coordinate_point<double>;
-      using point_range = coordinate_range<point_type>;
-      std::vector<point_range> prs;
+      using point_array = coordinate_array<double>;
+      std::vector<point_array> pas;
       for (auto& sel : sels) {
-          prs.push_back(point_range(sel));
+          pas.emplace_back(sel);
       }
       // Finally we join them together as a disjoint range
-      using points_t = disjoint_range<point_range>;
+      using points_t = disjoint_range<point_array>;
+      using point_type = points_t::value_type;
+  
       points_t points;
-      for (auto& pr : prs) {
-          points.append(pr.begin(), pr.end());
+      for (auto& pa : pas) {
+          points.append(pa);
       }
   
       // Finally, we can perform a simple iteration
       // as if we had a single contiguous selection.
       CHECK( points.size() == npoints );
   
-      for (auto& pt : points) {
+      for (points_t::iterator pit = points.begin();
+          pit != points.end(); ++pit) {
+          point_type& pt = *pit;
           CHECK( pt.size() == 3);
+          for (size_t dim=0; dim<3; ++dim) {
+              debug("pt[{}][{}]={}", std::distance(points.begin(), pit),
+                    dim, pt.at(dim));
+          }
       }
   
       // We know the scoped PC has two local PCs.
@@ -254,16 +301,33 @@ TEST_CASE("point tree example simple tree operations")
   
       // Iterators to points inside the flat disjoint_range.  
       // Eg, as we will see returned later from a k-d tree query.
-      points_t::iterator mit0 = beg + in0;
-      points_t::iterator mit1 = beg + in1;
+      points_t::iterator pit0 = beg + in0;
+      CHECK( pit0 == beg + in0 );
+      points_t::iterator pit1 = beg + in1;
+      CHECK( pit0 != pit1 );
+  
+      for (size_t dim=0; dim<3; ++dim) {
+          debug("dim={}: {} {}", dim, pit0->at(dim), pit1->at(dim));
+      }
   
       // Full circle, find that these points are provided 
       // by the first and second major range.
-      size_t maj0 = points.major_index(mit0);
-      size_t maj1 = points.major_index(mit1);
+      const auto djind0 = pit0.index();
+      const auto djind1 = pit1.index();
   
-      CHECK( 0 == maj0 );
-      CHECK( 1 == maj1 );
+      CHECK( 0 == djind0.first );
+      CHECK( 1 == djind1.first );
+  
+      // Can also use major/minor indices to get elements
+      // with checked and unchecked lookups.
+      {
+          auto& qt0 = points.at(djind0);
+          auto& qt1 = points.at(djind1);
+          for (size_t dim=0; dim<3; ++dim) {
+              CHECK( pit0->at(dim) == qt0.at(dim) );
+              CHECK( pit1->at(dim) == qt1.at(dim) );
+          }
+      }
   }
 
   TEST_CASE("point tree example scoped k-d tree")
@@ -293,8 +357,7 @@ TEST_CASE("point tree example simple tree operations")
       for (size_t pt_ind = 0; pt_ind<knn.size(); ++pt_ind) {
           auto& [pit,dist] = knn[pt_ind];
   
-          const size_t maj_ind = skd.major_index(pit);
-          const size_t min_ind = skd.minor_index(pit);
+          const auto [maj_ind,min_ind] = pit.index();
           debug("knn point {} at distance {} from query is in local point cloud {} at index {}",
                 pt_ind, dist, maj_ind, min_ind);
           const Dataset& pc = spc[maj_ind];
@@ -347,11 +410,11 @@ TEST_CASE("point tree example simple tree operations")
           auto& [pit,dist] = knn[pt_ind];
   
           // This time use major index to get node.
-          const size_t maj_ind = skd.major_index(pit);
-          const auto* node = snodes[maj_ind];
+          const auto djind = pit.index();
+          const auto* node = snodes[djind.first];
   
           debug("knn point {} at distance {} from query at node {} with {} children",
-                pt_ind, dist, maj_ind, node->children().size());
+                pt_ind, dist, djind.first, node->children().size());
       }
   }
 

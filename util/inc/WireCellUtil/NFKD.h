@@ -64,14 +64,14 @@ namespace WireCell::NFKD {
         // We track appended point ranges in a disjoint_range.
         using points_t = disjoint_range<PointRange>;
 
+        // The iterator value type is what we accept as a point for
+        // k-d tree queries.
+        using point_type = typename points_t::value_type;
+
         // k-d tree queries will be in terms of iterators into that
         // disjoint range.
         using iterator = typename points_t::iterator;
         using const_iterator = typename points_t::const_iterator;
-
-        // The iterator value type is what we accept as a point for
-        // k-d tree queries.
-        using point_type = typename iterator::value_type;
 
         // The scalar numeric type for the coordinates of a point.
         using element_type = typename point_type::value_type;
@@ -119,19 +119,6 @@ namespace WireCell::NFKD {
         points_t& points() { return m_points; }
         const points_t& points() const { return m_points; }
 
-        size_t major_index(iterator it) const {
-            return m_points.major_index(it);
-        }
-        size_t major_index(const_iterator it) const {
-            return m_points.major_index(it);
-        }
-        size_t minor_index(iterator it) const {
-            return m_points.minor_index(it);
-        }
-        size_t minor_index(const_iterator it) const {
-            return m_points.minor_index(it);
-        }
-
         // Return the number calls made so far to resolve a point
         // coordinate.  Mostly for debugging/perfing.
         size_t point_calls() const {
@@ -148,9 +135,12 @@ namespace WireCell::NFKD {
             this->addn<index_type>(oldsize, adding);
         }
         template<typename Range>
-        void append(Range r)
+        void append(Range& r)
         {
-            append(r.begin(), r.end());
+            const size_t oldsize = m_points.size();
+            const size_t adding = r.size(); // std::distance(beg, end);
+            m_points.append(r);
+            this->addn<index_type>(oldsize, adding);
         }
 
         template<typename VectorLike>
@@ -223,7 +213,17 @@ namespace WireCell::NFKD {
 
         // nanoflann dataset adaptor API.
         inline size_t kdtree_get_point_count() const {
-            // spdlog::debug("NFKD: {} kdtree_get_point_count size={}", (void*)this, m_points.size());
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_TRACE 
+            const size_t psiz = m_points.size();
+            SPDLOG_TRACE("NFKD: {} kdtree_get_point_count size={}", (void*)this, psiz);
+            for (size_t ind=0; ind < psiz; ++ind) {
+                const auto& pt = m_points.at(ind);
+                const size_t ndim = pt.size();
+                for (size_t dim=0; dim<ndim; ++dim) {
+                    SPDLOG_TRACE("NFKD:\t[{},{}] = {}", ind, dim, pt.at(dim));
+                }
+            }
+#endif            
             return m_points.size();
         }
         template <class BBOX>
@@ -231,11 +231,12 @@ namespace WireCell::NFKD {
 
         // unwantedly, nanoflan deals in indices
         inline element_type kdtree_get_pt(size_t idx, size_t dim) const {
-            // spdlog::debug("NFKD: {} getting pt({}/{},{})", (void*)this, idx,m_points.size(),dim);
-            const auto& pt = m_points.at(idx);
+            SPDLOG_TRACE("NFKD: {} getting pt({}/{},{})", (void*)this, idx,m_points.size(),dim);
+            const point_type& pt = m_points.at(idx);
+            SPDLOG_TRACE("NFKD: get pt=({},{},{})", pt[0], pt[1], pt[2]);
             const element_type val = pt.at(dim);
             ++m_point_calls;
-            // spdlog::debug("NFKD: get pt({}/{},{})={}", idx,m_points.size(),dim,val);
+            SPDLOG_TRACE("NFKD: get pt({}/{},{})={}", idx,m_points.size(),dim,val);
             return val;
         }
 
@@ -257,7 +258,6 @@ namespace WireCell::NFKD {
         template <class T, std::enable_if_t<has_addpoints<T>::value>* = nullptr>
         void addn(size_t beg, size_t n) {
             if (n) {
-                // spdlog::debug("NFKD: {} addn({},+{})", (void*)this, beg, n);
                 this->m_index.addPoints(beg, beg+n-1);
             }
         }
