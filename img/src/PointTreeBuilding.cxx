@@ -1,4 +1,5 @@
 #include "WireCellImg/PointTreeBuilding.h"
+#include "WireCellImg/Projection2D.h"
 #include "WireCellUtil/PointTree.h"
 #include "WireCellUtil/GraphTools.h"
 #include "WireCellUtil/NamedFactory.h"
@@ -15,6 +16,7 @@ WIRECELL_FACTORY(PointTreeBuilding, WireCell::Img::PointTreeBuilding,
 using namespace WireCell;
 using namespace WireCell::GraphTools;
 using namespace WireCell::Img;
+using WireCell::Img::Projection2D::get_geom_clusters;
 using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
 using namespace WireCell::PointCloud::Tree;
@@ -60,6 +62,47 @@ WireCell::Configuration PointTreeBuilding::default_configuration() const
     return cfg;
 }
 
+namespace {
+
+    std::string dump_ds(const WireCell::PointCloud::Dataset& ds) {
+        std::stringstream ss;
+        for (const auto& key : ds.keys()) {;
+            const auto& arr = ds.get(key);
+            ss << " {" << key << ":" << arr->dtype() << ":" << arr->shape()[0] << "} ";
+            // const auto& arr = ds.get(key)->elements<float>();
+            // for(auto elem : arr) {
+            //     ss << elem << " ";
+            // }
+        }
+        return ss.str();
+    }
+    // dump a NaryTree node
+    std::string dump_node(const WireCell::PointCloud::Tree::Points::node_t* node)
+    {
+        std::stringstream ss;
+        ss << "node: " << node;
+        if (node) {
+            const auto& lpcs = node->value.local_pcs();
+            ss << " with " << lpcs.size() << " local pcs";
+            for (const auto& [name, pc] : lpcs) {
+                ss << " " << name << ": " << dump_ds(pc);
+            }
+        } else {
+            ss << " null";
+        }
+        return ss.str();
+    }
+    // dump childs of a NaryTree node
+    std::string dump_children(const WireCell::PointCloud::Tree::Points::node_t* root)
+    {
+        std::stringstream ss;
+        ss << "NaryTree: " << root->children().size() << " children";
+        const Points::node_ptr& first = root->children().front();
+        ss << dump_node(first.get());
+        return ss.str();
+    }
+}
+
 bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer& tensorset)
 {
     tensorset = nullptr;
@@ -72,20 +115,30 @@ bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer
     const auto& gr = icluster->graph();
     log->debug("load cluster {} at call={}: {}", icluster->ident(), m_count, dumps(gr));
 
+    auto clusters = get_geom_clusters(gr);
+    log->debug("got {} clusters", clusters.size());
     size_t nblobs = 0;
     Points::node_ptr root = std::make_unique<Points::node_t>();
-    for (const auto& vdesc : mir(boost::vertices(gr))) {
-        const char code = gr[vdesc].code();
-        if (code != 'b') {
-            continue;
+    for (auto& [cluster_id, vdescs] : clusters) {
+        auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
+        for (const auto& vdesc : vdescs) {
+            const char code = gr[vdesc].code();
+            if (code != 'b') {
+                continue;
+            }
+            auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
+            named_pointclouds_t pcs;
+            for (auto& [name, sampler] : m_samplers) {
+                /// TODO: use nblobs or iblob->ident()?
+                pcs.emplace(name, sampler->sample_blob(iblob, nblobs));
+            }
+            cnode->insert(Points(pcs));
+            log->debug("pcs {} cnode {}", pcs.size(), dump_children(cnode));
+            for (const auto& [name, pc] : pcs) {
+                log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
+            }
+            ++nblobs;
         }
-        auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
-        named_pointclouds_t pcs;
-        for (auto& [name, sampler] : m_samplers) {
-            pcs.emplace(name, sampler->sample_blob(iblob, nblobs));
-        }
-        root->insert(Points(pcs));
-        ++nblobs;
     }
 
     const int ident = icluster->ident();
