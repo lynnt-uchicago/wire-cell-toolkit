@@ -80,7 +80,7 @@ function (anode, ts, prefix="dnnroi", output_scale=1.0)
 
     local retagger = pg.pnode({
       type: 'Retagger',
-      name: 'dnnroi',
+      name: 'dnnroi%d' % apaid,
       data: {
         // Note: retagger keeps tag_rules an array to be like frame fanin/fanout.
         tag_rules: [{
