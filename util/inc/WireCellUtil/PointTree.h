@@ -125,6 +125,8 @@ namespace WireCell::PointCloud::Tree {
         /// invalidated if any existing node is removed from the scope.
         template<typename ElementType=double>
         const ScopedView<ElementType>& scoped_view(const Scope& scope) const;
+        template<typename ElementType=double>
+        ScopedView<ElementType>& scoped_view(const Scope& scope);
 
         // Receive notification from n-ary tree to learn of our node.
         virtual void on_construct(node_t* node);
@@ -154,6 +156,7 @@ namespace WireCell::PointCloud::Tree {
 
         void init(const Scope& scope) const;
         const ScopedBase* get_scoped(const Scope& scope) const;
+        ScopedBase* get_scoped(const Scope& scope);
         
       public:
         
@@ -166,6 +169,23 @@ namespace WireCell::PointCloud::Tree {
         auto const* sbptr = get_scoped(scope);
         if (sbptr) {
             auto const* svptr = dynamic_cast<const SV*>(sbptr);
+            if (svptr) {
+                return *svptr;
+            }
+        }
+        auto uptr = std::make_unique<SV>(scope);
+        auto& sv = *uptr;
+        m_scoped[scope] = std::move(uptr);
+        init(scope);
+        return sv;
+    }
+    template<typename ElementType>
+    ScopedView<ElementType>& Points::scoped_view(const Scope& scope) 
+    {
+        using SV = ScopedView<ElementType>;
+        auto * sbptr = get_scoped(scope);
+        if (sbptr) {
+            auto * svptr = dynamic_cast<SV*>(sbptr);
             if (svptr) {
                 return *svptr;
             }
@@ -203,22 +223,25 @@ namespace WireCell::PointCloud::Tree {
         using selections_t = std::vector<unique_selection_t>;
 
         explicit ScopedBase(const Scope& scope) : m_scope(scope) {}
-        virtual ~ScopedBase() {}
+        virtual ~ScopedBase();
 
         const Scope& scope() const { return m_scope; }
 
+        // Access the scoped nodes.
         const nodes_t& nodes() const { return m_nodes; }
 
-        // Access the full point clouds in scope
+        // Access the scoped point cloud
         const pointclouds_t& pcs() const { return m_pcs; }
 
-        // Total number of points
+        // Total number of points across the scoped point cloud
         size_t npoints() const { return m_npoints; }
 
-        // Access the selected arrays
+        // Access scoped point cloud as colleciton of selections.
         const selections_t& selections() const { return m_selections; }
 
-        // Add a node in to our scope.
+      protected:
+        friend class Points;
+        // Add a node that has been added to the tree in our scope.
         virtual void append(node_t* node);
 
       private:
@@ -237,21 +260,21 @@ namespace WireCell::PointCloud::Tree {
     class ScopedView : public ScopedBase {
       public:
         
-        // The point type giving a vector-like object that spans elements of a
-        // common index "down" the rows of arrays.
-        using point_type = coordinate_point<ElementType>;
+        // Transpose of one selection.
+        using point_array = coordinate_array<ElementType>;
 
-        // Iterate over the selection to yield a point_type.
-        using point_range = coordinate_range<point_type>;
+        // The type of a point "column vector" of the selection.
+        using point_type = typename point_array::value_type;
 
         // The underlying type of kdtree.
-        using nfkd_t = NFKD::Tree<point_range>; // dynamic index        
+        using nfkd_t = NFKD::Tree<point_array>; // dynamic index        
 
         explicit ScopedView(const Scope& scope)
             : ScopedBase(scope)
             , m_nfkd(std::make_unique<nfkd_t>(scope.coords.size()))
         {
         }
+        virtual ~ScopedView() {}
 
         // Access the kdtree.
         const nfkd_t& kd() const {
@@ -261,22 +284,40 @@ namespace WireCell::PointCloud::Tree {
             m_nfkd = std::make_unique<nfkd_t>(s.coords.size());
 
             for (auto& sel : selections()) {
-                m_nfkd->append(point_range(*sel));
+                append(*sel);
+            }
+            return *m_nfkd;
+        }
+        nfkd_t& kd() {
+            if (m_nfkd) { return *m_nfkd; }
+
+            const auto& s = scope();
+            m_nfkd = std::make_unique<nfkd_t>(s.coords.size());
+
+            for (auto& sel : selections()) {
+                append(*sel);
             }
             return *m_nfkd;
         }
 
+
         // Override and update k-d tree if we've made it.
         virtual void append(node_t* node) {
             this->ScopedBase::append(node);
+            append(*m_selections.back());
+        }
+
+        virtual void append(selection_t& sel) const {
+            auto got = m_pas.emplace(m_pas.size(), sel);
             if (m_nfkd) {
-                m_nfkd->append(point_range(*m_selections.back()));
+                m_nfkd->append(got.first->second);
             }
         }
 
       private:
 
         mutable std::unique_ptr<nfkd_t> m_nfkd;
+        mutable std::map<size_t, point_array> m_pas;
     };
 
 

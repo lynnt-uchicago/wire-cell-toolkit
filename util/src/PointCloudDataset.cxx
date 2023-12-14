@@ -91,9 +91,21 @@ void Dataset::add(const std::string& name, Array&& arr)
     raise<ValueError>("array named \"%s\" already exists", name);
 }
 
-Dataset::selection_t Dataset::selection(const name_list_t& names) const
+Dataset::selection_t Dataset::selection(const name_list_t& names) 
 {
     selection_t ret;
+    for (const auto& name : names) {
+        auto it = m_store.find(name);
+        if (it == m_store.end()) {
+            return selection_t();
+        }
+        ret.push_back(it->second);
+    }
+    return ret;
+}
+Dataset::const_selection_t Dataset::selection(const name_list_t& names) const
+{
+    const_selection_t ret;
     for (const auto& name : names) {
         auto it = m_store.find(name);
         if (it == m_store.end()) {

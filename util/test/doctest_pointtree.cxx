@@ -101,7 +101,7 @@ TEST_CASE("point tree with points")
     debug("got simple tree");
     CHECK(root.get());
 
-    auto& rval = root->value;
+    Points& rval = root->value;
 
     CHECK(root->children().size() == 2);
     CHECK(root.get() == rval.node());
@@ -133,17 +133,24 @@ TEST_CASE("point tree with points")
     CHECK(pc3d.size() == 2);
 
     debug("request k-d tree at scope = {}", scope);
-    auto& kd = rval.scoped_view(scope).kd();
+    ScopedView<double>& sview = rval.scoped_view(scope);
+    ScopedView<double>::nfkd_t& kd = sview.kd();
     debug("got scoped k-d tree at scope = {} at {}", scope, (void*)&kd);
+
+    using points_type = coordinate_array<double>::value_type;
 
     std::vector<double> origin = {0,0,0};
     {
-        auto& pts = kd.points();
+        ScopedView<double>::nfkd_t::points_t& pts = kd.points();
         size_t npts = pts.size();
         debug("kd has {} points", npts);
         {
+            for (auto pit=pts.begin(); pit!=pts.end(); ++pit) {
+                CHECK(pit->size() == 3);
+            }
+
             size_t count = 0;
-            for (auto& pt : pts) {
+            for (const points_type& pt : pts) {
                 REQUIRE(count < npts);
                 ++count;
                 CHECK(pt.size() == 3);

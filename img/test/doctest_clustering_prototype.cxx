@@ -134,11 +134,11 @@ TEST_CASE("test PointTree API")
     const auto& kd = s3d.kd();
 
     /// QUESTION: how to get it -> node?
-    /// bv: get the "major index" of the iterator and use that to index in whatever "node like" container
-    ///     auto pts = kd.points();
-    ///     size_t ind = pts.major_index(it);
-    ///     auto& thing = vector_of_node_like_things[ind];
-    /// see doctest-pointtree-example for details.
+    ///
+    /// bv: call "index()" on the disjoint range iterator.  This returns a
+    /// pair<size_t,size_t> holding major/minor indices into the disjoint range.
+    /// You can use that pair to access elements in other disjoint ranges.  See
+    /// doctest-pointtree-example for details.
 
     std::vector<double> some_point = {1, 0, 0};
     auto knn = kd.knn(2, some_point);
@@ -149,11 +149,9 @@ TEST_CASE("test PointTree API")
     }
     CHECK(knn.size() == 2);
 
-    const auto& all_points = kd.points();
     for (size_t pt_ind = 0; pt_ind<knn.size(); ++pt_ind) {
         auto& [pit,dist] = knn[pt_ind];
-        const size_t maj_ind = all_points.major_index(pit);
-        const size_t min_ind = all_points.minor_index(pit);
+        const auto [maj_ind,min_ind] = pit.index();
         debug("knn point {} at distance {} from query is in local point cloud {} at index {}",
               pt_ind, dist, maj_ind, min_ind);
         const Dataset& pc = pc3d[maj_ind];
