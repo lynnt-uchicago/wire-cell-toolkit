@@ -42,6 +42,8 @@ void TensorFileSink::configure(const WireCell::Configuration& cfg)
     m_prefix = get<std::string>(cfg, "prefix", m_prefix);
     log->debug("sink through {} filters to {} with prefix \"{}\"",
                m_out.size(), m_outname, m_prefix);
+    m_dump_mode = get<bool>(cfg, "dump_mode", m_dump_mode);
+    log->debug("dump_mode={}", m_dump_mode);
 }
 
 void TensorFileSink::finalize()
@@ -79,6 +81,12 @@ bool TensorFileSink::operator()(const ITensorSet::pointer &in)
 {
     if (!in) {             // EOS
         log->debug("see EOS at call={}", m_count++);
+        return true;
+    }
+
+    if(m_dump_mode) {
+        log->debug("dumping tensor set ident={} at call {}",
+                   in->ident(), m_count);
         return true;
     }
 

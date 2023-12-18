@@ -77,6 +77,9 @@ namespace WireCell::Sio {
         */
         std::string m_prefix{""};
 
+        // if true, disable writing to file which makes it faster to debug
+        bool m_dump_mode{false};
+
       private:
         
         using ostream_t = boost::iostreams::filtering_ostream;
