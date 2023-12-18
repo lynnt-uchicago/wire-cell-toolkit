@@ -19,7 +19,7 @@ WireCell::PointCloud::Point Cluster::calc_ave_pos(const Point& origin, const dou
     std::set<size_t> maj_inds;
     for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
         auto& [pit,dist] = rad[pt_ind];
-        const size_t maj_ind = skd.major_index(pit);
+        const auto [maj_ind,min_ind] = pit.index();
         maj_inds.insert(maj_ind);
     }
     debug("maj_inds.size() {} ", maj_inds.size());
