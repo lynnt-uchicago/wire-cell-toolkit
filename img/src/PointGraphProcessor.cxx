@@ -49,6 +49,7 @@ bool PointGraphProcessor::operator()(const input_pointer& ints, output_pointer& 
     }
 
     const auto& tens = *ints->tensors();
+    const auto& located = index_datapaths(tens);
     const auto pcgs = match_at(tens, m_inpath);
     if (pcgs.size() != 1) {
         outts = std::make_shared<SimpleTensorSet>(ints->ident());
@@ -68,7 +69,7 @@ bool PointGraphProcessor::operator()(const input_pointer& ints, output_pointer& 
         pg = as_pointgraph(tens, datapath);
     }
     else if (datatype == "pcdataset") {
-        auto nodes = as_dataset(tens, datapath);
+        auto nodes = as_dataset(tens, datapath, located);
         pg = PointGraph(nodes);
     }
     else {

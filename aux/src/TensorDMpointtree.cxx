@@ -1,6 +1,7 @@
 #include "WireCellAux/TensorDMpointtree.h"
 #include "WireCellAux/TensorDMcommon.h"
 #include "WireCellAux/SimpleTensor.h"
+#include <iostream>
 
 
 using namespace WireCell;
@@ -8,17 +9,17 @@ using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
 
 WireCell::Aux::TensorDM::named_pointclouds_t
-WireCell::Aux::TensorDM::as_pcnamedset(const ITensor::vector& tens, const std::string& datapath)
+WireCell::Aux::TensorDM::as_pcnamedset(const ITensor::vector& tens, const std::string& datapath, const located_t& located)
 {
     named_pointclouds_t ret;
-    auto top = top_tensor(tens, "pcnamedset", datapath);
+    auto top = top_tensor(tens, "pcnamedset", datapath, located);
 
     const auto& md = top->metadata();
     auto items = md["items"];
     for (const auto& name : items.getMemberNames()) {
         const auto path = items[name].asString();
 
-        auto ds = as_dataset(tens, path);
+        auto ds = as_dataset(tens, path, located);
         ret.emplace(name, ds);
     }
     return ret;
@@ -74,17 +75,17 @@ WireCell::Aux::TensorDM::as_pctree(const ITensor::vector& tens,
 
     std::unordered_map<std::string, Points::node_t*> nodes_by_datapath;
     Points::node_t::owned_ptr root;
-
+    const auto& located = index_datapaths(tens);
     std::function<void(const std::string& dpath)> dochildren;
     dochildren = [&](const std::string& dpath) -> void {
 
 
-        auto top = top_tensor(tens, "pctreenode", dpath);
+        auto top = top_tensor(tens, "pctreenode", dpath, located);
         auto const& md = top->metadata();        
 
         named_pointclouds_t pcns;
-        if (! md["pointclouds"] ) {
-            pcns = as_pcnamedset(tens, md["pointclouds"].asString());
+        if (! md["pointclouds"].asString().empty() ) {
+            pcns = as_pcnamedset(tens, md["pointclouds"].asString(), located);
         }
 
         std::string ppath = md["parent"].asString();

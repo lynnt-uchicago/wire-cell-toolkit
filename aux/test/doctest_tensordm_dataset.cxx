@@ -235,7 +235,8 @@ TEST_CASE("tensordm dataset dataset roundtrip")
     // back to dataset
 
     bool share = false;
-    Dataset d2 = TensorDM::as_dataset(itsp, datapath, share);
+    const auto& located = TensorDM::index_datapaths(itenvec);
+    Dataset d2 = TensorDM::as_dataset(itsp, datapath, located, share);
 
     CHECK(d2.size_major() == 3);
 

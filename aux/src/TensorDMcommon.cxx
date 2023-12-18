@@ -20,19 +20,21 @@ ITensor::pointer WireCell::Aux::TensorDM::make_metadata_tensor(
 ITensor::pointer
 WireCell::Aux::TensorDM::top_tensor(const ITensor::vector& tens,
                                     const std::string& datatype,
-                                    const std::string& datapath)
+                                    const std::string& datapath,
+                                    const located_t& located)
 {
-    for (const auto& iten : tens) {
-        const auto& tenmd = iten->metadata();
-        const auto dtype = tenmd["datatype"].asString();
-        const auto dpath = tenmd["datapath"].asString();
-        if (dtype == datatype and (datapath.empty() or datapath == dpath)) {
-            return iten;
-        }
+    const auto it = located.find(datapath);
+    if (it == located.end()) {
+        raise<ValueError>("no array at datapath \"%s\"", datapath);
     }
-    raise<ValueError>("no array of datatype \"%s\" at datapath \"%s\"",
-                      datatype, datapath);
-    return nullptr;
+    const auto& iten = it->second;
+    const auto& tenmd = iten->metadata();
+    const auto dtype = tenmd["datatype"].asString();
+    if (dtype != datatype) {
+        raise<ValueError>("array at datapath \"%s\" is of datatype \"%s\" not \"%s\"",
+                          datapath, dtype, datatype);
+    }
+    return iten;
 }
 
 //     /** Return a map from datapath to tensor.

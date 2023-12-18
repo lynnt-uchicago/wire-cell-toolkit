@@ -13,31 +13,16 @@ WireCell::PointGraph
 WireCell::Aux::TensorDM::as_pointgraph(const ITensor::vector& tens,
                                        const std::string& datapath)
 {
-    std::unordered_map<std::string, ITensor::pointer> located;
-    ITensor::pointer top = nullptr;
-    for (const auto& iten : tens) {
-        const auto& tenmd = iten->metadata();
-        const auto dtype = tenmd["datatype"].asString();
-        const auto dpath = tenmd["datapath"].asString();
-        if (!top and dtype == "pcgraph") {
-            if (datapath.empty() or datapath == dpath) {
-                top = iten;
-            }
-            continue;
-        }
-        if (dtype == "pcdataset") {
-            located[dpath] = iten;
-        }
-        continue;
-    }
+    const auto& located = index_datapaths(tens);
+    ITensor::pointer top = top_tensor(tens, "pcgraph", datapath, located);
 
     if (!top) {
         THROW(ValueError() << errmsg{"no array of datatype \"pcgraph\" at datapath \"" + datapath + "\"" });
     }
 
     const auto& topmd = top->metadata();
-    auto nodes = as_dataset(tens, topmd["nodes"].asString());
-    auto edges = as_dataset(tens, topmd["edges"].asString());
+    auto nodes = as_dataset(tens, topmd["nodes"].asString(), located);
+    auto edges = as_dataset(tens, topmd["edges"].asString(), located);
     return PointGraph(nodes, edges);
 }
 
