@@ -10,6 +10,11 @@
 
 namespace WireCell::Aux::TensorDM {
 
+    using located_t = std::unordered_map<std::string, ITensor::pointer>;
+
+    /// Index the tensors by their datapaths.
+    located_t index_datapaths(const ITensor::vector& tens);
+
     /** Build metadata-only (array-less) tensor in the DM.
      */
     ITensor::pointer make_metadata_tensor(const std::string& datatype,
@@ -24,7 +29,8 @@ namespace WireCell::Aux::TensorDM {
      */
     ITensor::pointer top_tensor(const ITensor::vector& tens,
                                 const std::string& datatype,
-                                const std::string& datapath="");
+                                const std::string& datapath="",
+                                const located_t& located = {});
 
 
     /// Build a tensor set from set of tensors.  The tensor data model
@@ -35,10 +41,6 @@ namespace WireCell::Aux::TensorDM {
                                      const Configuration& tsetmd = Json::objectValue);
 
 
-    using located_t = std::map<std::string, ITensor::pointer>;
-
-    /// Index the tensors by their datapaths.
-    located_t index_datapaths(const ITensor::vector& tens);
 
     /// Return first of type
     ITensor::pointer first_of(const ITensor::vector& tens,

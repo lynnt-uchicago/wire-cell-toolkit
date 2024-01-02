@@ -106,27 +106,10 @@ PointCloud::Array WireCell::Aux::TensorDM::as_array(const ITensor::pointer& ten,
 PointCloud::Dataset
 WireCell::Aux::TensorDM::as_dataset(const ITensor::vector& tens,
                                     const std::string& datapath,
+                                    const located_t& located,
                                     bool share)
 {
-    // Index the tensors by datapath and find main "pcdataset" tensor.
-    ITensor::pointer top = nullptr;
-    std::unordered_map<std::string, ITensor::pointer> located;
-    for (const auto& iten : tens) {
-        const auto& tenmd = iten->metadata();
-        const auto dtype = tenmd["datatype"].asString();
-        const auto dpath = tenmd["datapath"].asString();
-        if (!top and dtype == "pcdataset") {
-            if (datapath.empty() or datapath == dpath) {
-                top = iten;
-            }
-            continue;
-        }
-        if (dtype == "pcarray") {
-            located[dpath] = iten;
-        }
-        continue;
-    }
-
+    ITensor::pointer top = top_tensor(tens, "pcdataset", datapath, located);
     if (!top) {
         THROW(ValueError() << errmsg{"no array of datatype \"pcdataset\""});
     }
@@ -137,7 +120,7 @@ WireCell::Aux::TensorDM::as_dataset(const ITensor::vector& tens,
     auto arrrefs = topmd["arrays"];
     for (const auto& name : arrrefs.getMemberNames()) {
         const auto path = arrrefs[name].asString();
-        auto it = located.find(path);
+        const auto it = located.find(path);
         if (it == located.end()) {
             THROW(ValueError() << errmsg{"no array \"" + name + "\" at path \"" + path + "\""});
         }
@@ -152,8 +135,9 @@ WireCell::Aux::TensorDM::as_dataset(const ITensor::vector& tens,
 PointCloud::Dataset
 WireCell::Aux::TensorDM::as_dataset(const ITensorSet::pointer& tens,
                                     const std::string& datapath,
+                                    const located_t& located,
                                     bool share)
 {
     auto sv = tens->tensors();
-    return as_dataset(*(sv.get()), datapath, share);
+    return as_dataset(*(sv.get()), datapath, located, share);
 }

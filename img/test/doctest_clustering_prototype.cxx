@@ -1,9 +1,9 @@
 #include "WireCellUtil/PointTree.h"
 #include "WireCellUtil/PointTesting.h"
-
 #include "WireCellUtil/doctest.h"
-
 #include "WireCellUtil/Logging.h"
+
+#include "WireCellImg/PointCloudFacade.h"
 
 #include <unordered_map>
 
@@ -55,7 +55,13 @@ Points::node_ptr make_simple_pctree()
     ///     here, we should be multiplying by some [length] unit.
 
     auto* n1 = root->insert(Points({
-        {"center", make_janky_track(Ray(Point(0.5, 0, 0), Point(0.7, 0, 0)))},
+        /// QUESTION: proper Array initiation?
+        {"scalar", Dataset({
+            {"charge", Array({1.0})},
+            {"center_x", Array({0.5})},
+            {"center_y", Array({0.})},
+            {"center_z", Array({0.})},
+        })},
         {"3d", make_janky_track(Ray(Point(0, 0, 0), Point(1, 0, 0)))}
         }));
 
@@ -65,7 +71,12 @@ Points::node_ptr make_simple_pctree()
 
     // Ibid from a different track
     auto* n2 = root->insert(Points({
-        {"center", make_janky_track(Ray(Point(1.5, 0, 0), Point(1.7, 0, 0)))},
+        {"scalar", Dataset({
+            {"charge", Array({2.0})},
+            {"center_x", Array({1.5})},
+            {"center_y", Array({0.})},
+            {"center_z", Array({0.})},
+        })},
         {"3d", make_janky_track(Ray(Point(1, 0, 0), Point(2, 0, 0)))}
         }));
 
@@ -78,7 +89,7 @@ Points::node_ptr make_simple_pctree()
     return root;
 }
 
-TEST_CASE("PointCloudFacade test")
+TEST_CASE("test PointTree API")
 {
     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     auto root = make_simple_pctree();
@@ -157,4 +168,13 @@ TEST_CASE("PointCloudFacade test")
     }
     CHECK(rad.size() == 2);
 
+}
+
+
+TEST_CASE("test PointCloudFacade")
+{
+    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+    auto root = make_simple_pctree();
+    Cluster pcc(root);
+    auto ave_pos = pcc.calc_ave_pos({1,0,0}, 1);
 }
