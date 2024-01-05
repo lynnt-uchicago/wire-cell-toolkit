@@ -20,6 +20,8 @@ using WireCell::Img::Projection2D::get_geom_clusters;
 using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
 using namespace WireCell::PointCloud::Tree;
+using WireCell::PointCloud::Dataset;
+using WireCell::PointCloud::Array;
 
 PointTreeBuilding::PointTreeBuilding()
     : Aux::Logger("PointTreeBuilding", "img")
@@ -101,6 +103,34 @@ namespace {
         ss << dump_node(first.get());
         return ss.str();
     }
+
+    // Calculate the average position of a point cloud tree.
+    Point calc_blob_center(const Dataset& ds)
+    {
+        const auto& arr_x = ds.get("x")->elements<Point::coordinate_t>();
+        const auto& arr_y = ds.get("y")->elements<Point::coordinate_t>();
+        const auto& arr_z = ds.get("z")->elements<Point::coordinate_t>();
+        const size_t len = arr_x.size();
+        if(len == 0) {
+            raise<ValueError>("empty point cloud");
+        }
+        Point ret(0,0,0);
+        for (size_t ind=0; ind<len; ++ind) {
+            ret += Point(arr_x[ind], arr_y[ind], arr_z[ind]);
+        }
+        ret = ret / len;
+        return ret;
+    }
+    /// TODO: add more info to the dataset
+    Dataset make_scaler_dataset(const Point& center, const double charge)
+    {
+        Dataset ds;
+        ds.add("charge", Array({charge}));
+        ds.add("center_x", Array({center.x()}));
+        ds.add("center_y", Array({center.y()}));
+        ds.add("center_z", Array({center.z()}));
+        return ds;
+    }
 }
 
 bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer& tensorset)
@@ -132,17 +162,20 @@ bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer
                 /// TODO: use nblobs or iblob->ident()?
                 pcs.emplace(name, sampler->sample_blob(iblob, nblobs));
             }
-            cnode->insert(Points(pcs));
+            const Point center = calc_blob_center(pcs["3d"]);
+            const auto scaler_ds = make_scaler_dataset(center, iblob->value());
+            pcs.emplace("scalar", std::move(scaler_ds));
+            log->debug("nblobs {} center {{{} {} {}}}", nblobs, center.x(), center.y(), center.z());
             // log->debug("pcs {} cnode {}", pcs.size(), dump_children(cnode));
-            // for (const auto& [name, pc] : pcs) {
-            //     log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
-            // }
+            for (const auto& [name, pc] : pcs) {
+                log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
+            }
             ++nblobs;
         }
         /// DEBUGONLY
-        // if (nblobs > 1000) {
-        //     break;
-        // }
+        if (nblobs > 1) {
+            break;
+        }
     }
 
     const int ident = icluster->ident();

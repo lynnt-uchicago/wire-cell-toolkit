@@ -1,5 +1,7 @@
 #include "WireCellImg/MultiAlgBlobClustering.h"
+#include "WireCellImg/PointCloudFacade.h"
 #include "WireCellUtil/NamedFactory.h"
+#include "WireCellUtil/Units.h"
 #include "WireCellAux/TensorDMpointtree.h"
 #include "WireCellAux/TensorDMdataset.h"
 #include "WireCellAux/TensorDMcommon.h"
@@ -14,6 +16,7 @@ using namespace WireCell;
 using namespace WireCell::Img;
 using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
+using WireCell::PointCloud::Cluster;
 
 MultiAlgBlobClustering::MultiAlgBlobClustering()
     : Aux::Logger("MultiAlgBlobClustering", "img")
@@ -57,6 +60,13 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         return false;
     }
     log->debug("Got pctree with {} children", root->children().size());
+
+    /// DEMO: iterate all clusters from root
+    for(const auto& cnode : root->children()) {
+        Cluster pcc(cnode);
+        auto pos = pcc.calc_ave_pos(Point(0,0,0), 10000*units::mm);
+        log->debug("pos: {}", pos);
+    }
 
     std::string outpath = m_outpath;
     if (outpath.find("%") != std::string::npos) {
