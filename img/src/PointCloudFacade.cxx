@@ -2,10 +2,35 @@
 
 using namespace WireCell;
 using namespace WireCell::PointCloud;
+// using WireCell::PointCloud::Dataset;
 using namespace WireCell::PointCloud::Tree; // for "Points" node value type
+// using WireCell::PointCloud::Tree::named_pointclouds_t;
 
 #include "WireCellUtil/Logging.h"
 using spdlog::debug;
+
+namespace {
+    // helper to dump a dataset
+    std::string dump_ds(const WireCell::PointCloud::Dataset& ds) {
+        std::stringstream ss;
+        for (const auto& key : ds.keys()) {;
+            const auto& arr = ds.get(key);
+            ss << " {" << key << ":" << arr->dtype() << ":" << arr->shape()[0] << "} ";
+            // const auto& arr = ds.get(key)->elements<float>();
+            // for(auto elem : arr) {
+            //     ss << elem << " ";
+            // }
+        }
+        return ss.str();
+    }
+    std::string dump_pcs(const ScopedBase::pointclouds_t& pcs) {
+        std::stringstream ss;
+        for (const auto& pc : pcs) {
+            ss << dump_ds(pc) << std::endl;
+        }
+        return ss.str();
+    }
+}
 
 WireCell::PointCloud::Point Cluster::calc_ave_pos(const Point& origin, const double dis) const {
     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
@@ -13,8 +38,14 @@ WireCell::PointCloud::Point Cluster::calc_ave_pos(const Point& origin, const dou
     /// a bit worriying about the speed.
     Scope scope = { "3d", {"x","y","z"} };
     const auto& sv = m_node->value.scoped_view(scope);
+    // const auto& spcs = sv.pcs();
+    debug("sv {}", dump_pcs(sv.pcs()));
     const auto& skd = sv.kd();
     auto rad = skd.radius(dis, origin);
+    /// FIXME: what if rad is empty?
+    if(rad.size() == 0) {
+        raise<ValueError>("empty point cloud");
+    }
     const auto& snodes = sv.nodes();
     std::set<size_t> maj_inds;
     for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {

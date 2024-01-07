@@ -63,8 +63,9 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     /// DEMO: iterate all clusters from root
     for(const auto& cnode : root->children()) {
+        log->debug("cnode children: {}", cnode->children().size());
         Cluster pcc(cnode);
-        auto pos = pcc.calc_ave_pos(Point(0,0,0), 10000*units::mm);
+        auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8);
         log->debug("pos: {}", pos);
     }
 

@@ -170,6 +170,7 @@ bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer
             for (const auto& [name, pc] : pcs) {
                 log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
             }
+            cnode->insert(std::move(Points(std::move(pcs))));
             ++nblobs;
         }
         /// DEBUGONLY
@@ -185,6 +186,9 @@ bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer
     }
     auto tens = as_tensors(*root.get(), datapath);
     log->debug("Made {} tensors", tens.size());
+    for(const auto& ten : tens) {
+        log->debug("tensor {} {}", ten->metadata()["datapath"].asString(), ten->size());
+    }
     tensorset = as_tensorset(tens, ident);
 
     log->debug("sampled {} blobs from set {} making {} tensors at call {}",
