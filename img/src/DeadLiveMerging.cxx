@@ -1,6 +1,9 @@
 
 #include "WireCellImg/DeadLiveMerging.h"
 #include "WireCellUtil/NamedFactory.h"
+#include "WireCellUtil/GraphTools.h"
+#include "WireCellAux/ClusterHelpers.h"
+#include "WireCellAux/SimpleCluster.h"
 
 WIRECELL_FACTORY(DeadLiveMerging, WireCell::Img::DeadLiveMerging,
                  WireCell::INamed,
@@ -45,13 +48,35 @@ std::vector<std::string> WireCell::Img::DeadLiveMerging::input_types()
     return ret;
 }
 
+namespace {
+}
+
 bool DeadLiveMerging::operator()(const input_vector& in, output_pointer& out)
 {
     out = nullptr;
     if (in.empty()) {
         return true;
     }
+
+    // use reference_wrapper to avoid copying for this
+    // std::vector<cluster_graph_t> in_cgraphs;
+    std::vector<std::reference_wrapper<const cluster_graph_t>> in_cgraphs;
+
+    for (const auto& inp : in) {
+        if (!inp) {
+            return true;
+        }
+        log->debug("Input: {}", Aux::dumps(inp->graph()));
+        in_cgraphs.push_back(inp->graph());
+    }
+
+    auto merged_graph = Aux::merge_graphs(in_cgraphs);
+
     // dummy implementation
-    out = in.front();
+    // out = in.front();
+    // make SimpleCluster from merged graph
+    /// FIXME: which ident to use?
+    out = std::make_shared<Aux::SimpleCluster>(merged_graph, 0);
+    log->debug("Output: {}", Aux::dumps(out->graph()));
     return true;
 }

@@ -2,6 +2,8 @@
 #include "WireCellUtil/Logging.h"
 #include "WireCellUtil/GraphTools.h"
 
+#include "WireCellAux/ClusterHelpers.h"
+
 #include <boost/graph/adjacency_list.hpp>
 
 #include <unordered_map>
@@ -57,31 +59,31 @@ namespace {
     }
 
     // function to merge  boost graph
-    graph_t merge_graphs(const std::vector<graph_t>& graphs)
-    {
-        graph_t merged_graph;
-
-        // merge the graphs
-        for (const auto& graph : graphs) {
-            std::unordered_map<size_t, size_t> vertex_map;
-            // add the vertices
-            for (const auto& vtx : GraphTools::mir(boost::vertices(graph))) {
-                const auto& node = graph[vtx];
-                auto new_vtx = boost::add_vertex(node, merged_graph);
-                vertex_map[vtx] = new_vtx;
-            }
-            // add the edges
-            for (const auto& edg : GraphTools::mir(boost::edges(graph))) {
-                const auto& src = boost::source(edg, graph);
-                const auto& tgt = boost::target(edg, graph);
-                const auto& edge = graph[edg];
-                auto new_src = vertex_map[src];
-                auto new_tgt = vertex_map[tgt];
-                boost::add_edge(new_src, new_tgt, edge, merged_graph);
-            }
-        }
-        return merged_graph;
-    }
+    // template <typename GraphType>
+    // GraphType merge_graphs(const std::vector<GraphType>& graphs)
+    // {
+    //     GraphType merged_graph;
+    //     // merge the graphs
+    //     for (const auto& graph : graphs) {
+    //         std::unordered_map<size_t, size_t> vertex_map;
+    //         // add the vertices
+    //         for (const auto& vtx : GraphTools::mir(boost::vertices(graph))) {
+    //             const auto& node = graph[vtx];
+    //             auto new_vtx = boost::add_vertex(node, merged_graph);
+    //             vertex_map[vtx] = new_vtx;
+    //         }
+    //         // add the edges
+    //         for (const auto& edg : GraphTools::mir(boost::edges(graph))) {
+    //             const auto& src = boost::source(edg, graph);
+    //             const auto& tgt = boost::target(edg, graph);
+    //             const auto& edge = graph[edg];
+    //             auto new_src = vertex_map[src];
+    //             auto new_tgt = vertex_map[tgt];
+    //             boost::add_edge(new_src, new_tgt, edge, merged_graph);
+    //         }
+    //     }
+    //     return merged_graph;
+    // }
 }
 
 
@@ -90,7 +92,7 @@ TEST_CASE("test merge cluster")
     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     const auto g1 = graph1();
     const auto g2 = graph2();
-    const auto merged = merge_graphs({g2, g1});
+    const auto merged = Aux::merge_graphs<graph_t>({g2, g1});
     debug("g1 {}", print_graph(g1));
     debug("g2 {}", print_graph(g2));
     debug("merged {}", print_graph(merged));
