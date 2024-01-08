@@ -67,7 +67,7 @@ namespace {
             // add the vertices
             for (const auto& vtx : GraphTools::mir(boost::vertices(graph))) {
                 const auto& node = graph[vtx];
-                auto new_vtx = boost::add_vertex({node.ident}, merged_graph);
+                auto new_vtx = boost::add_vertex(node, merged_graph);
                 vertex_map[vtx] = new_vtx;
             }
             // add the edges
@@ -78,7 +78,6 @@ namespace {
                 auto new_src = vertex_map[src];
                 auto new_tgt = vertex_map[tgt];
                 boost::add_edge(new_src, new_tgt, edge, merged_graph);
-                std::cout << "src " << src << " tgt " << tgt << " new_src " << new_src << " new_tgt " << new_tgt << "\n";
             }
         }
         return merged_graph;
