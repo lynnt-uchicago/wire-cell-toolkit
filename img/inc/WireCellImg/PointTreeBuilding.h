@@ -4,7 +4,7 @@
 #ifndef WIRECELL_IMG_POINTTREEBUILDING
 #define WIRECELL_IMG_POINTTREEBUILDING
 
-#include "WireCellIface/IClusterTensorSet.h"
+#include "WireCellIface/IClusterFaninTensorSet.h"
 #include "WireCellIface/IBlobSampler.h"
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellAux/Logger.h"
@@ -12,19 +12,25 @@
 
 namespace WireCell::Img {
 
-    class PointTreeBuilding : public Aux::Logger, public IClusterTensorSet, public IConfigurable
+    class PointTreeBuilding : public Aux::Logger, public IClusterFaninTensorSet, public IConfigurable
     {
       public:
         PointTreeBuilding();
         virtual ~PointTreeBuilding();
 
+        // INode, override because we get multiplicity at run time.
+        virtual std::vector<std::string> input_types();
+
         // IConfigurable
         virtual void configure(const WireCell::Configuration& cfg);
         virtual WireCell::Configuration default_configuration() const;
 
-        virtual bool operator()(const input_pointer& icluster, output_pointer& tensorset);
+        virtual bool operator()(const input_vector& invec, output_pointer& tensorset);
 
       private:
+        size_t m_multiplicity {2};
+        std::vector<std::string> m_tags;
+        size_t m_count{0};
         
         /** Configuration: "samplers"
 
@@ -41,8 +47,6 @@ namespace WireCell::Img {
             interpolated with the IBlobSet::ident() value.
          */
         std::string m_datapath = "pointtrees/%d";
-
-        size_t m_count{0};
 
     };
 }

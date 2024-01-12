@@ -10,7 +10,7 @@
 
 WIRECELL_FACTORY(PointTreeBuilding, WireCell::Img::PointTreeBuilding,
                  WireCell::INamed,
-                 WireCell::IClusterTensorSet,
+                 WireCell::IClusterFaninTensorSet,
                  WireCell::IConfigurable)
 
 using namespace WireCell;
@@ -33,9 +33,29 @@ PointTreeBuilding::~PointTreeBuilding()
 {
 }
 
+std::vector<std::string> Img::PointTreeBuilding::input_types()
+{
+    const std::string tname = std::string(typeid(input_type).name());
+    std::vector<std::string> ret(m_multiplicity, tname);
+    return ret;
+}
 
 void PointTreeBuilding::configure(const WireCell::Configuration& cfg)
 {
+    int m = get<int>(cfg, "multiplicity", (int) m_multiplicity);
+    if (m <= 0) {
+        raise<ValueError>("DeadLiveMerging multiplicity must be > 0");
+    }
+    m_multiplicity = m;
+
+    m_tags.resize(m);
+
+    // Tag entire input frame worth of traces in the output frame.
+    auto jtags = cfg["tags"];
+    for (int ind = 0; ind < m; ++ind) {
+        m_tags[ind] = convert<std::string>(jtags[ind], "");
+    }
+
     m_datapath = get(cfg, "datapath", m_datapath);
     auto samplers = cfg["samplers"];
     if (samplers.isNull()) {
@@ -133,14 +153,32 @@ namespace {
     }
 }
 
-bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer& tensorset)
+bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& tensorset)
 {
     tensorset = nullptr;
 
-    if (!icluster) {
+    size_t neos = 0;
+    for (const auto& in : invec) {
+        if (!in) {
+            ++neos;
+        }
+    }
+    if (neos == invec.size()) {
+        // all inputs are EOS, good.
         log->debug("EOS at call {}", m_count++);
         return true;
     }
+    if (neos) {
+        raise<ValueError>("missing %d input tensors ", neos);
+    }
+
+    if (invec.size() != m_multiplicity) {
+        raise<ValueError>("unexpected multiplicity got %d want %d",
+                          invec.size(), m_multiplicity);
+        return true;
+    }
+
+    const auto& icluster = invec.front();
 
     const auto& gr = icluster->graph();
     log->debug("load cluster {} at call={}: {}", icluster->ident(), m_count, dumps(gr));
