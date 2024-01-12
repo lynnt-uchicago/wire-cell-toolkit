@@ -54,7 +54,11 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     const auto& intens = *ints->tensors();
     log->debug("After merging, Got {} tensors", intens.size());
+    auto start = std::chrono::high_resolution_clock::now();
     const auto& root = as_pctree(intens, inpath);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    log->debug("as_pctree took {} ms", duration.count());
     if (!root) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;
@@ -62,18 +66,22 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     log->debug("Got pctree with {} children", root->children().size());
 
     /// DEMO: iterate all clusters from root
-    for(const auto& cnode : root->children()) {
-        log->debug("cnode children: {}", cnode->children().size());
-        Cluster pcc(cnode);
-        auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8);
-        log->debug("pos: {}", pos);
-    }
+    // for(const auto& cnode : root->children()) {
+    //     log->debug("cnode children: {}", cnode->children().size());
+    //     Cluster pcc(cnode);
+    //     auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8);
+    //     log->debug("pos: {}", pos);
+    // }
 
     std::string outpath = m_outpath;
     if (outpath.find("%") != std::string::npos) {
         outpath = String::format(outpath, ident);
     }
+    start = std::chrono::high_resolution_clock::now();
     auto outtens = as_tensors(*root.get(), outpath);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    log->debug("as_tensors took {} ms", duration.count());
     log->debug("Made {} tensors", outtens.size());
     outts = as_tensorset(outtens, ints->ident());
 

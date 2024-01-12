@@ -174,9 +174,9 @@ bool PointTreeBuilding::operator()(const input_pointer& icluster, output_pointer
             ++nblobs;
         }
         /// DEBUGONLY
-        if (nblobs > 1) {
-            break;
-        }
+        // if (nblobs > 1) {
+        //     break;
+        // }
     }
 
     const int ident = icluster->ident();

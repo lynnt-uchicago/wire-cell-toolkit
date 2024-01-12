@@ -57,33 +57,6 @@ namespace {
         }
         return ss.str();
     }
-
-    // function to merge  boost graph
-    // template <typename GraphType>
-    // GraphType merge_graphs(const std::vector<GraphType>& graphs)
-    // {
-    //     GraphType merged_graph;
-    //     // merge the graphs
-    //     for (const auto& graph : graphs) {
-    //         std::unordered_map<size_t, size_t> vertex_map;
-    //         // add the vertices
-    //         for (const auto& vtx : GraphTools::mir(boost::vertices(graph))) {
-    //             const auto& node = graph[vtx];
-    //             auto new_vtx = boost::add_vertex(node, merged_graph);
-    //             vertex_map[vtx] = new_vtx;
-    //         }
-    //         // add the edges
-    //         for (const auto& edg : GraphTools::mir(boost::edges(graph))) {
-    //             const auto& src = boost::source(edg, graph);
-    //             const auto& tgt = boost::target(edg, graph);
-    //             const auto& edge = graph[edg];
-    //             auto new_src = vertex_map[src];
-    //             auto new_tgt = vertex_map[tgt];
-    //             boost::add_edge(new_src, new_tgt, edge, merged_graph);
-    //         }
-    //     }
-    //     return merged_graph;
-    // }
 }
 
 

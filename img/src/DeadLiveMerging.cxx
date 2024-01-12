@@ -72,6 +72,10 @@ bool DeadLiveMerging::operator()(const input_vector& in, output_pointer& out)
 
     auto merged_graph = Aux::merge_graphs(in_cgraphs);
 
+    /// 1, tag dead/live blobs
+
+    /// 2, make new edges between dead/live blobs
+
     // dummy implementation
     // out = in.front();
     // make SimpleCluster from merged graph
