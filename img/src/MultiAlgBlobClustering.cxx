@@ -58,7 +58,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     const auto& root = as_pctree(intens, inpath);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    log->debug("as_pctree took {} ms", duration.count());
+    log->debug("as_pctree for {} took {} ms", inpath, duration.count());
     if (!root) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;

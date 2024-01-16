@@ -8,6 +8,7 @@
 #include "WireCellIface/IBlobSampler.h"
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellAux/Logger.h"
+#include "WireCellUtil/PointTree.h"
 
 
 namespace WireCell::Img {
@@ -28,6 +29,10 @@ namespace WireCell::Img {
         virtual bool operator()(const input_vector& invec, output_pointer& tensorset);
 
       private:
+        // sampling for live/dead
+        WireCell::PointCloud::Tree::Points::node_ptr sample_live(const WireCell::ICluster::pointer cluster) const;
+        WireCell::PointCloud::Tree::Points::node_ptr sample_dead(const WireCell::ICluster::pointer cluster) const;
+
         size_t m_multiplicity {2};
         std::vector<std::string> m_tags;
         size_t m_count{0};

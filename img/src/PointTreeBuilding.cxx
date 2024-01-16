@@ -153,33 +153,7 @@ namespace {
     }
 }
 
-bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& tensorset)
-{
-    tensorset = nullptr;
-
-    size_t neos = 0;
-    for (const auto& in : invec) {
-        if (!in) {
-            ++neos;
-        }
-    }
-    if (neos == invec.size()) {
-        // all inputs are EOS, good.
-        log->debug("EOS at call {}", m_count++);
-        return true;
-    }
-    if (neos) {
-        raise<ValueError>("missing %d input tensors ", neos);
-    }
-
-    if (invec.size() != m_multiplicity) {
-        raise<ValueError>("unexpected multiplicity got %d want %d",
-                          invec.size(), m_multiplicity);
-        return true;
-    }
-
-    const auto& icluster = invec.front();
-
+Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointer icluster) const {
     const auto& gr = icluster->graph();
     log->debug("load cluster {} at call={}: {}", icluster->ident(), m_count, dumps(gr));
 
@@ -216,12 +190,83 @@ bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& te
         //     break;
         // }
     }
+    
+    log->debug("sampled {} blobs",nblobs);
+    return root;
+}
+
+Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointer icluster) const {
+    const auto& gr = icluster->graph();
+    log->debug("load cluster {} at call={}: {}", icluster->ident(), m_count, dumps(gr));
+
+    auto clusters = get_geom_clusters(gr);
+    log->debug("got {} clusters", clusters.size());
+    size_t nblobs = 0;
+    Points::node_ptr root = std::make_unique<Points::node_t>();
+    if (m_samplers.find("dead") == m_samplers.end()) {
+        raise<ValueError>("m_samplers must have \"dead\" sampler");
+    }
+    auto& dead_sampler = m_samplers.at("dead");
+    for (auto& [cluster_id, vdescs] : clusters) {
+        auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
+        for (const auto& vdesc : vdescs) {
+            const char code = gr[vdesc].code();
+            if (code != 'b') {
+                continue;
+            }
+            auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
+            named_pointclouds_t pcs;
+            pcs.emplace("dead", dead_sampler->sample_blob(iblob, nblobs));
+            for (const auto& [name, pc] : pcs) {
+                log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
+            }
+            cnode->insert(std::move(Points(std::move(pcs))));
+            ++nblobs;
+        }
+        /// DEBUGONLY
+        // if (nblobs > 1) {
+        //     break;
+        // }
+    }
+    
+    log->debug("sampled {} blobs",nblobs);
+    return root;
+}
+
+bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& tensorset)
+{
+    tensorset = nullptr;
+
+    size_t neos = 0;
+    for (const auto& in : invec) {
+        if (!in) {
+            ++neos;
+        }
+    }
+    if (neos == invec.size()) {
+        // all inputs are EOS, good.
+        log->debug("EOS at call {}", m_count++);
+        return true;
+    }
+    if (neos) {
+        raise<ValueError>("missing %d input tensors ", neos);
+    }
+
+    if (invec.size() != m_multiplicity) {
+        raise<ValueError>("unexpected multiplicity got %d want %d",
+                          invec.size(), m_multiplicity);
+        return true;
+    }
+
+    const auto& icluster = invec.front();
+    Points::node_ptr root = sample_live(icluster);
 
     const int ident = icluster->ident();
     std::string datapath = m_datapath;
     if (datapath.find("%") != std::string::npos) {
         datapath = String::format(datapath, ident);
     }
+
     auto tens = as_tensors(*root.get(), datapath);
     log->debug("Made {} tensors", tens.size());
     for(const auto& ten : tens) {
@@ -229,8 +274,7 @@ bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& te
     }
     tensorset = as_tensorset(tens, ident);
 
-    log->debug("sampled {} blobs from set {} making {} tensors at call {}",
-               nblobs, ident, tens.size(), m_count++);
+    log->debug("making {} tensors at call {}",tens.size(), m_count++);
 
     return true;
 }
