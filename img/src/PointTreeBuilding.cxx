@@ -43,8 +43,8 @@ std::vector<std::string> Img::PointTreeBuilding::input_types()
 void PointTreeBuilding::configure(const WireCell::Configuration& cfg)
 {
     int m = get<int>(cfg, "multiplicity", (int) m_multiplicity);
-    if (m <= 0) {
-        raise<ValueError>("DeadLiveMerging multiplicity must be > 0");
+    if (m != 1 and m != 2) {
+        raise<ValueError>("multiplicity must be 1 or 2");
     }
     m_multiplicity = m;
 
@@ -161,6 +161,10 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
     log->debug("got {} clusters", clusters.size());
     size_t nblobs = 0;
     Points::node_ptr root = std::make_unique<Points::node_t>();
+    if (m_samplers.find("3d") == m_samplers.end()) {
+        raise<ValueError>("m_samplers must have \"3d\" sampler");
+    }
+    auto& sampler = m_samplers.at("3d");
     for (auto& [cluster_id, vdescs] : clusters) {
         auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
         for (const auto& vdesc : vdescs) {
@@ -170,10 +174,8 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
             }
             auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
             named_pointclouds_t pcs;
-            for (auto& [name, sampler] : m_samplers) {
-                /// TODO: use nblobs or iblob->ident()?
-                pcs.emplace(name, sampler->sample_blob(iblob, nblobs));
-            }
+            /// TODO: use nblobs or iblob->ident()?
+            pcs.emplace("3d", sampler->sample_blob(iblob, nblobs));
             const Point center = calc_blob_center(pcs["3d"]);
             const auto scaler_ds = make_scaler_dataset(center, iblob->value());
             pcs.emplace("scalar", std::move(scaler_ds));
@@ -206,7 +208,7 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
     if (m_samplers.find("dead") == m_samplers.end()) {
         raise<ValueError>("m_samplers must have \"dead\" sampler");
     }
-    auto& dead_sampler = m_samplers.at("dead");
+    auto& sampler = m_samplers.at("dead");
     for (auto& [cluster_id, vdescs] : clusters) {
         auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
         for (const auto& vdesc : vdescs) {
@@ -216,7 +218,7 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
             }
             auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
             named_pointclouds_t pcs;
-            pcs.emplace("dead", dead_sampler->sample_blob(iblob, nblobs));
+            pcs.emplace("dead", sampler->sample_blob(iblob, nblobs));
             for (const auto& [name, pc] : pcs) {
                 log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
             }
@@ -258,24 +260,42 @@ bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& te
         return true;
     }
 
-    const auto& icluster = invec.front();
-    Points::node_ptr root = sample_live(icluster);
 
-    const int ident = icluster->ident();
+    const auto& iclus_live = invec[0];
+    const int ident = iclus_live->ident();
     std::string datapath = m_datapath;
     if (datapath.find("%") != std::string::npos) {
         datapath = String::format(datapath, ident);
     }
 
-    auto tens = as_tensors(*root.get(), datapath);
-    log->debug("Made {} tensors", tens.size());
-    for(const auto& ten : tens) {
+    Points::node_ptr root_live = sample_live(iclus_live);
+    auto tens_live = as_tensors(*root_live.get(), datapath+"/live");
+    log->debug("Made {} live tensors", tens_live.size());
+    for(const auto& ten : tens_live) {
         log->debug("tensor {} {}", ten->metadata()["datapath"].asString(), ten->size());
+        break;
     }
-    tensorset = as_tensorset(tens, ident);
 
-    log->debug("making {} tensors at call {}",tens.size(), m_count++);
+    if (m_multiplicity == 2) {
+        const auto& iclus_dead = invec[1];
+        /// FIXME: what do we expect?
+        if(ident != iclus_dead->ident()) {
+            raise<ValueError>("ident mismatch between live and dead clusters");
+        }
+        Points::node_ptr root_dead = sample_live(iclus_dead);
+        auto tens_dead = as_tensors(*root_dead.get(), datapath+"/dead");
+        log->debug("Made {} dead tensors", tens_dead.size());
+        for(const auto& ten : tens_dead) {
+            log->debug("tensor {} {}", ten->metadata()["datapath"].asString(), ten->size());
+            break;
+        }
+        /// TODO: is make_move_iterator faster?
+        tens_live.insert(tens_live.end(), tens_dead.begin(), tens_dead.end());
+    }
 
+    tensorset = as_tensorset(tens_live, ident);
+
+    m_count++;
     return true;
 }
 
