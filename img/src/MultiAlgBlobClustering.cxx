@@ -53,17 +53,28 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     }
 
     const auto& intens = *ints->tensors();
-    log->debug("After merging, Got {} tensors", intens.size());
+    log->debug("Input {} tensors", intens.size());
     auto start = std::chrono::high_resolution_clock::now();
     const auto& root_live = as_pctree(intens, inpath+"/live");
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    log->debug("as_pctree for {} took {} ms", inpath, duration.count());
+    log->debug("as_pctree for {} took {} ms", inpath+"/live", duration.count());
     if (!root_live) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;
     }
     log->debug("Got pctree with {} children", root_live->children().size());
+
+    start = std::chrono::high_resolution_clock::now();
+    const auto& root_dead = as_pctree(intens, inpath+"/dead");
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    log->debug("as_pctree for {} took {} ms", inpath+"/dead", duration.count());
+    if (!root_dead) {
+        log->error("Failed to get point cloud tree from \"{}\"", inpath+"/dead");
+        return false;
+    }
+    log->debug("Got pctree with {} children", root_dead->children().size());
 
     /// DEMO: iterate all clusters from root_live
     // for(const auto& cnode : root_live->children()) {
@@ -78,11 +89,21 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         outpath = String::format(outpath, ident);
     }
     start = std::chrono::high_resolution_clock::now();
-    auto outtens = as_tensors(*root_live.get(), outpath);
+    auto outtens = as_tensors(*root_live.get(), outpath+"/live");
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    log->debug("as_tensors took {} ms", duration.count());
-    log->debug("Made {} tensors", outtens.size());
+    log->debug("as_tensors live took {} ms", duration.count());
+
+    start = std::chrono::high_resolution_clock::now();
+    auto outtens_dead = as_tensors(*root_dead.get(), outpath+"/dead");
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    log->debug("as_tensors dead took {} ms", duration.count());
+
+    // Merge
+    /// TODO: is make_move_iterator faster?
+    outtens.insert(outtens.end(), outtens_dead.begin(), outtens_dead.end());
+    log->debug("Total outtens {} tensors", outtens.size());
     outts = as_tensorset(outtens, ints->ident());
 
     return true;

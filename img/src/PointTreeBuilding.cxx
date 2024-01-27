@@ -179,11 +179,11 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
             const Point center = calc_blob_center(pcs["3d"]);
             const auto scaler_ds = make_scaler_dataset(center, iblob->value());
             pcs.emplace("scalar", std::move(scaler_ds));
-            log->debug("nblobs {} center {{{} {} {}}}", nblobs, center.x(), center.y(), center.z());
+            // log->debug("nblobs {} center {{{} {} {}}}", nblobs, center.x(), center.y(), center.z());
             // log->debug("pcs {} cnode {}", pcs.size(), dump_children(cnode));
-            for (const auto& [name, pc] : pcs) {
-                log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
-            }
+            // for (const auto& [name, pc] : pcs) {
+            //     log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
+            // }
             cnode->insert(std::move(Points(std::move(pcs))));
             ++nblobs;
         }
@@ -293,6 +293,7 @@ bool PointTreeBuilding::operator()(const input_vector& invec, output_pointer& te
         tens_live.insert(tens_live.end(), tens_dead.begin(), tens_dead.end());
     }
 
+    log->debug("Total outtens {} tensors", tens_live.size());
     tensorset = as_tensorset(tens_live, ident);
 
     m_count++;
