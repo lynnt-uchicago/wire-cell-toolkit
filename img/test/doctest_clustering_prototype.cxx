@@ -11,6 +11,7 @@ using namespace WireCell;
 using namespace WireCell::PointTesting;
 using namespace WireCell::PointCloud;
 using namespace WireCell::PointCloud::Tree;
+using namespace WireCell::PointCloud::Facade;
 // WireCell::PointCloud::Tree::scoped_pointcloud_t
 using spdlog::debug;
 

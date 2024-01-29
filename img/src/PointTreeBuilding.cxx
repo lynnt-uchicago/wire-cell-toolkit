@@ -1,6 +1,7 @@
 #include "WireCellImg/PointTreeBuilding.h"
 #include "WireCellImg/Projection2D.h"
 #include "WireCellUtil/PointTree.h"
+#include "WireCellUtil/RayTiling.h"
 #include "WireCellUtil/GraphTools.h"
 #include "WireCellUtil/NamedFactory.h"
 
@@ -142,13 +143,33 @@ namespace {
         return ret;
     }
     /// TODO: add more info to the dataset
-    Dataset make_scaler_dataset(const Point& center, const double charge)
+    Dataset make_scaler_dataset(const IBlob::pointer iblob, const Point& center)
     {
+        using float_t = double;
+        using int_t = int;
         Dataset ds;
-        ds.add("charge", Array({charge}));
-        ds.add("center_x", Array({center.x()}));
-        ds.add("center_y", Array({center.y()}));
-        ds.add("center_z", Array({center.z()}));
+        ds.add("charge", Array({(float_t)iblob->value()}));
+        ds.add("center_x", Array({(float_t)center.x()}));
+        ds.add("center_y", Array({(float_t)center.y()}));
+        ds.add("center_z", Array({(float_t)center.z()}));
+        const auto& islice = iblob->slice();
+        ds.add("slice_index", Array({(int_t)(islice->start()/islice->span())}));
+        const auto& shape = iblob->shape();
+        const auto& strips = shape.strips();
+        /// ASSUMPTION: is this always true?
+        std::unordered_map<RayGrid::layer_index_t, std::string> layer_names = {
+            {2, "u"},
+            {3, "v"},
+            {4, "w"}
+        };
+        for (const auto& strip : strips) {
+            // std::cout << "layer " << strip.layer << " bounds " << strip.bounds.first << " " << strip.bounds.second << std::endl;
+            if(layer_names.find(strip.layer) == layer_names.end()) {
+                continue;
+            }
+            ds.add(layer_names[strip.layer]+"_wire_index_min", Array({(int_t)strip.bounds.first}));
+            ds.add(layer_names[strip.layer]+"_wire_index_max", Array({(int_t)strip.bounds.second}));
+        }
         return ds;
     }
 }
@@ -172,12 +193,12 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
             if (code != 'b') {
                 continue;
             }
-            auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
+            const IBlob::pointer iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
             named_pointclouds_t pcs;
             /// TODO: use nblobs or iblob->ident()?
             pcs.emplace("3d", sampler->sample_blob(iblob, nblobs));
             const Point center = calc_blob_center(pcs["3d"]);
-            const auto scaler_ds = make_scaler_dataset(center, iblob->value());
+            const auto scaler_ds = make_scaler_dataset(iblob, center);
             pcs.emplace("scalar", std::move(scaler_ds));
             // log->debug("nblobs {} center {{{} {} {}}}", nblobs, center.x(), center.y(), center.z());
             // log->debug("pcs {} cnode {}", pcs.size(), dump_children(cnode));
@@ -205,10 +226,10 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
     log->debug("got {} clusters", clusters.size());
     size_t nblobs = 0;
     Points::node_ptr root = std::make_unique<Points::node_t>();
-    if (m_samplers.find("dead") == m_samplers.end()) {
-        raise<ValueError>("m_samplers must have \"dead\" sampler");
-    }
-    auto& sampler = m_samplers.at("dead");
+    // if (m_samplers.find("dead") == m_samplers.end()) {
+    //     raise<ValueError>("m_samplers must have \"dead\" sampler");
+    // }
+    // auto& sampler = m_samplers.at("dead");
     for (auto& [cluster_id, vdescs] : clusters) {
         auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
         for (const auto& vdesc : vdescs) {
@@ -218,7 +239,9 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
             }
             auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
             named_pointclouds_t pcs;
-            pcs.emplace("dead", sampler->sample_blob(iblob, nblobs));
+            // pcs.emplace("dead", sampler->sample_blob(iblob, nblobs));
+            const auto scaler_ds = make_scaler_dataset(iblob, {0,0,0});
+            pcs.emplace("scalar", std::move(scaler_ds));
             for (const auto& [name, pc] : pcs) {
                 log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
             }

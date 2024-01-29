@@ -16,7 +16,7 @@ using namespace WireCell;
 using namespace WireCell::Img;
 using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
-using WireCell::PointCloud::Cluster;
+using namespace WireCell::PointCloud::Facade;
 
 MultiAlgBlobClustering::MultiAlgBlobClustering()
     : Aux::Logger("MultiAlgBlobClustering", "img")
@@ -77,12 +77,25 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     log->debug("Got pctree with {} children", root_dead->children().size());
 
     /// DEMO: iterate all clusters from root_live
-    // for(const auto& cnode : root_live->children()) {
-    //     log->debug("cnode children: {}", cnode->children().size());
-    //     Cluster pcc(cnode);
-    //     auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8);
-    //     log->debug("pos: {}", pos);
-    // }
+    std::unordered_map<std::string, std::chrono::milliseconds> timers;
+    for(const auto& cnode : root_live->children()) {
+        // log->debug("cnode children: {}", cnode->children().size());
+        Cluster pcc(cnode);
+        start = std::chrono::high_resolution_clock::now();
+        auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 0);
+        end = std::chrono::high_resolution_clock::now();
+        // log->debug("alg0 pos: {}", pos);
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        timers["alg0"] += duration;
+        start = std::chrono::high_resolution_clock::now();
+        pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 1);
+        end = std::chrono::high_resolution_clock::now();
+        // log->debug("alg1 pos: {}", pos);
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        timers["alg1"] += duration;
+    }
+    log->debug("calc_ave_pos alg0 {} ms", timers["alg0"].count());
+    log->debug("calc_ave_pos alg1 {} ms", timers["alg1"].count());
 
     std::string outpath = m_outpath;
     if (outpath.find("%") != std::string::npos) {
