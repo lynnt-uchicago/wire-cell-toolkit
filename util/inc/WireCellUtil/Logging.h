@@ -61,6 +61,12 @@ namespace WireCell {
 
         // Set logging pattern the default or given logger's sinks.
         void set_pattern(std::string pattern, std::string which = "");
+
+        // Set up logging.  This is intended for a oneliner in main().  Output
+        // can be "stderr", "stdout" or a file name.
+        void default_logging(const std::string& output = "stderr",
+                             std::string level = "", bool with_env = true);
+
     }  // namespace Log
 
 }  // namespace WireCell
