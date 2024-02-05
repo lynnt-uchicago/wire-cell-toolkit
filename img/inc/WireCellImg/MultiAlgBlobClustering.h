@@ -18,6 +18,9 @@ namespace WireCell::Img {
         virtual bool operator()(const input_pointer& in, output_pointer& out);
          
       private:
+        // BEE debug file
+        std::string m_bee_file {""}; // 0-cluster.json
+
         // Count how many times we are called
         size_t m_count{0};
 

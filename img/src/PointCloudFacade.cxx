@@ -55,10 +55,8 @@ Blob::Blob(const node_ptr& n)
 
 bool Blob::overlap_fast(const Blob& b, const int offset) const
 {
-    std::cout << "overlap_fast " << u_wire_index_min << " " << u_wire_index_max << " " << b.u_wire_index_min << " " << b.u_wire_index_max << std::endl;
     if (u_wire_index_min > b.u_wire_index_max + offset) return false;
     if (b.u_wire_index_min > u_wire_index_max + offset) return false;
-    std::cout << "u ok" << std::endl;
     if (v_wire_index_min > b.v_wire_index_max + offset) return false;
     if (b.v_wire_index_min > v_wire_index_max + offset) return false;
     if (w_wire_index_min > b.w_wire_index_max + offset) return false;
