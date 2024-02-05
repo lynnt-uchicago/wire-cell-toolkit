@@ -86,19 +86,19 @@ namespace {
 
         Json::Value json_x(Json::arrayValue);
         for (const auto &val : x) {
-            json_x.append(val);
+            json_x.append(val/units::cm);
         }
         bee["x"] = json_x;
 
         Json::Value json_y(Json::arrayValue);
         for (const auto &val : y) {
-            json_y.append(val);
+            json_y.append(val/units::cm);
         }
         bee["y"] = json_y;
 
         Json::Value json_z(Json::arrayValue);
         for (const auto &val : z) {
-            json_z.append(val);
+            json_z.append(val/units::cm);
         }
         bee["z"] = json_z;
 
