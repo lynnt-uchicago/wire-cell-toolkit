@@ -9,6 +9,7 @@
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellAux/Logger.h"
 #include "WireCellUtil/PointTree.h"
+#include "WireCellUtil/Units.h"
 
 
 namespace WireCell::Img {
@@ -36,6 +37,8 @@ namespace WireCell::Img {
         size_t m_multiplicity {2};
         std::vector<std::string> m_tags;
         size_t m_count{0};
+
+        double m_tick {0.5*units::us};
         
         /** Configuration: "samplers"
 

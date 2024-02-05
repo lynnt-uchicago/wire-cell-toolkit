@@ -78,24 +78,58 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     /// DEMO: iterate all clusters from root_live
     std::unordered_map<std::string, std::chrono::milliseconds> timers;
-    for(const auto& cnode : root_live->children()) {
-        // log->debug("cnode children: {}", cnode->children().size());
-        Cluster pcc(cnode);
-        start = std::chrono::high_resolution_clock::now();
-        auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 0);
-        end = std::chrono::high_resolution_clock::now();
-        // log->debug("alg0 pos: {}", pos);
-        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        timers["alg0"] += duration;
-        start = std::chrono::high_resolution_clock::now();
-        pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 1);
-        end = std::chrono::high_resolution_clock::now();
-        // log->debug("alg1 pos: {}", pos);
-        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        timers["alg1"] += duration;
+    // for(const auto& cnode : root_live->children()) {
+    //     // log->debug("cnode children: {}", cnode->children().size());
+    //     Cluster pcc(cnode);
+    //     start = std::chrono::high_resolution_clock::now();
+    //     auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 0);
+    //     end = std::chrono::high_resolution_clock::now();
+    //     // log->debug("alg0 pos: {}", pos);
+    //     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //     timers["alg0"] += duration;
+    //     start = std::chrono::high_resolution_clock::now();
+    //     pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 1);
+    //     end = std::chrono::high_resolution_clock::now();
+    //     // log->debug("alg1 pos: {}", pos);
+    //     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //     timers["alg1"] += duration;
+    // }
+    // log->debug("calc_ave_pos alg0 {} ms", timers["alg0"].count());
+    // log->debug("calc_ave_pos alg1 {} ms", timers["alg1"].count());
+    
+    start = std::chrono::high_resolution_clock::now();
+    Cluster::vector live_clusters;
+    for (const auto& cnode : root_live->children()) {
+        live_clusters.push_back(std::make_shared<Cluster>(cnode));
     }
-    log->debug("calc_ave_pos alg0 {} ms", timers["alg0"].count());
-    log->debug("calc_ave_pos alg1 {} ms", timers["alg1"].count());
+    Cluster::vector dead_clusters;
+    for (const auto& cnode : root_dead->children()) {
+        dead_clusters.push_back(std::make_shared<Cluster>(cnode));
+    }
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    timers["make_facade"] += duration;
+    log->debug("make_facade {} ms", timers["make_facade"].count());
+
+    // form dead -> lives map
+    const int offset = 2;
+    start = std::chrono::high_resolution_clock::now();
+    std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
+    for (const auto& dead : dead_clusters) {
+        Cluster::vector lives;
+        for (const auto& live : live_clusters) {
+            if (live->is_connected(*dead, offset).size()) {
+                lives.push_back(live);
+            }
+        }
+        dead2lives[dead] = std::move(lives);
+        log->debug("dead2lives size {} ", dead2lives[dead].size());
+    }
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    timers["dead2lives"] += duration;
+    log->debug("dead2lives {} ms", timers["dead2lives"].count());
+
+
 
     std::string outpath = m_outpath;
     if (outpath.find("%") != std::string::npos) {

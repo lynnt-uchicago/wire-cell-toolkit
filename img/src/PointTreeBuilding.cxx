@@ -143,7 +143,7 @@ namespace {
         return ret;
     }
     /// TODO: add more info to the dataset
-    Dataset make_scaler_dataset(const IBlob::pointer iblob, const Point& center)
+    Dataset make_scaler_dataset(const IBlob::pointer iblob, const Point& center, const double tick = 0.5*units::us)
     {
         using float_t = double;
         using int_t = int;
@@ -153,7 +153,7 @@ namespace {
         ds.add("center_y", Array({(float_t)center.y()}));
         ds.add("center_z", Array({(float_t)center.z()}));
         const auto& islice = iblob->slice();
-        ds.add("slice_index", Array({(int_t)(islice->start()/islice->span())}));
+        ds.add("slice_index", Array({(int_t)(islice->start()/tick)}));
         const auto& shape = iblob->shape();
         const auto& strips = shape.strips();
         /// ASSUMPTION: is this always true?
@@ -198,7 +198,7 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
             /// TODO: use nblobs or iblob->ident()?
             pcs.emplace("3d", sampler->sample_blob(iblob, nblobs));
             const Point center = calc_blob_center(pcs["3d"]);
-            const auto scaler_ds = make_scaler_dataset(iblob, center);
+            const auto scaler_ds = make_scaler_dataset(iblob, center, m_tick);
             pcs.emplace("scalar", std::move(scaler_ds));
             // log->debug("nblobs {} center {{{} {} {}}}", nblobs, center.x(), center.y(), center.z());
             // log->debug("pcs {} cnode {}", pcs.size(), dump_children(cnode));
@@ -240,7 +240,7 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
             auto iblob = std::get<IBlob::pointer>(gr[vdesc].ptr);
             named_pointclouds_t pcs;
             // pcs.emplace("dead", sampler->sample_blob(iblob, nblobs));
-            const auto scaler_ds = make_scaler_dataset(iblob, {0,0,0});
+            const auto scaler_ds = make_scaler_dataset(iblob, {0,0,0}, m_tick);
             pcs.emplace("scalar", std::move(scaler_ds));
             for (const auto& [name, pc] : pcs) {
                 log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
