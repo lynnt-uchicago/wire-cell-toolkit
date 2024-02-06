@@ -220,8 +220,14 @@ namespace {
     timers["dead2lives"] += duration;
     log->debug("dead2lives {} ms", timers["dead2lives"].count());
 
+    // BEE debug root_live
+    if (!m_bee_file.empty()) {
+        dump_bee(*root_live.get(), "data/0/0-root_live.json");
+    }
+
     // Make new live node tree
     Points::node_ptr root_live_new = std::make_unique<Points::node_t>();
+    log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
     std::unordered_set<Cluster::pointer> need_merging;
     for (const auto& [dead, lives] : dead2lives) {
         if (lives.size() < 2) {
@@ -232,15 +238,43 @@ namespace {
         auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
         for (const auto& live : lives) {
             for (const auto& blob : live->m_blobs) {
+                // this also removes blob node from root_live
                 cnode->insert(blob->m_node);
             }
+            // manually remove the cnode from root_live
+            root_live->remove(live->m_node);
+            // auto own_ptr = root_live->remove(live->m_node);
+            // if (!own_ptr) {
+            //     log->debug("connected, failed");
+            // } else {
+            //     log->debug("connected, passed");
+            // }
         }
     }
     log->debug("need_merging size: {}", need_merging.size());
+    log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
+    // move remaining live clusters to new root
+    // size_t ichild = 0;
+    // for (auto& cnode : root_live->children()) {
+    //     ichild++;
+    //     if (ichild > 1000) break;
+    //     log->debug("ichild: {} cnode {} ", ichild, (void *)cnode.get());
+    //     auto own_ptr = root_live->remove(cnode.get());
+    //     if (!own_ptr) {
+    //         log->error("pass through failed");
+    //         log->debug("ichild: {} cnode {} ", ichild, (void *)cnode.get());
+    //         continue;
+    //     }
+    //     // root_live_new->insert(std::move(own_ptr));
+    // }
+    for (auto& cnode : root_live->children()) {
+        // this will NOT remove cnode from root_live, but set it to nullptr
+        root_live_new->insert(std::move(cnode));
+    }
+    log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
 
-    // BEE debug file
+    // BEE debug root_live_new
     if (!m_bee_file.empty()) {
-        dump_bee(*root_live.get(), "data/0/0-root_live.json");
         dump_bee(*root_live_new.get(), "data/0/0-root_live_new.json");
     }
 

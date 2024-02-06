@@ -347,7 +347,7 @@ struct BlobSampler::Sampler : public Aux::Logger
         const Binning bins(cc.tbinning.nbins(),
                            cc.tbinning.min()*dt + t0,
                            cc.tbinning.max()*dt + t0);
-        log->debug("t0 {} dt {} bins {}", t0, dt, bins);
+        // log->debug("t0 {} dt {} bins {}", t0, dt, bins);
         const size_t npts = points.size();
         for (int tbin : irange(bins.nbins())) {
             const double time = bins.edge(tbin);
