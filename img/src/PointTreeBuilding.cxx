@@ -143,7 +143,7 @@ namespace {
         return ret;
     }
     /// TODO: add more info to the dataset
-    Dataset make_scaler_dataset(const IBlob::pointer iblob, const Point& center, const double tick = 0.5*units::us)
+    Dataset make_scaler_dataset(const IBlob::pointer iblob, const Point& center, const double tick_span = 0.5*units::us)
     {
         using float_t = double;
         using int_t = int;
@@ -153,7 +153,8 @@ namespace {
         ds.add("center_y", Array({(float_t)center.y()}));
         ds.add("center_z", Array({(float_t)center.z()}));
         const auto& islice = iblob->slice();
-        ds.add("slice_index", Array({(int_t)(islice->start()/tick)}));
+        ds.add("slice_index_min", Array({(int_t)(islice->start()/tick_span)}));
+        ds.add("slice_index_max", Array({(int_t)((islice->start()+islice->span())/tick_span)}));
         const auto& shape = iblob->shape();
         const auto& strips = shape.strips();
         /// ASSUMPTION: is this always true?

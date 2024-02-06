@@ -43,7 +43,8 @@ Blob::Blob(const node_ptr& n)
     center_x = pc_scalar.get("center_x")->elements<float_t>()[0];
     center_y = pc_scalar.get("center_y")->elements<float_t>()[0];
     center_z = pc_scalar.get("center_z")->elements<float_t>()[0];
-    slice_index = pc_scalar.get("slice_index")->elements<int_t>()[0];
+    slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
+    slice_index_max = pc_scalar.get("slice_index_max")->elements<int_t>()[0];
     u_wire_index_min = pc_scalar.get("u_wire_index_min")->elements<int_t>()[0];
     u_wire_index_max = pc_scalar.get("u_wire_index_max")->elements<int_t>()[0];
     v_wire_index_min = pc_scalar.get("v_wire_index_min")->elements<int_t>()[0];
@@ -77,7 +78,9 @@ Cluster::Cluster(const node_ptr& n)
     for (const auto& child : m_node->children()) {
         auto blob = std::make_shared<Blob>(child);
         m_blobs.push_back(blob);
-        m_time_blob_map.insert({blob->slice_index, blob});
+        for (int slice_index = blob->slice_index_min; slice_index < blob->slice_index_max; ++slice_index) {
+            m_time_blob_map.insert({slice_index, blob});
+        }
     }
 }
 
