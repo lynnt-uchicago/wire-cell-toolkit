@@ -126,7 +126,98 @@ namespace {
             raise<ValueError>("Failed to open file: " + fn);
         }
     }
+
+    struct Point2D {
+        Point2D(float x, float y) : x(x), y(y) {}
+        float x;
+        float y;
+    };
+
+    bool anglular_less(const Point2D& a, const Point2D& b, const Point2D& center) {
+        if (a.x - center.x >= 0 && b.x - center.x < 0)
+            return true;
+        if (a.x - center.x < 0 && b.x - center.x >= 0)
+            return false;
+        if (a.x - center.x == 0 && b.x - center.x == 0) {
+            if (a.y - center.y >= 0 || b.y - center.y >= 0)
+                return a.y > b.y;
+            return b.y > a.y;
+        }
+
+        // compute the cross product of vectors (center -> a) x (center -> b)
+        int det = (a.x - center.x) * (b.y - center.y) - (b.x - center.x) * (a.y - center.y);
+        if (det < 0)
+            return true;
+        if (det > 0)
+            return false;
+
+        // points a and b are on the same line from the center
+        // check which point is closer to the center
+        int d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
+        int d2 = (b.x - center.x) * (b.x - center.x) + (b.y - center.y) * (b.y - center.y);
+        return d1 > d2;
     }
+
+    std::vector<Point2D> sort_angular(const std::vector<Point2D>& points)
+    {
+        if (points.size() < 3) {
+            return points;
+        }
+        // Calculate the center of the points
+        float sumX = 0.0;
+        float sumY = 0.0;
+        for (const auto& point : points) {
+            sumX += point.x;
+            sumY += point.y;
+        }
+        Point2D center(sumX / points.size(), sumY / points.size());
+
+        std::vector<Point2D> sorted = points;
+        std::sort(sorted.begin(), sorted.end(), [&](const Point2D& a, const Point2D& b) {
+            return anglular_less(a, b, center);
+        });
+        return sorted;
+    }
+
+    void dumpe_deadarea(const Points::node_t& root, const std::string& fn) {
+        using WireCell::PointCloud::Facade::float_t;
+        using WireCell::PointCloud::Facade::int_t;
+
+        // Convert stringstream to JSON array
+        Json::Value jdead;
+        Json::Reader reader;
+        for (const auto& cnode : root.children()) {
+            for (const auto& bnode : cnode->children()) {
+                const auto& lpcs = bnode->value.local_pcs();
+                const auto& pc_scalar = lpcs.at("corner");
+                const auto& y = pc_scalar.get("y")->elements<float_t>();
+                const auto& z = pc_scalar.get("z")->elements<float_t>();
+                std::vector<Point2D> points;
+                for (size_t i = 0; i < y.size(); ++i) {
+                    points.push_back({y[i], z[i]});
+                }
+                auto sorted = sort_angular(points);
+                Json::Value jarea(Json::arrayValue);
+                for (const auto& point : sorted) {
+                    Json::Value jpoint(Json::arrayValue);
+                    jpoint.append(point.x/units::cm);
+                    jpoint.append(point.y/units::cm);
+                    jarea.append(jpoint);
+                }
+                jdead.append(jarea);
+            }
+        }
+
+        // Output jsonArray to file
+        std::ofstream file(fn);
+        if (file.is_open()) {
+            file << jdead.toStyledString();
+            file.close();
+        } else {
+            std::cout << "Failed to open file: " << fn << std::endl;
+        }
+    }
+}
 
 
     bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointer& outts)
@@ -223,6 +314,7 @@ namespace {
     // BEE debug root_live
     if (!m_bee_file.empty()) {
         dump_bee(*root_live.get(), "data/0/0-root_live.json");
+        dumpe_deadarea(*root_dead.get(), "data/0/0-channel-deadarea.json");
     }
 
     // Make new live node tree
@@ -243,30 +335,11 @@ namespace {
             }
             // manually remove the cnode from root_live
             root_live->remove(live->m_node);
-            // auto own_ptr = root_live->remove(live->m_node);
-            // if (!own_ptr) {
-            //     log->debug("connected, failed");
-            // } else {
-            //     log->debug("connected, passed");
-            // }
         }
     }
     log->debug("need_merging size: {}", need_merging.size());
     log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
     // move remaining live clusters to new root
-    // size_t ichild = 0;
-    // for (auto& cnode : root_live->children()) {
-    //     ichild++;
-    //     if (ichild > 1000) break;
-    //     log->debug("ichild: {} cnode {} ", ichild, (void *)cnode.get());
-    //     auto own_ptr = root_live->remove(cnode.get());
-    //     if (!own_ptr) {
-    //         log->error("pass through failed");
-    //         log->debug("ichild: {} cnode {} ", ichild, (void *)cnode.get());
-    //         continue;
-    //     }
-    //     // root_live_new->insert(std::move(own_ptr));
-    // }
     for (auto& cnode : root_live->children()) {
         // this will NOT remove cnode from root_live, but set it to nullptr
         root_live_new->insert(std::move(cnode));
