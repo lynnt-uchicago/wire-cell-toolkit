@@ -166,7 +166,7 @@ struct BlobSampler::Sampler : public Aux::Logger
     double time2drift(double time) const
     {
         const Pimpos* colpimpos = pimpos(2);
-        const double drift = (time + cc.time_offset)/cc.drift_speed;
+        const double drift = (time + cc.time_offset)*cc.drift_speed;
         double xorig = colpimpos->origin()[0];
         double xsign = colpimpos->axis(0)[0];
         return xorig + xsign*drift;
@@ -345,9 +345,9 @@ struct BlobSampler::Sampler : public Aux::Logger
         const double dt = islice->span();
 
         const Binning bins(cc.tbinning.nbins(),
-                           cc.tbinning.min() * t0,
-                           cc.tbinning.max() * (t0 + dt));
-
+                           cc.tbinning.min()*dt + t0,
+                           cc.tbinning.max()*dt + t0);
+        // log->debug("t0 {} dt {} bins {}", t0, dt, bins);
         const size_t npts = points.size();
         for (int tbin : irange(bins.nbins())) {
             const double time = bins.edge(tbin);
