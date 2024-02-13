@@ -43,7 +43,26 @@ Blob::Blob(const node_ptr& n)
     center_x = pc_scalar.get("center_x")->elements<float_t>()[0];
     center_y = pc_scalar.get("center_y")->elements<float_t>()[0];
     center_z = pc_scalar.get("center_z")->elements<float_t>()[0];
-    slice_index = pc_scalar.get("slice_index")->elements<int>()[0];
+    slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
+    slice_index_max = pc_scalar.get("slice_index_max")->elements<int_t>()[0];
+    u_wire_index_min = pc_scalar.get("u_wire_index_min")->elements<int_t>()[0];
+    u_wire_index_max = pc_scalar.get("u_wire_index_max")->elements<int_t>()[0];
+    v_wire_index_min = pc_scalar.get("v_wire_index_min")->elements<int_t>()[0];
+    v_wire_index_max = pc_scalar.get("v_wire_index_max")->elements<int_t>()[0];
+    w_wire_index_min = pc_scalar.get("w_wire_index_min")->elements<int_t>()[0];
+    w_wire_index_max = pc_scalar.get("w_wire_index_max")->elements<int_t>()[0];
+
+}
+
+bool Blob::overlap_fast(const Blob& b, const int offset) const
+{
+    if (u_wire_index_min > b.u_wire_index_max + offset) return false;
+    if (b.u_wire_index_min > u_wire_index_max + offset) return false;
+    if (v_wire_index_min > b.v_wire_index_max + offset) return false;
+    if (b.v_wire_index_min > v_wire_index_max + offset) return false;
+    if (w_wire_index_min > b.w_wire_index_max + offset) return false;
+    if (b.w_wire_index_min > w_wire_index_max + offset) return false;
+    return true;
 }
 
 geo_point_t Blob::center_pos() const {
@@ -59,8 +78,27 @@ Cluster::Cluster(const node_ptr& n)
     for (const auto& child : m_node->children()) {
         auto blob = std::make_shared<Blob>(child);
         m_blobs.push_back(blob);
-        m_time_blob_map.insert({blob->slice_index, blob});
+        for (int slice_index = blob->slice_index_min; slice_index < blob->slice_index_max; ++slice_index) {
+            m_time_blob_map.insert({slice_index, blob});
+        }
     }
+}
+
+Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
+{
+    Blob::vector ret;
+    // loop m_time_blob_map
+    for (const auto& [time, blob] : m_time_blob_map) {
+        // loop c.m_time_blob_map
+        auto range = c.m_time_blob_map.equal_range(time);
+        for (auto it = range.first; it != range.second; ++it) {
+            const auto& cblob = it->second;
+            if (blob->overlap_fast(*cblob, offset)) {
+                ret.push_back(cblob);
+            }
+        }
+    }
+    return ret;
 }
 
 geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, const int alg) const {
