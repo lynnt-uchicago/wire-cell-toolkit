@@ -194,7 +194,7 @@ namespace {
                 const auto& z = pc_scalar.get("z")->elements<float_t>();
                 std::vector<Point2D> points;
                 for (size_t i = 0; i < y.size(); ++i) {
-                    points.push_back({y[i], z[i]});
+                    points.push_back({(float)y[i], (float)z[i]});
                 }
                 auto sorted = sort_angular(points);
                 Json::Value jarea(Json::arrayValue);
@@ -303,7 +303,7 @@ namespace {
                 lives.push_back(live);
             }
         }
-        dead2lives[dead] = std::move(lives);
+        dead2lives[dead] = lives;
         // log->debug("dead2lives size {} ", dead2lives[dead].size());
     }
     end = std::chrono::high_resolution_clock::now();
@@ -327,7 +327,7 @@ namespace {
         }
         log->debug("dead2lives size for dead cluster: {}", lives.size());
         need_merging.insert(lives.begin(), lives.end());
-        auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
+        auto cnode = root_live_new->insert(std::make_unique<Points::node_t>());
         for (const auto& live : lives) {
             for (const auto& blob : live->m_blobs) {
                 // this also removes blob node from root_live
