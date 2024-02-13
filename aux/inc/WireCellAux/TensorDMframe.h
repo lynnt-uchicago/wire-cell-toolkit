@@ -8,6 +8,8 @@
 #include "WireCellIface/ITrace.h"
 #include "WireCellIface/ITensor.h"
 
+#include "WireCellAux/TensorDMcommon.h"
+
 namespace WireCell::Aux::TensorDM {
 
     /// Frame support
@@ -103,6 +105,9 @@ namespace WireCell::Aux::TensorDM {
 
     */
     IFrame::pointer as_frame(const ITensor::vector& tens,
+                             const std::string& datapath="",
+                             std::function<float(float)> transform=identity);
+    IFrame::pointer as_frame(const TensorIndex& ti,
                              const std::string& datapath="",
                              std::function<float(float)> transform=identity);
 }

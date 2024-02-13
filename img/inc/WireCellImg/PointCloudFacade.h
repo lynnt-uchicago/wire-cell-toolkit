@@ -39,7 +39,7 @@ namespace WireCell::PointCloud::Facade {
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
 
        private:
-        node_t* m_node;  /// do not own
+        node_t* m_node{nullptr};  /// do not own
         std::unordered_multimap<int, std::shared_ptr<Blob>> m_time_blob_map;
         std::vector<std::shared_ptr<Blob>> m_blobs;
     };

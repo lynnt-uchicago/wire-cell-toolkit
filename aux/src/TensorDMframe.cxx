@@ -308,19 +308,22 @@ IFrame::pointer WireCell::Aux::TensorDM::as_frame(const ITensor::vector& tens,
                                                   const std::string& datapath,
                                                   std::function<float(float)> transform)
 {
-    const auto& located = index_datapaths(tens);
-    ITensor::pointer ften=top_tensor(tens, "frame", datapath, located);
-
-    if (!ften) {
-        THROW(ValueError() << errmsg{"no frame tensor found"});
-    }
+    TensorIndex ti(tens);
+    return as_frame(ti, datapath, transform);
+}
+IFrame::pointer WireCell::Aux::TensorDM::as_frame(const TensorIndex& ti,
+                                                  const std::string& datapath,
+                                                  std::function<float(float)> transform)
+{
+    ITensor::pointer ften = ti.at(datapath, "frame");
 
     auto fmd = ften->metadata();
+
     // traces, sans chids
     std::vector<std::shared_ptr<SimpleTrace>> straces;
     for (auto jtrpath : fmd["traces"]) {
         auto trpath = jtrpath.asString();
-        auto trten = located.at(trpath);
+        auto trten = ti.at(trpath); // fixme: datatype
         auto trmd = trten->metadata();
 
         int tbin = get(trmd, "tbin", 0);
@@ -353,7 +356,7 @@ IFrame::pointer WireCell::Aux::TensorDM::as_frame(const ITensor::vector& tens,
             }
             auto tdpath = jtdpath.asString();
             const bool share = false; // was true
-            PC::Dataset td = as_dataset(tens, tdpath, located, share);
+            PC::Dataset td = as_dataset(ti, tdpath, share);
             // dump_dataset(td, tdpath);
             auto tdmd = td.metadata();
     
