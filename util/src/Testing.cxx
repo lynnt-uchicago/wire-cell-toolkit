@@ -1,6 +1,8 @@
 #include "WireCellUtil/Testing.h"
 #include "WireCellUtil/Exceptions.h"
 #include "WireCellUtil/Logging.h"
+#include "WireCellUtil/PluginManager.h"
+#include "WireCellUtil/Persist.h"
 
 #include <sstream>
 
@@ -30,3 +32,21 @@ void Testing::log(const char* argv0)
     Log::add_stderr(true, "trace");
     Log::add_file(name, "trace");
 }
+
+void Testing::load_plugins(std::vector<std::string> list)
+{
+    PluginManager& pm = PluginManager::instance();
+
+    if (list.empty()) {
+        list = {"WireCellAux", "WireCellGen", "WireCellSigProc", "WireCellPgraph", "WireCellImg", "WireCellSio", "WireCellApps"};
+    }
+    for (const auto& one : list) {
+        pm.add(one);
+    }
+}
+
+Configuration Testing::detectors(const std::string& filename)
+{
+    return Persist::load(filename);
+}
+

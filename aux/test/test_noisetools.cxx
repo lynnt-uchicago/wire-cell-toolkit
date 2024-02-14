@@ -16,7 +16,7 @@
 using namespace WireCell;
 using namespace WireCell::Spectrum;
 using namespace WireCell::String;
-using namespace WireCell::Aux::Testing;
+using namespace WireCell::Testing;
 using namespace WireCell::Aux::RandTools;
 using namespace WireCell::Aux::DftTools;
 using namespace WireCell::Aux::NoiseTools;
