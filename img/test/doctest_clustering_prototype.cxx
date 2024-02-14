@@ -62,7 +62,14 @@ Points::node_ptr make_simple_pctree()
             {"center_x", Array({0.5})},
             {"center_y", Array({0.})},
             {"center_z", Array({0.})},
-            {"slice_index", Array({0})},
+            {"slice_index_min", Array({0})},
+            {"slice_index_max", Array({0})},
+            {"u_wire_index_min", Array({0})},
+            {"u_wire_index_max", Array({0})},
+            {"v_wire_index_min", Array({0})},
+            {"v_wire_index_max", Array({0})},
+            {"w_wire_index_min", Array({0})},
+            {"w_wire_index_max", Array({0})},
         })},
         {"3d", make_janky_track(Ray(Point(0, 0, 0), Point(1, 0, 0)))}
         }));
@@ -78,7 +85,14 @@ Points::node_ptr make_simple_pctree()
             {"center_x", Array({1.5})},
             {"center_y", Array({0.})},
             {"center_z", Array({0.})},
-            {"slice_index", Array({0})},
+            {"slice_index_min", Array({0})},
+            {"slice_index_max", Array({0})},
+            {"u_wire_index_min", Array({0})},
+            {"u_wire_index_max", Array({0})},
+            {"v_wire_index_min", Array({0})},
+            {"v_wire_index_max", Array({0})},
+            {"w_wire_index_min", Array({0})},
+            {"w_wire_index_max", Array({0})},
         })},
         {"3d", make_janky_track(Ray(Point(1, 0, 0), Point(2, 0, 0)))}
         }));

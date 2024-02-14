@@ -51,7 +51,9 @@ Blob::Blob(const node_ptr& n)
     v_wire_index_max = pc_scalar.get("v_wire_index_max")->elements<int_t>()[0];
     w_wire_index_min = pc_scalar.get("w_wire_index_min")->elements<int_t>()[0];
     w_wire_index_max = pc_scalar.get("w_wire_index_max")->elements<int_t>()[0];
-
+    ///
+    ///  MAKE SURE YOU UPDATE doctest_clustering_prototype.cxx if you change the above.
+    ///
 }
 
 bool Blob::overlap_fast(const Blob& b, const int offset) const
