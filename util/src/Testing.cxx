@@ -25,12 +25,13 @@ void boost::assertion_failed(char const* expr, char const* function, char const*
     boost::assertion_failed_msg(expr, "", function, file, line);
 }
 
-void Testing::log(const char* argv0)
+void Testing::log(const char* argv0, const char* level)
 {
     std::string name = argv0;
     name += ".log";
-    Log::add_stderr(true, "trace");
-    Log::add_file(name, "trace");
+    Log::add_stderr(true, level);
+    Log::add_file(name, level);
+    Log::set_level(level);
 }
 
 void Testing::load_plugins(std::vector<std::string> list)

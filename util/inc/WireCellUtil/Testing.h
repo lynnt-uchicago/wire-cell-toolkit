@@ -21,7 +21,8 @@ namespace WireCell::Testing {
 
     // Add a stderr and file log sink based on the argv[0] name.
     // Bare calls, eg, spdlog::debug() may then be issued.
-    void log(const char* argv0);
+    // See also Log::default_logging() from Logging.h.
+    void log(const char* argv0, const char* level = "debug");
 
     // Load plugins.  If empty, load "core" plugins.
     void load_plugins(std::vector<std::string> list = {});
