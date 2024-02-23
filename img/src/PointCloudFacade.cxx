@@ -153,3 +153,60 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     // debug("ret {{{} {} {}}}", ret.x(), ret.y(), ret.z());
     return ret;
 }
+
+#include <boost/histogram.hpp>
+#include <boost/histogram/algorithm/sum.hpp>
+namespace bh = boost::histogram;
+namespace bha = boost::histogram::algorithm;
+
+
+geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double dis, const int alg) const {
+    geo_point_t ret(0,0,0);
+    Scope scope = { "3d", {"x","y","z"} };
+    const auto& sv = m_node->value.scoped_view(scope);
+    const auto& skd = sv.kd();
+    auto rad = skd.radius(dis, origin);
+    /// FIXME: what if rad is empty?
+    if(rad.size() == 0) {
+        // raise<ValueError>("empty point cloud");
+        return ret;
+    }
+    // const auto& spc = sv.pcs();
+
+    const double pi = 3.141592653589793;
+    // axes
+    const Vector X(1,0,0);
+    const Vector Y(0,1,0);
+    const Vector Z(0,0,1);
+
+    // alg 0
+    auto hist = bh::make_histogram(bh::axis::regular<>( 180, -1.0, 1.0 ),
+                                   bh::axis::regular<>( 360,  -pi, pi ) );
+
+    for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+        auto& [pit,dist] = rad[pt_ind];
+        debug("pt {{{} {} {}}}", pit->at(0), pit->at(1), pit->at(2));
+        // auto pt = *pit;
+        // debug("pt {{{} {} {}}}", pt[0], pt[1], pt[2]);
+        const geo_point_t pt(pit->at(0), pit->at(1), pit->at(2));
+        Vector dir = (pt-origin).norm();
+        const double cth = Z.dot(dir);
+        const double phi = atan2(Y.dot(dir), X.dot(dir));
+        hist(cth, phi, bh::weight(1.0));
+    }
+    
+    auto indexed = bh::indexed(hist);
+    auto it = std::max_element(indexed.begin(), indexed.end());
+    const auto& cell = *it;
+    // std::stringstream ss;
+    // ss << " maximum: index=[" << cell.index(0) <<","<< cell.index(1) <<"]"
+    //    << " cth:[" << cell.bin(0).lower() << "," << cell.bin(0).upper() << "]"
+    //    << " phi:[" << cell.bin(1).lower() << "," << cell.bin(1).upper() << "]"
+    //    << " value=" << *cell
+    //    << " sum=" << bha::sum(hist, bh::coverage::all);
+    // spdlog::debug(ss.str());
+
+    return {cell.bin(0).center(), cell.bin(1).center(), 0};
+
+    /// alg 1 TODO: implement
+}
