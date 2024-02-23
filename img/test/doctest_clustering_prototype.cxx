@@ -12,6 +12,8 @@ using namespace WireCell::PointTesting;
 using namespace WireCell::PointCloud;
 using namespace WireCell::PointCloud::Tree;
 using namespace WireCell::PointCloud::Facade;
+using fa_float_t = WireCell::PointCloud::Facade::float_t;
+using fa_int_t = WireCell::PointCloud::Facade::int_t;
 // WireCell::PointCloud::Tree::scoped_pointcloud_t
 using spdlog::debug;
 
@@ -26,7 +28,7 @@ void print_dds(const DisjointDataset& dds) {
         ss << "ds: " << idx << std::endl;
         // const size_t len = ds.size_major();
         for (const auto& key : ds.keys()) {
-            auto arr = ds.get(key)->elements<double>();
+            auto arr = ds.get(key)->elements<fa_float_t>();
             ss << key << ": ";
             for(auto elem : arr) {
                 ss << elem << " ";
@@ -40,8 +42,6 @@ void print_dds(const DisjointDataset& dds) {
 static
 Points::node_ptr make_simple_pctree()
 {
-    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
-
     // empty root node
     Points::node_ptr root = std::make_unique<Points::node_t>();
 
@@ -58,10 +58,18 @@ Points::node_ptr make_simple_pctree()
     auto* n1 = root->insert(Points({
         /// QUESTION: proper Array initiation?
         {"scalar", Dataset({
-            {"charge", Array({1.0})},
-            {"center_x", Array({0.5})},
-            {"center_y", Array({0.})},
-            {"center_z", Array({0.})},
+            {"charge", Array({(fa_float_t)1.0})},
+            {"center_x", Array({(fa_float_t)0.5})},
+            {"center_y", Array({(fa_float_t)0.})},
+            {"center_z", Array({(fa_float_t)0.})},
+            {"slice_index_min", Array({(fa_int_t)0})},
+            {"slice_index_max", Array({(fa_int_t)0})},
+            {"u_wire_index_min", Array({(fa_int_t)0})},
+            {"u_wire_index_max", Array({(fa_int_t)0})},
+            {"v_wire_index_min", Array({(fa_int_t)0})},
+            {"v_wire_index_max", Array({(fa_int_t)0})},
+            {"w_wire_index_min", Array({(fa_int_t)0})},
+            {"w_wire_index_max", Array({(fa_int_t)0})},
         })},
         {"3d", make_janky_track(Ray(Point(0, 0, 0), Point(1, 0, 0)))}
         }));
@@ -73,10 +81,18 @@ Points::node_ptr make_simple_pctree()
     // Ibid from a different track
     auto* n2 = root->insert(Points({
         {"scalar", Dataset({
-            {"charge", Array({2.0})},
-            {"center_x", Array({1.5})},
-            {"center_y", Array({0.})},
-            {"center_z", Array({0.})},
+            {"charge", Array({(fa_float_t)2.0})},
+            {"center_x", Array({(fa_float_t)1.5})},
+            {"center_y", Array({(fa_float_t)0.})},
+            {"center_z", Array({(fa_float_t)0.})},
+            {"slice_index_min", Array({(fa_int_t)0})},
+            {"slice_index_max", Array({(fa_int_t)0})},
+            {"u_wire_index_min", Array({(fa_int_t)0})},
+            {"u_wire_index_max", Array({(fa_int_t)0})},
+            {"v_wire_index_min", Array({(fa_int_t)0})},
+            {"v_wire_index_max", Array({(fa_int_t)0})},
+            {"w_wire_index_min", Array({(fa_int_t)0})},
+            {"w_wire_index_max", Array({(fa_int_t)0})},
         })},
         {"3d", make_janky_track(Ray(Point(1, 0, 0), Point(2, 0, 0)))}
         }));
@@ -92,7 +108,6 @@ Points::node_ptr make_simple_pctree()
 
 TEST_CASE("test PointTree API")
 {
-    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     auto root = make_simple_pctree();
     CHECK(root.get());
 
@@ -141,7 +156,7 @@ TEST_CASE("test PointTree API")
     /// You can use that pair to access elements in other disjoint ranges.  See
     /// doctest-pointtree-example for details.
 
-    std::vector<double> some_point = {1, 0, 0};
+    std::vector<fa_float_t> some_point = {1, 0, 0};
     auto knn = kd.knn(2, some_point);
     for (auto [it,dist] : knn) {
         auto& pt = *it;
@@ -157,7 +172,7 @@ TEST_CASE("test PointTree API")
               pt_ind, dist, maj_ind, min_ind);
         const Dataset& pc = pc3d[maj_ind];
         for (const auto& name : scope.coords) {
-            debug("\t{} = {}", name, pc.get(name)->element<double>(min_ind));
+            debug("\t{} = {}", name, pc.get(name)->element<fa_float_t>(min_ind));
         }
     }
 
@@ -174,8 +189,8 @@ TEST_CASE("test PointTree API")
 
 TEST_CASE("test PointCloudFacade")
 {
-    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     auto root = make_simple_pctree();
     Cluster pcc(root);
     auto ave_pos = pcc.calc_ave_pos({1,0,0}, 1);
+    debug("ave_pos: ({},{},{})", ave_pos.x(), ave_pos.y(), ave_pos.z());
 }
