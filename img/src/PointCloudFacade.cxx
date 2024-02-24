@@ -160,8 +160,7 @@ namespace bh = boost::histogram;
 namespace bha = boost::histogram::algorithm;
 
 
-geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double dis, const int alg) const {
-    geo_point_t ret(0,0,0);
+std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, const double dis, const int alg) const {
     Scope scope = { "3d", {"x","y","z"} };
     const auto& sv = m_node->value.scoped_view(scope);
     const auto& skd = sv.kd();
@@ -169,7 +168,7 @@ geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double di
     /// FIXME: what if rad is empty?
     if(rad.size() == 0) {
         // raise<ValueError>("empty point cloud");
-        return ret;
+        return {0,0};
     }
     // const auto& spc = sv.pcs();
 
@@ -206,7 +205,21 @@ geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double di
     //    << " sum=" << bha::sum(hist, bh::coverage::all);
     // spdlog::debug(ss.str());
 
-    return {cell.bin(0).center(), cell.bin(1).center(), 0};
+    // cos(theta), phi
+    return {cell.bin(0).center(), cell.bin(1).center()};
 
     /// alg 1 TODO: implement
+}
+
+geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double dis, const int alg) const {
+    if (alg == 0) {
+        const auto [cth, phi] = hough_transform(origin, dis, alg);
+        const double sth = sqrt(1-cth*cth);
+        return {sth*cos(phi), sth*sin(phi), cth};
+    }
+    if (alg == 1) {
+        const auto [th, phi] = hough_transform(origin, dis, alg);
+        return {sin(th)*cos(phi), sin(th)*sin(phi), cos(th)};
+    }
+    raise<ValueError>("unknown alg %d", alg);
 }

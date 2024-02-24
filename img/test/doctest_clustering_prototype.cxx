@@ -196,5 +196,7 @@ TEST_CASE("test PointCloudFacade")
     debug("ave_pos_alg0: {}", ave_pos_alg0);
     auto ave_pos_alg1 = pcc.calc_ave_pos({1,0,0}, 1, 1);
     debug("ave_pos_alg1: {}", ave_pos_alg1);
-    pcc.vhough_transform({1,0,0}, 1);
+    const auto vdir = pcc.vhough_transform({1,0,0}, 1);
+    // expecting {1, 0, 0}
+    debug("vdir: {}", vdir);
 }
