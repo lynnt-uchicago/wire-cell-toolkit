@@ -192,11 +192,14 @@ TEST_CASE("test PointCloudFacade")
     auto root = make_simple_pctree();
     Cluster pcc(root);
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
+    debug("expecting 1.1666666666666665");
     auto ave_pos_alg0 = pcc.calc_ave_pos({1,0,0}, 1, 0);
     debug("ave_pos_alg0: {}", ave_pos_alg0);
     auto ave_pos_alg1 = pcc.calc_ave_pos({1,0,0}, 1, 1);
     debug("ave_pos_alg1: {}", ave_pos_alg1);
-    const auto vdir = pcc.vhough_transform({1,0,0}, 1);
-    // expecting {1, 0, 0}
-    debug("vdir: {}", vdir);
+    debug("expecting around {1, 0, 0}");
+    const auto vdir_alg0 = pcc.vhough_transform({1,0,0}, 1, 0);
+    debug("vdir_alg0: {}", vdir_alg0);
+    const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, 1);
+    debug("vdir_alg1: {}", vdir_alg1);
 }
