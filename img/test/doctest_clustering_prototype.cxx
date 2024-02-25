@@ -63,13 +63,13 @@ Points::node_ptr make_simple_pctree()
             {"center_y", Array({(fa_float_t)0.})},
             {"center_z", Array({(fa_float_t)0.})},
             {"slice_index_min", Array({(fa_int_t)0})},
-            {"slice_index_max", Array({(fa_int_t)0})},
+            {"slice_index_max", Array({(fa_int_t)1})},
             {"u_wire_index_min", Array({(fa_int_t)0})},
-            {"u_wire_index_max", Array({(fa_int_t)0})},
+            {"u_wire_index_max", Array({(fa_int_t)1})},
             {"v_wire_index_min", Array({(fa_int_t)0})},
-            {"v_wire_index_max", Array({(fa_int_t)0})},
+            {"v_wire_index_max", Array({(fa_int_t)1})},
             {"w_wire_index_min", Array({(fa_int_t)0})},
-            {"w_wire_index_max", Array({(fa_int_t)0})},
+            {"w_wire_index_max", Array({(fa_int_t)1})},
         })},
         {"3d", make_janky_track(Ray(Point(0, 0, 0), Point(1, 0, 0)))}
         }));
@@ -86,13 +86,13 @@ Points::node_ptr make_simple_pctree()
             {"center_y", Array({(fa_float_t)0.})},
             {"center_z", Array({(fa_float_t)0.})},
             {"slice_index_min", Array({(fa_int_t)0})},
-            {"slice_index_max", Array({(fa_int_t)0})},
-            {"u_wire_index_min", Array({(fa_int_t)0})},
-            {"u_wire_index_max", Array({(fa_int_t)0})},
-            {"v_wire_index_min", Array({(fa_int_t)0})},
-            {"v_wire_index_max", Array({(fa_int_t)0})},
-            {"w_wire_index_min", Array({(fa_int_t)0})},
-            {"w_wire_index_max", Array({(fa_int_t)0})},
+            {"slice_index_max", Array({(fa_int_t)1})},
+            {"u_wire_index_min", Array({(fa_int_t)1})},
+            {"u_wire_index_max", Array({(fa_int_t)2})},
+            {"v_wire_index_min", Array({(fa_int_t)1})},
+            {"v_wire_index_max", Array({(fa_int_t)2})},
+            {"w_wire_index_min", Array({(fa_int_t)1})},
+            {"w_wire_index_max", Array({(fa_int_t)2})},
         })},
         {"3d", make_janky_track(Ray(Point(1, 0, 0), Point(2, 0, 0)))}
         }));
@@ -202,4 +202,8 @@ TEST_CASE("test PointCloudFacade")
     debug("vdir_alg0: {}", vdir_alg0);
     const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, 1);
     debug("vdir_alg1: {}", vdir_alg1);
+    // sqrt(3*3*2*2 + 3*3*2*2 + 3*3*2*2 + 3.2*3.2*1*1) = 10.8738217753
+    debug("expecting 10.816653826391969");
+    const auto length = pcc.get_length({});
+    debug("length: {}", length);
 }

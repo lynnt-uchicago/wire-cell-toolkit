@@ -241,3 +241,31 @@ geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double di
     }
     raise<ValueError>("unknown alg %d", alg);
 }
+
+std::tuple<int, int, int, int> Cluster::get_uvwt_range() const {
+    std::set<int> u_set;
+    std::set<int> v_set;
+    std::set<int> w_set;
+    std::set<int> t_set;
+    for (const auto& blob : m_blobs) {
+        for(int i = blob->u_wire_index_min; i < blob->u_wire_index_max; ++i) {
+            u_set.insert(i);
+        }
+        for(int i = blob->v_wire_index_min; i < blob->v_wire_index_max; ++i) {
+            v_set.insert(i);
+        }
+        for(int i = blob->w_wire_index_min; i < blob->w_wire_index_max; ++i) {
+            w_set.insert(i);
+        }
+        for(int i = blob->slice_index_min; i < blob->slice_index_max; ++i) {
+            t_set.insert(i);
+        }
+    }
+    return {u_set.size(), v_set.size(), w_set.size(), t_set.size()};
+}
+
+double Cluster::get_length(const TPCParams& tp) const {
+    const auto [u, v, w, t] = get_uvwt_range();
+    debug("u {} v {} w {} t {}", u, v, w, t);
+    return std::sqrt(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w + t*t*tp.ts_width*tp.ts_width);
+}
