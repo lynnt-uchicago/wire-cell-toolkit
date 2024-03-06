@@ -2,6 +2,7 @@
 #include "WireCellImg/PointCloudFacade.h"
 #include "WireCellUtil/NamedFactory.h"
 #include "WireCellUtil/Units.h"
+#include "WireCellUtil/Persist.h"
 #include "WireCellAux/TensorDMpointtree.h"
 #include "WireCellAux/TensorDMdataset.h"
 #include "WireCellAux/TensorDMcommon.h"
@@ -30,7 +31,7 @@ void MultiAlgBlobClustering::configure(const WireCell::Configuration& cfg)
 {
     m_inpath = get(cfg, "inpath", m_inpath);
     m_outpath = get(cfg, "outpath", m_outpath);
-    m_bee_file = get(cfg, "bee_file", m_bee_file);
+    m_bee_dir = get(cfg, "bee_dir", m_bee_dir);
 }
 
 WireCell::Configuration MultiAlgBlobClustering::default_configuration() const
@@ -38,7 +39,7 @@ WireCell::Configuration MultiAlgBlobClustering::default_configuration() const
     Configuration cfg;
     cfg["inpath"] = m_inpath;
     cfg["outpath"] = m_outpath;
-    cfg["bee_file"] = m_bee_file;
+    cfg["bee_dir"] = m_bee_dir;
     return cfg;
 }
 
@@ -312,9 +313,11 @@ namespace {
     log->debug("dead2lives {} ms", timers["dead2lives"].count());
 
     // BEE debug root_live
-    if (!m_bee_file.empty()) {
-        dump_bee(*root_live.get(), "data/0/0-root_live.json");
-        dumpe_deadarea(*root_dead.get(), "data/0/0-channel-deadarea.json");
+    if (!m_bee_dir.empty()) {
+        std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);
+        Persist::assuredir(sub_dir);
+        dump_bee(*root_live.get(), String::format("%s/%d-root_live.json", sub_dir, ident));
+        dumpe_deadarea(*root_dead.get(), String::format("%s/%d-channel-deadarea.json", sub_dir, ident));
     }
 
     // Make new live node tree
@@ -347,8 +350,9 @@ namespace {
     log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
 
     // BEE debug root_live_new
-    if (!m_bee_file.empty()) {
-        dump_bee(*root_live_new.get(), "data/0/0-root_live_new.json");
+    if (!m_bee_dir.empty()) {
+        std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);
+        dump_bee(*root_live_new.get(), String::format("%s/%d-root_live_new.json", sub_dir, ident));
     }
 
 
