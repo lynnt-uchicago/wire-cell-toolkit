@@ -17,6 +17,7 @@ namespace WireCell::PointCloud::Facade {
     using node_t = WireCell::PointCloud::Tree::Points::node_t;
     using node_ptr = std::unique_ptr<node_t>;
     using geo_point_t = WireCell::Point;
+    using geo_vector_t = WireCell::Vector;
     using float_t = double;
     using int_t = int;
 
@@ -76,6 +77,39 @@ namespace WireCell::PointCloud::Facade {
        private:
         std::unordered_multimap<int, Blob::pointer> m_time_blob_map;
     };
+
+    inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {
+        geo_vector_t temp_dir1;
+        geo_vector_t temp_dir2;
+
+        temp_dir1.set(dir1.x(), 0, -sin(plane_angle) * dir1.y() + cos(plane_angle) * dir1.z());
+        temp_dir2.set(dir2.x(), 0, -sin(plane_angle) * dir2.y() + cos(plane_angle) * dir2.z());
+
+        return temp_dir1.angle(temp_dir2);
+    }
+
+    inline bool is_angle_consistent(const geo_vector_t& dir1, const geo_vector_t& dir2, bool same_direction, double angle_cut, double uplane_angle, double vplane_angle, double wplane_angle, int num_cut) {
+        double angle_u = cal_proj_angle_diff(dir1, dir2, uplane_angle);
+        double angle_v = cal_proj_angle_diff(dir1, dir2, vplane_angle);
+        double angle_w = cal_proj_angle_diff(dir1, dir2, wplane_angle);
+        int num = 0;
+        // input is degrees ...
+        angle_cut *= 3.1415926 / 180.;
+
+        if (same_direction) {
+            if (angle_u <= angle_cut) num++;
+            if (angle_v <= angle_cut) num++;
+            if (angle_w <= angle_cut) num++;
+        } else {
+            if ((3.1415926 - angle_u) <= angle_cut) num++;
+            if ((3.1415926 - angle_v) <= angle_cut) num++;
+            if ((3.1415926 - angle_w) <= angle_cut) num++;
+        }
+
+        if (num >= num_cut) return true;
+        return false;
+    }
+
 }  // namespace WireCell::PointCloud
 
 #endif
