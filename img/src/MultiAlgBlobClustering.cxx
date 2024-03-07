@@ -8,6 +8,8 @@
 #include "WireCellAux/TensorDMcommon.h"
 #include "WireCellAux/SimpleTensorSet.h"
 
+#include <boost/graph/adjacency_list.hpp>
+
 #include <fstream>
 
 WIRECELL_FACTORY(MultiAlgBlobClustering, WireCell::Img::MultiAlgBlobClustering,
@@ -293,11 +295,13 @@ namespace {
     timers["make_facade"] += duration;
     log->debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(), timers["make_facade"].count());
 
-    // form dead -> lives map
     const int offset = 2;
+
+    // form dead -> lives map
     start = std::chrono::high_resolution_clock::now();
     std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
-    for (const auto& dead : dead_clusters) {
+    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+        const auto& dead = dead_clusters[idead];
         Cluster::vector lives;
         for (const auto& live : live_clusters) {
             if (live->is_connected(*dead, offset).size()) {
@@ -305,12 +309,34 @@ namespace {
             }
         }
         dead2lives[dead] = std::move(lives);
-        // log->debug("dead2lives size {} ", dead2lives[dead].size());
+        log->debug("dead2lives-map {} {} ", idead, dead2lives[dead].size());
     }
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    timers["dead2lives"] += duration;
-    log->debug("dead2lives {} ms", timers["dead2lives"].count());
+    timers["dead2lives-map"] += duration;
+    log->debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
+
+    // from dead -> lives graph
+    start = std::chrono::high_resolution_clock::now();
+    // dead: negative, live: positive
+    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
+    Graph g;
+    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+        const auto& dead = dead_clusters[idead];
+        const auto ddesc = boost::add_vertex(-idead, g);
+        for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+            const auto& live = live_clusters[ilive];
+            const auto ldesc = boost::add_vertex(ilive, g);
+            if (live->is_connected(*dead, offset).size()) {
+                boost::add_edge(ddesc, ldesc, g);
+            }
+        }
+        log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
+    }
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    timers["dead2lives-graph"] += duration;
+    log->debug("dead2lives-graph {} ms", timers["dead2lives-graph"].count());
 
     // BEE debug root_live
     if (!m_bee_dir.empty()) {
