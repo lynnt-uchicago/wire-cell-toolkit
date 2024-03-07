@@ -299,25 +299,25 @@ namespace {
     const int offset = 2;
 
     // form dead -> lives map
-    start = std::chrono::high_resolution_clock::now();
-    std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
-    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
-        const auto& dead = dead_clusters[idead];
-        Cluster::vector lives;
-        for (const auto& live : live_clusters) {
-            if (live->is_connected(*dead, offset).size()) {
-                lives.push_back(live);
-            }
-        }
-        dead2lives[dead] = std::move(lives);
-        if (dead2lives[dead].size() > 0) {
-            log->debug("dead2lives-map {} {} ", idead, dead2lives[dead].size());
-        }
-    }
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    timers["dead2lives-map"] += duration;
-    log->debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
+    // start = std::chrono::high_resolution_clock::now();
+    // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
+    // for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+    //     const auto& dead = dead_clusters[idead];
+    //     Cluster::vector lives;
+    //     for (const auto& live : live_clusters) {
+    //         if (live->is_connected(*dead, offset).size()) {
+    //             lives.push_back(live);
+    //         }
+    //     }
+    //     dead2lives[dead] = std::move(lives);
+    //     if (dead2lives[dead].size() > 1) {
+    //         log->debug("dead2lives-map {} {} ", idead, dead2lives[dead].size());
+    //     }
+    // }
+    // end = std::chrono::high_resolution_clock::now();
+    // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // timers["dead2lives-map"] += duration;
+    // log->debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
 
     // from dead -> lives graph
     start = std::chrono::high_resolution_clock::now();
@@ -334,7 +334,7 @@ namespace {
                 boost::add_edge(ddesc, ldesc, g);
             }
         }
-        if (boost::out_degree(ddesc, g) > 0) {
+        if (boost::out_degree(ddesc, g) > 1) {
             log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
         }
     }
@@ -381,10 +381,10 @@ namespace {
     }
     log->debug("id2desc size: {}", id2desc.size());
     for (const auto& [id, descs] : id2desc) {
-        log->debug("id {} descs size: {}", id, descs.size());
         if (descs.size() < 3) {
             continue;
         }
+        log->debug("id {} descs size: {}", id, descs.size());
         auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
         for (const auto& desc : descs) {
             const int idx = g[desc];

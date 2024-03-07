@@ -273,9 +273,9 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
             // pcs.emplace("dead", sampler->sample_blob(iblob, nblobs));
             pcs.emplace("scalar", make_scaler_dataset(iblob, {0,0,0}, m_tick));
             pcs.emplace("corner", make_corner_dataset(iblob));
-            for (const auto& [name, pc] : pcs) {
-                log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
-            }
+            // for (const auto& [name, pc] : pcs) {
+            //     log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
+            // }
             cnode->insert(std::move(Points(std::move(pcs))));
             ++nblobs;
         }
