@@ -9,6 +9,7 @@
 #include "WireCellAux/SimpleTensorSet.h"
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/connected_components.hpp>
 
 #include <fstream>
 
@@ -309,7 +310,9 @@ namespace {
             }
         }
         dead2lives[dead] = std::move(lives);
-        log->debug("dead2lives-map {} {} ", idead, dead2lives[dead].size());
+        if (dead2lives[dead].size() > 0) {
+            log->debug("dead2lives-map {} {} ", idead, dead2lives[dead].size());
+        }
     }
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -331,7 +334,9 @@ namespace {
                 boost::add_edge(ddesc, ldesc, g);
             }
         }
-        log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
+        if (boost::out_degree(ddesc, g) > 0) {
+            log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
+        }
     }
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -349,15 +354,44 @@ namespace {
     // Make new live node tree
     Points::node_ptr root_live_new = std::make_unique<Points::node_t>();
     log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
-    std::unordered_set<Cluster::pointer> need_merging;
-    for (const auto& [dead, lives] : dead2lives) {
-        if (lives.size() < 2) {
+    // std::unordered_set<Cluster::pointer> need_merging;
+    // for (const auto& [dead, lives] : dead2lives) {
+    //     if (lives.size() < 2) {
+    //         continue;
+    //     }
+    //     log->debug("dead2lives size for dead cluster: {}", lives.size());
+    //     need_merging.insert(lives.begin(), lives.end());
+    //     auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
+    //     for (const auto& live : lives) {
+    //         for (const auto& blob : live->m_blobs) {
+    //             // this also removes blob node from root_live
+    //             cnode->insert(blob->m_node);
+    //         }
+    //         // manually remove the cnode from root_live
+    //         root_live->remove(live->m_node);
+    //     }
+    // }
+    // log->debug("need_merging size: {}", need_merging.size());
+
+    std::unordered_map<int, int> desc2id;
+    std::unordered_map<int, std::set<int> > id2desc;
+    int num_components = boost::connected_components(g, boost::make_assoc_property_map(desc2id));
+    for (const auto& [desc, id] : desc2id) {
+        id2desc[id].insert(desc);
+    }
+    log->debug("id2desc size: {}", id2desc.size());
+    for (const auto& [id, descs] : id2desc) {
+        log->debug("id {} descs size: {}", id, descs.size());
+        if (descs.size() < 3) {
             continue;
         }
-        log->debug("dead2lives size for dead cluster: {}", lives.size());
-        need_merging.insert(lives.begin(), lives.end());
         auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
-        for (const auto& live : lives) {
+        for (const auto& desc : descs) {
+            const int idx = g[desc];
+            if (idx < 0) {
+                continue;
+            }
+            const auto& live = live_clusters[idx];
             for (const auto& blob : live->m_blobs) {
                 // this also removes blob node from root_live
                 cnode->insert(blob->m_node);
@@ -366,7 +400,6 @@ namespace {
             root_live->remove(live->m_node);
         }
     }
-    log->debug("need_merging size: {}", need_merging.size());
     log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
     // move remaining live clusters to new root
     for (auto& cnode : root_live->children()) {
