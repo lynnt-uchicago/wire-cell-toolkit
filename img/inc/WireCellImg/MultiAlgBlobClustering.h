@@ -41,6 +41,9 @@ namespace WireCell::Img {
          * interpolated with the ident number of the input tensor set.
          */
         std::string m_outpath{""};
+
+        // configurable parameters for dead-live clustering
+        int m_dead_live_overlap_offset{2};
     };
 }
 

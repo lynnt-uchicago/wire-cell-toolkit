@@ -35,6 +35,8 @@ void MultiAlgBlobClustering::configure(const WireCell::Configuration& cfg)
     m_inpath = get(cfg, "inpath", m_inpath);
     m_outpath = get(cfg, "outpath", m_outpath);
     m_bee_dir = get(cfg, "bee_dir", m_bee_dir);
+
+    m_dead_live_overlap_offset = get(cfg, "dead_live_overlap_offset", m_dead_live_overlap_offset);
 }
 
 WireCell::Configuration MultiAlgBlobClustering::default_configuration() const
@@ -43,6 +45,8 @@ WireCell::Configuration MultiAlgBlobClustering::default_configuration() const
     cfg["inpath"] = m_inpath;
     cfg["outpath"] = m_outpath;
     cfg["bee_dir"] = m_bee_dir;
+
+    cfg["dead_live_overlap_offset"] = m_dead_live_overlap_offset;
     return cfg;
 }
 
@@ -296,8 +300,6 @@ namespace {
     timers["make_facade"] += duration;
     log->debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(), timers["make_facade"].count());
 
-    const int offset = 2;
-
     // form dead -> lives map
     // start = std::chrono::high_resolution_clock::now();
     // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
@@ -305,7 +307,7 @@ namespace {
     //     const auto& dead = dead_clusters[idead];
     //     Cluster::vector lives;
     //     for (const auto& live : live_clusters) {
-    //         if (live->is_connected(*dead, offset).size()) {
+    //         if (live->is_connected(*dead, m_dead_live_overlap_offset).size()) {
     //             lives.push_back(live);
     //         }
     //     }
@@ -324,14 +326,18 @@ namespace {
     // dead: negative, live: positive
     typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
     Graph g;
+    std::unordered_map<int, int> ilive2desc; // added live index to graph descriptor
     for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
         const auto& dead = dead_clusters[idead];
         const auto ddesc = boost::add_vertex(-idead, g);
         for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
             const auto& live = live_clusters[ilive];
-            const auto ldesc = boost::add_vertex(ilive, g);
-            if (live->is_connected(*dead, offset).size()) {
-                boost::add_edge(ddesc, ldesc, g);
+            // insert live to graph if not already
+            if (ilive2desc.find(ilive) == ilive2desc.end()) {
+                ilive2desc[ilive] = boost::add_vertex(ilive, g);
+            }
+            if (live->is_connected(*dead, m_dead_live_overlap_offset).size()) {
+                boost::add_edge(ddesc, ilive2desc[ilive], g);
             }
         }
         if (boost::out_degree(ddesc, g) > 1) {
