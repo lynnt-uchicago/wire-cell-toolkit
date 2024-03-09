@@ -94,7 +94,8 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
         for (auto it = range.first; it != range.second; ++it) {
             const auto& cblob = it->second;
             if (blob->overlap_fast(*cblob, offset)) {
-                ret.push_back(cblob);
+	      //ret.push_back(cblob); // dead clusters ... 
+	      ret.push_back(blob); // live clusters ...
             }
         }
     }

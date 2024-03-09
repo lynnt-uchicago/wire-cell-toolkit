@@ -332,6 +332,26 @@ namespace {
     // timers["dead2lives-map"] += duration;
     // log->debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
 
+
+    //form map between live and dead clusters ...
+    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, Cluster::vector> dead_live_cluster_mapping;
+    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>,std::vector< Blob::vector> > dead_live_mcells_mapping;
+    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+      const auto& dead = dead_clusters[idead];
+      for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+	const auto& live = live_clusters[ilive];
+	Blob::vector blobs = live->is_connected(*dead, m_dead_live_overlap_offset);
+	//
+	if (blobs.size() > 0){
+	  //	  if (dead_live_cluster_mapping.find(dead) == dead_live_cluster_mapping.end()){
+	  dead_live_cluster_mapping[dead].push_back(live);
+	  dead_live_mcells_mapping[dead].push_back(blobs);
+	  //}
+	}
+	
+      }
+    }
+    
     // from dead -> lives graph
     start = std::chrono::high_resolution_clock::now();
     // dead: negative, live: positive

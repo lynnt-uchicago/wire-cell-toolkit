@@ -25,10 +25,10 @@ namespace WireCell::PointCloud::Facade {
         float_t pitch_u {3*units::mm};
         float_t pitch_v {3*units::mm};
         float_t pitch_w {3*units::mm};
-        // float_t angle_u {60};
-        // float_t angle_v {60};
-        // float_t angle_w {90};
-        float_t ts_width {3.2*units::mm}; // time slice width 2 us * 1.6 mm/us ~ 3.2 mm
+      float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
+      float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
+      float_t angle_w {0};        // 0 degrees    uboone geometry ...
+        float_t ts_width {3.2*units::mm}; // time slice width 2 us * 1.6 mm/us ~ 3.2 mm   uboone geometry ...
     };
 
     class Blob : public IData<Blob> {
