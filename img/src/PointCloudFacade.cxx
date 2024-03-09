@@ -106,22 +106,22 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     /// FIXME: there are many assumptions made, shoud we check these assumptions?
     /// a bit worriying about the speed.
     Scope scope = { "3d", {"x","y","z"} };
-    const auto& sv = m_node->value.scoped_view(scope);
+    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     // const auto& spcs = sv.pcs();
     // debug("sv {}", dump_pcs(sv.pcs()));
     const auto& skd = sv.kd();
-    auto rad = skd.radius(dis, origin);
+    auto rad = skd.radius(dis, origin);                     // return is vector of (pointer, distance)
     /// FIXME: what if rad is empty?
     if(rad.size() == 0) {
         // raise<ValueError>("empty point cloud");
         return {0,0,0};
     }
     const auto& snodes = sv.nodes();
-    std::set<size_t> maj_inds;
+    std::set<size_t> maj_inds;                           //set, no duplications ...
     for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
-        auto& [pit,dist] = rad[pt_ind];
-        const auto [maj_ind,min_ind] = pit.index();
-        maj_inds.insert(maj_ind);
+      auto& [pit,dist] = rad[pt_ind];                    // what is the pit (point?)
+      const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+      maj_inds.insert(maj_ind);
     }
     // debug("maj_inds.size() {} ", maj_inds.size());
     geo_point_t ret(0,0,0);
@@ -131,7 +131,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
             const auto* node = snodes[maj_ind];
             const auto& lpcs = node->value.local_pcs();
             const auto& pc_scalar = lpcs.at("scalar");
-            const auto charge = pc_scalar.get("charge")->elements<float_t>()[0];
+            const auto charge = pc_scalar.get("charge")->elements<float_t>()[0];   // is this the blob?
             const auto center_x = pc_scalar.get("center_x")->elements<float_t>()[0];
             const auto center_y = pc_scalar.get("center_y")->elements<float_t>()[0];
             const auto center_z = pc_scalar.get("center_z")->elements<float_t>()[0];
@@ -141,7 +141,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
             ret += inc;
             total_charge += charge;
         } else {
-            const auto blob = m_blobs[maj_ind];
+	  const auto blob = m_blobs[maj_ind];    // this must be the blob ...
             const auto charge = blob->charge;
             ret += blob->center_pos() * charge;
             total_charge += charge;
@@ -266,6 +266,6 @@ std::tuple<int, int, int, int> Cluster::get_uvwt_range() const {
 
 double Cluster::get_length(const TPCParams& tp) const {
     const auto [u, v, w, t] = get_uvwt_range();
-    debug("u {} v {} w {} t {}", u, v, w, t);
-    return std::sqrt(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w + t*t*tp.ts_width*tp.ts_width);
+    //    debug("u {} v {} w {} t {}", u, v, w, t);
+    return std::sqrt(2./3.*(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w) + t*t*tp.ts_width*tp.ts_width);
 }

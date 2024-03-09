@@ -300,6 +300,17 @@ namespace {
     timers["make_facade"] += duration;
     log->debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(), timers["make_facade"].count());
 
+    // Calculate the length of all the clusters and save them into a map
+    WireCell::PointCloud::Facade::TPCParams tp;
+    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double > cluster_length_map;
+    // loop over all the clusters, and calculate length ...
+    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+      const auto& live = live_clusters[ilive];
+      cluster_length_map[live] = live->get_length(tp);
+      //std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
+    }
+
+    
     // form dead -> lives map
     // start = std::chrono::high_resolution_clock::now();
     // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
