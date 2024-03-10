@@ -304,6 +304,7 @@ namespace {
     WireCell::PointCloud::Facade::TPCParams tp;
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double > cluster_length_map;
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_connected_dead;
+    std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
 
     // loop over all the clusters, and calculate length ...
     for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
@@ -514,6 +515,8 @@ namespace {
 
 	      if (flag_merge){
 		boost::add_edge(ilive2desc[map_cluster_index[cluster_1]], ilive2desc[map_cluster_index[cluster_2]], g);
+		cluster_to_be_deleted.insert(cluster_1);
+		cluster_to_be_deleted.insert(cluster_2);
 	      }
 
 	    }
@@ -523,6 +526,11 @@ namespace {
       }
     }
     
+
+    for(auto it = cluster_to_be_deleted.begin(); it!=cluster_to_be_deleted.end(); it++){
+      cluster_length_map.erase(*it);
+      cluster_connected_dead.erase(*it);
+    }
     
     
     // // from dead -> lives graph
@@ -593,22 +601,32 @@ namespace {
             continue;
         }
         log->debug("id {} descs size: {}", id, descs.size());
-        auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
+
+	auto cnode1 =std::make_unique<Points::node_t>();
         for (const auto& desc : descs) {
             const int idx = g[desc];
-            if (idx < 0) {
+            if (idx < 0) { // no need anymore ...
                 continue;
             }
             const auto& live = live_clusters[idx];
             for (const auto& blob : live->m_blobs) {
                 // this also removes blob node from root_live
-                cnode->insert(blob->m_node);
+                cnode1->insert(blob->m_node);
             }
             // manually remove the cnode from root_live
             root_live->remove(live->m_node);
         }
+	
+	// new cluster information (need Haiwang to take a look at Facade ...)
+	auto new_cluster = std::make_shared<Cluster>(cnode1);
+	auto cnode = root_live_new->insert(std::move(cnode1));
+	cluster_length_map[new_cluster] = new_cluster->get_length(tp);
+	cluster_connected_dead.insert(new_cluster);
+		
     }
     log->debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
+    
+
     // move remaining live clusters to new root
     for (auto& cnode : root_live->children()) {
         // this will NOT remove cnode from root_live, but set it to nullptr
