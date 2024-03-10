@@ -43,6 +43,7 @@ Blob::Blob(const node_ptr& n)
     center_x = pc_scalar.get("center_x")->elements<float_t>()[0];
     center_y = pc_scalar.get("center_y")->elements<float_t>()[0];
     center_z = pc_scalar.get("center_z")->elements<float_t>()[0];
+    npoints = pc_scalar.get("npoints")->elements<int_t>()[0];
     slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
     slice_index_max = pc_scalar.get("slice_index_max")->elements<int_t>()[0];
     u_wire_index_min = pc_scalar.get("u_wire_index_min")->elements<int_t>()[0];
@@ -69,6 +70,9 @@ geo_point_t Blob::center_pos() const {
     return {center_x, center_y, center_z};
 }
 
+int_t Blob::num_points() const{
+  return npoints;
+}
 
 
 Cluster::Cluster(const node_ptr& n)
@@ -185,14 +189,21 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
 
         for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
             auto& [pit,dist] = rad[pt_ind];
+
+	    // get average charge information ...
+	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+	    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
+            const auto charge = blob->charge;
+	    const auto npoints = blob->num_points();
             // debug("pt {{{} {} {}}}", pit->at(0), pit->at(1), pit->at(2));
             // auto pt = *pit;
             // debug("pt {{{} {} {}}}", pt[0], pt[1], pt[2]);
+	    
             const geo_point_t pt(pit->at(0), pit->at(1), pit->at(2));
             Vector dir = (pt-origin).norm();
             const double cth = Z.dot(dir);
             const double phi = atan2(Y.dot(dir), X.dot(dir));
-            hist(cth, phi, bh::weight(1.0));
+            hist(cth, phi, bh::weight(charge/npoints));
         }
         
         auto indexed = bh::indexed(hist);
@@ -216,11 +227,18 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
 
         for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
             auto& [pit,dist] = rad[pt_ind];
+
+	    // get average charge information
+	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+	    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
+            const auto charge = blob->charge;
+	    const auto npoints = blob->num_points();
+	    
             const geo_point_t pt(pit->at(0), pit->at(1), pit->at(2));
             Vector dir = (pt-origin).norm();
             const double th = acos(Z.dot(dir));
             const double phi = atan2(Y.dot(dir), X.dot(dir));
-            hist(th, phi, bh::weight(1.0));
+            hist(th, phi, bh::weight(charge/npoints));
         }
         auto indexed = bh::indexed(hist);
         auto it = std::max_element(indexed.begin(), indexed.end());

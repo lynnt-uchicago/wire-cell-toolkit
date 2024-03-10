@@ -303,6 +303,8 @@ namespace {
     // Calculate the length of all the clusters and save them into a map
     WireCell::PointCloud::Facade::TPCParams tp;
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double > cluster_length_map;
+    std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_connected_dead;
+
     // loop over all the clusters, and calculate length ...
     for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
       const auto& live = live_clusters[ilive];
@@ -335,11 +337,13 @@ namespace {
 
     //form map between live and dead clusters ...
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, Cluster::vector> dead_live_cluster_mapping;
-    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>,std::vector< Blob::vector> > dead_live_mcells_mapping;
+    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, std::vector<Blob::vector> > dead_live_mcells_mapping;
     for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
       const auto& dead = dead_clusters[idead];
       for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
-	const auto& live = live_clusters[ilive];
+	//const auto& live = live_clusters[ilive];
+	const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> live = live_clusters[ilive];
+	
 	Blob::vector blobs = live->is_connected(*dead, m_dead_live_overlap_offset);
 	//
 	if (blobs.size() > 0){
@@ -347,38 +351,84 @@ namespace {
 	  dead_live_cluster_mapping[dead].push_back(live);
 	  dead_live_mcells_mapping[dead].push_back(blobs);
 	  //}
-	}
-	
+	}	
       }
     }
-    
-    // from dead -> lives graph
-    start = std::chrono::high_resolution_clock::now();
-    // dead: negative, live: positive
+
+    // prepare a graph ...
     typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
     Graph g;
     std::unordered_map<int, int> ilive2desc; // added live index to graph descriptor
-    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
-        const auto& dead = dead_clusters[idead];
-        const auto ddesc = boost::add_vertex(-idead, g);
-        for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
-            const auto& live = live_clusters[ilive];
-            // insert live to graph if not already
-            if (ilive2desc.find(ilive) == ilive2desc.end()) {
-                ilive2desc[ilive] = boost::add_vertex(ilive, g);
-            }
-            if (live->is_connected(*dead, m_dead_live_overlap_offset).size()) {
-                boost::add_edge(ddesc, ilive2desc[ilive], g);
-            }
-        }
-        if (boost::out_degree(ddesc, g) > 1) {
-            log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
-        }
+    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, int> map_cluster_index;
+    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+      const auto& live = live_clusters[ilive];
+      map_cluster_index[live] = ilive;
+      ilive2desc[ilive] = boost::add_vertex(ilive, g);
     }
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    timers["dead2lives-graph"] += duration;
-    log->debug("dead2lives-graph {} ms", timers["dead2lives-graph"].count());
+
+    std::set<std::pair<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > > tested_pairs;
+    
+    // start to form edges ...
+    for (auto it = dead_live_cluster_mapping.begin(); it!= dead_live_cluster_mapping.end(); it++){
+      const auto& the_dead_cluster = (*it).first;
+      const auto& connected_live_clusters = (*it).second;
+      const auto& connected_live_mcells = dead_live_mcells_mapping[the_dead_cluster];
+      if (connected_live_clusters.size()>1){
+	for (size_t i=0; i!= connected_live_clusters.size(); i++){
+	  const auto& cluster_1 = connected_live_clusters.at(i);
+	  const auto& blobs_1 = connected_live_mcells.at(i);
+	  cluster_connected_dead.insert(cluster_1);
+	  
+	  for (size_t j=i+1;j<connected_live_clusters.size(); j++){
+	    const auto& cluster_2 = connected_live_clusters.at(j);
+	    const auto& blobs_2 = connected_live_mcells.at(j);
+
+	    if (tested_pairs.find(std::make_pair(cluster_1,cluster_2))==tested_pairs.end()){
+	      tested_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	      tested_pairs.insert(std::make_pair(cluster_2,cluster_1));
+
+	      bool flag_merge = false;
+
+	      flag_merge = true;
+
+	      if (flag_merge){
+		boost::add_edge(ilive2desc[map_cluster_index[cluster_1]], ilive2desc[map_cluster_index[cluster_2]], g);
+	      }
+
+	    }
+	    
+	  }
+	}
+      }
+    }
+    
+    
+    
+    // // from dead -> lives graph
+    // start = std::chrono::high_resolution_clock::now();
+    // // dead: negative, live: positive
+    // for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+    //     const auto& dead = dead_clusters[idead];
+    //     const auto ddesc = boost::add_vertex(-idead, g);
+    //     for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+    //         const auto& live = live_clusters[ilive];
+    //         // insert live to graph if not already
+    //         if (ilive2desc.find(ilive) == ilive2desc.end()) {
+    //             ilive2desc[ilive] = boost::add_vertex(ilive, g);
+    //         }
+    //         if (live->is_connected(*dead, m_dead_live_overlap_offset).size()) {
+    //             boost::add_edge(ddesc, ilive2desc[ilive], g);
+    //         }
+    //     }
+    //     if (boost::out_degree(ddesc, g) > 1) {
+    //         log->debug("dead2lives-graph {} {} {} {} ", idead, ddesc, g[ddesc], boost::out_degree(ddesc, g));
+    //     }
+    // }
+    // end = std::chrono::high_resolution_clock::now();
+    // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    // timers["dead2lives-graph"] += duration;
+    // log->debug("dead2lives-graph {} ms", timers["dead2lives-graph"].count());
+
 
     // BEE debug root_live
     if (!m_bee_dir.empty()) {

@@ -25,9 +25,9 @@ namespace WireCell::PointCloud::Facade {
         float_t pitch_u {3*units::mm};
         float_t pitch_v {3*units::mm};
         float_t pitch_w {3*units::mm};
-      float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
-      float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
-      float_t angle_w {0};        // 0 degrees    uboone geometry ...
+        float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
+        float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
+        float_t angle_w {0};        // 0 degrees    uboone geometry ...
         float_t ts_width {3.2*units::mm}; // time slice width 2 us * 1.6 mm/us ~ 3.2 mm   uboone geometry ...
     };
 
@@ -37,6 +37,7 @@ namespace WireCell::PointCloud::Facade {
         node_t* m_node;  /// do not own
 
         geo_point_t center_pos() const;
+	int_t num_points() const;
         bool overlap_fast(const Blob& b, const int offset) const;
 
         /// FIXME: cache all scalers?
@@ -44,6 +45,8 @@ namespace WireCell::PointCloud::Facade {
         float_t center_x {0};
         float_t center_y {0};
         float_t center_z {0};
+	int_t npoints {0};
+	
         int_t slice_index_min {0};
         int_t slice_index_max {0};
 
