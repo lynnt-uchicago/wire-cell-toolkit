@@ -106,6 +106,32 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     return ret;
 }
 
+std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > Cluster::get_closest_point(const geo_point_t& origin) const{
+  
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+  auto rad = skd.knn(1, origin);
+
+  geo_point_t ret(0,0,0);
+  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> blob = 0;
+  
+  if (rad.size()==0)
+    return std::make_pair(ret,blob);
+
+  const auto& snodes = sv.nodes();
+  auto& [pit,dist] = rad[0];                    // what is the pit (point?)
+  const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+
+  ret.set( pit->at(0), pit->at(1), pit->at(2));
+  
+  blob = m_blobs[maj_ind];    // this must be the blob ...
+
+  return std::make_pair(ret,blob);
+}
+
 geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, const int alg) const {
     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     /// FIXME: there are many assumptions made, shoud we check these assumptions?

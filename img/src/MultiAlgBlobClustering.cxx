@@ -389,7 +389,128 @@ namespace {
 
 	      bool flag_merge = false;
 
-	      flag_merge = true;
+	      std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell1 = 0;
+	      std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell2 = 0;
+	      std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell1 = blobs_1.at(0);
+	      std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell2 = 0;
+	      
+	      geo_point_t p1 = mcell1->center_pos();
+	      std::tie(p1, mcell1) = cluster_1->get_closest_point(p1);
+	      //	      p1 = temp_pair.first;
+	      //	      mcell1 = temp_pair.second;
+	      geo_point_t p2(0,0,0);
+	      while (mcell1 != prev_mcell1 || mcell2 != prev_mcell2){
+		prev_mcell1 = mcell1;
+		prev_mcell2 = mcell2;
+
+		std::tie(p2, mcell2) = cluster_2->get_closest_point(p1);
+		std::tie(p1, mcell1) = cluster_1->get_closest_point(p2);
+	      }
+	      geo_point_t diff = p1 - p2;
+	      double dis = diff.magnitude();
+	      if (dis < 60*units::cm){
+		double length_1 = cluster_length_map[cluster_1];
+		double length_2 = cluster_length_map[cluster_2];
+		geo_point_t mcell1_center = cluster_1->calc_ave_pos(p1, 5*units::cm);
+		geo_point_t dir1 = cluster_1->vhough_transform(mcell1_center, 30*units::cm);
+		  
+		geo_point_t mcell2_center = cluster_2->calc_ave_pos(p2, 5*units::cm);
+		geo_point_t dir3 = cluster_2->vhough_transform(mcell2_center, 30*units::cm);
+
+		geo_point_t dir2 = mcell2_center - mcell1_center;
+		geo_point_t dir4 = mcell1_center - mcell2_center;
+
+		double angle_diff1 = (3.1415926-dir1.angle(dir2))/3.1415926*180.; // 1 to 2
+		double angle_diff2 = (3.1415926-dir3.angle(dir4))/3.1415926*180.; // 2 to 1
+		double angle_diff3 = (3.1415926-dir1.angle(dir3))/3.1415926*180.; // 1 to 2
+	      
+		
+		bool flag_para =false;
+
+		double angle1, angle2, angle3;
+		if (!flag_merge){
+		  geo_point_t drift_dir(1,0,0); // assuming the drift direction is along X ...
+		  angle1 = dir1.angle(drift_dir);
+		  angle2 = dir2.angle(drift_dir);
+		  angle3 = dir3.angle(drift_dir);
+
+		  if (fabs(angle1-3.1415926/2.)<5/180.*3.1415926 &&
+		      fabs(angle2-3.1415926/2.)<5/180.*3.1415926 &&
+		      fabs(angle3-3.1415926/2.)<5/180.*3.1415926 ){
+		    if (dis < 10*units::cm)  // if very parallel and close, merge any way
+		      flag_merge = true;
+		  }
+
+		  if (fabs(angle2-3.1415926/2.)<7.5/180.*3.1415926 &&
+		    (fabs(angle1-3.1415926/2.)<7.5/180.*3.1415926 ||
+		     fabs(angle3-3.1415926/2.)<7.5/180.*3.1415926) &&
+		    fabs(angle1-3.1415926/2.)+fabs(angle2-3.1415926/2.)+fabs(angle3-3.1415926/2.) < 25/180.*3.1415926){
+		    flag_para = true;
+
+		    if (WireCell::PointCloud::Facade::is_angle_consistent(dir1, dir2, false, 15, tp.angle_u, tp.angle_v, tp.angle_w, 3) &&
+			WireCell::PointCloud::Facade::is_angle_consistent(dir3, dir2, true, 15, tp.angle_u, tp.angle_v, tp.angle_w, 3))
+		      flag_merge = true;
+		  }else{
+		    bool flag_const1 = WireCell::PointCloud::Facade::is_angle_consistent(dir1,dir2,false,10,tp.angle_u,tp.angle_v,tp.angle_w,2);
+		    bool flag_const2 = WireCell::PointCloud::Facade::is_angle_consistent(dir3,dir2,true,10,tp.angle_u,tp.angle_v,tp.angle_w,2);
+
+		    if (flag_const1 && flag_const2){
+		      flag_merge = true;
+		    }else if (flag_const1 && length_2 < 6*units::cm && length_1 > 15*units::cm){
+		      if (WireCell::PointCloud::Facade::is_angle_consistent(dir1,dir2,false,5,tp.angle_u,tp.angle_v,tp.angle_w,3))
+			flag_merge = true;
+		    }else if (flag_const2 && length_1 < 6*units::cm && length_2 > 15*units::cm){
+		      if (WireCell::PointCloud::Facade::is_angle_consistent(dir3,dir2,true,5,tp.angle_u,tp.angle_v,tp.angle_w,3))
+			flag_merge = true;
+		    }
+		  }
+		}
+
+		if (!flag_merge){
+
+		  if (length_1 <= 12*units::cm && length_2 <=12*units::cm){
+		    // both are short
+		    if ((dis <= 3*units::cm) && ((angle_diff1 <= 45 || angle_diff2 <=45) && (angle_diff3 < 60) ||
+						 (flag_para && (angle_diff1 <= 90 || angle_diff2 <=90) && angle_diff3 < 120)) ||
+			(dis <= 5*units::cm) && (angle_diff1 <= 30 || angle_diff2 <=30) && angle_diff3 < 45 ||
+			(dis <=15*units::cm) && (angle_diff1<=15 || angle_diff2 <=15) && angle_diff3 < 20||
+			(dis <=60*units::cm) && (angle_diff1<5 || angle_diff2 < 5) && angle_diff3 < 10
+			){
+		      flag_merge = true;
+		    }
+		  } else if (length_1 > 12*units::cm && length_2 <=12*units::cm){
+		    //one is short
+		    if ((dis <= 3*units::cm)  && ((angle_diff1 <= 45 || angle_diff2<=45) && (angle_diff3 < 60) ||
+						  (flag_para && (angle_diff1 <= 90 || angle_diff2 <=90 )&& angle_diff3 < 120))
+			|| dis <= 5*units::cm && angle_diff1 <=30 && angle_diff3 < 60
+			|| dis <= 15*units::cm && (angle_diff1 <=20) && angle_diff3 < 40
+			|| (angle_diff1<10 && dis <= 60*units::cm && angle_diff3 < 15))
+		      flag_merge = true;
+		  }else if (length_2 > 12*units::cm && length_1 <=12*units::cm){
+		    // one is short
+		    if ((dis <= 3*units::cm)  && ((angle_diff2 <= 45 || angle_diff2<=45) && (angle_diff3 < 60)||
+						  (flag_para && (angle_diff1 <= 90 || angle_diff2 <=90 )&& angle_diff3 < 120))
+			|| dis <=5*units::cm && angle_diff2 <=30  && angle_diff3 < 60
+			|| dis <= 15*units::cm && (angle_diff2 <=20) && angle_diff3 < 40
+			|| (angle_diff2<10 && dis <= 60*units::cm&& angle_diff3 < 15))
+		      flag_merge = true;
+		  }else{
+		    // both are long
+		    if ((dis <= 3*units::cm) && ((angle_diff1 <= 45 || angle_diff2 <=45) && (angle_diff3 < 60) ||
+						 (flag_para && (angle_diff1 <= 90 || angle_diff2 <=90 )&& angle_diff3 < 120)) 
+			|| dis <=5*units::cm && (angle_diff1 <=30 || angle_diff2 <=30) && angle_diff3 < 45 
+			|| (dis <=15*units::cm) && (angle_diff1<=20 || angle_diff2 <=20) && angle_diff3<30  
+			|| (angle_diff1<10 || angle_diff2 < 10) && (dis <=60*units::cm) && angle_diff3 < 15
+			)
+		      flag_merge = true;
+		    
+		  }
+		  
+		}
+	      }
+	      
+	      
+	 
 
 	      if (flag_merge){
 		boost::add_edge(ilive2desc[map_cluster_index[cluster_1]], ilive2desc[map_cluster_index[cluster_2]], g);
