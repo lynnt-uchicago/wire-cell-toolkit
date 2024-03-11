@@ -291,8 +291,8 @@ ICluster::pointer ClusterFileSource::dispatch()
     if (endswith(m_cur.fname, ".npy")) {
         return load_numpy(pf.ident);
     }
-    log->warning("do not know how to dispatch file {} with type={} code={} ident={}",
-                 m_cur.fname, pf.type, pf.code, pf.ident);
+    log->warn("do not know how to dispatch file {} with type={} code={} ident={}",
+              m_cur.fname, pf.type, pf.code, pf.ident);
     return nullptr;
 }
 
