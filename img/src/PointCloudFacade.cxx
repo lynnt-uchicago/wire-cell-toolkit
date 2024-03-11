@@ -154,6 +154,15 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
       const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
       maj_inds.insert(maj_ind);
     }
+
+    // hack
+    geo_point_t origin1(1127.6, 156.922, 2443.6);
+    origin1 = origin1 - origin;
+    double dis1 = origin1.magnitude();
+    
+
+    // this algorithm was not correctly translated !!!
+    
     // debug("maj_inds.size() {} ", maj_inds.size());
     geo_point_t ret(0,0,0);
     double total_charge{0};
@@ -173,9 +182,13 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
             total_charge += charge;
         } else {
 	  const auto blob = m_blobs[maj_ind];    // this must be the blob ...
-            const auto charge = blob->charge;
-            ret += blob->center_pos() * charge;
-            total_charge += charge;
+	  const auto charge = blob->charge;
+
+	  // hack ...
+	  if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << std::endl;
+	  
+	  ret += blob->center_pos() * charge;
+	  total_charge += charge;
         }
     }
     if (total_charge != 0) {
@@ -259,6 +272,8 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
 	    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
             const auto charge = blob->charge;
 	    const auto npoints = blob->num_points();
+
+	    if (charge <=0) continue;
 	    
             const geo_point_t pt(pit->at(0), pit->at(1), pit->at(2));
             Vector dir = (pt-origin).norm();
@@ -311,6 +326,12 @@ std::tuple<int, int, int, int> Cluster::get_uvwt_range() const {
 
 double Cluster::get_length(const TPCParams& tp) const {
     const auto [u, v, w, t] = get_uvwt_range();
-    //    debug("u {} v {} w {} t {}", u, v, w, t);
-    return std::sqrt(2./3.*(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w) + t*t*tp.ts_width*tp.ts_width);
+
+    // bug ... time_slice is in original time tick, ts_width is in 4 ticks ...
+    double length = std::sqrt(2./3.*(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w) + t*t*tp.ts_width*tp.ts_width / 16.);
+
+    //    if (length > 100*units::cm)
+    // debug("u {} v {} w {} t {} length {}", u, v, w, t, length/units::cm);
+    
+    return length;
 }
