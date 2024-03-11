@@ -69,15 +69,19 @@ namespace {
         std::vector<float_t> q;
         std::vector<int_t> cluster_id;
         int_t cid = 0;
-        for (const auto& cnode : root.children()) {
-            Scope scope = { "3d", {"x","y","z"} };
-            const auto& sv = cnode->value.scoped_view(scope);
-            const auto& spcs = sv.pcs();
-            for(const auto& spc : spcs) {
+        for (const auto& cnode : root.children()) {  // this is a loop through all clusters ...
+	  Scope scope = { "3d", {"x","y","z"} };
+	  const auto& sv = cnode->value.scoped_view(scope);  
+	  
+	  const auto& spcs = sv.pcs();    // spcs 'contains' all blobs in this cluster ...
+	  //int npoints = 0;
+	  
+	  for(const auto& spc : spcs) {   // each little 3D pc --> (blobs)   spc represents x,y,z in a blob
             if (spc.get().get("x") == nullptr) {
-                debug("No x in point cloud, skip");
-                continue;
+	      debug("No x in point cloud, skip");
+	      continue;
             }
+	    	    
             // assume others exist
             const auto& x_ = spc.get().get("x")->elements<float_t>();
             const auto& y_ = spc.get().get("y")->elements<float_t>();
@@ -88,8 +92,16 @@ namespace {
             z.insert(z.end(), z_.begin(), z_.end());
             q.insert(q.end(), n, 1.0);
             cluster_id.insert(cluster_id.end(), n, cid);
-            }
-            ++cid;
+	    //npoints += n;
+	  }
+
+	  // spc.kd() // kdtree ... 
+	  //const auto& skd = sv.kd();
+	  //std::cout << "xin6: " << sv.npoints() << " " << npoints << " " << spcs.size() << " " << skd.points().size() << std::endl;
+	    
+
+	  
+	  ++cid;
         }
 
         Json::Value json_x(Json::arrayValue);

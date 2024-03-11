@@ -141,7 +141,10 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     // const auto& spcs = sv.pcs();
     // debug("sv {}", dump_pcs(sv.pcs()));
     const auto& skd = sv.kd();
-    auto rad = skd.radius(dis, origin);                     // return is vector of (pointer, distance)
+
+        
+    auto rad = skd.radius(dis*dis, origin);                     // return is vector of (pointer, distance)
+    //auto rad = skd.radius(100*units::m, origin);                     // return is vector of (pointer, distance)
     /// FIXME: what if rad is empty?
     if(rad.size() == 0) {
         // raise<ValueError>("empty point cloud");
@@ -155,10 +158,39 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
       maj_inds.insert(maj_ind);
     }
 
-    // hack
-    geo_point_t origin1(1127.6, 156.922, 2443.6);
-    origin1 = origin1 - origin;
-    double dis1 = origin1.magnitude();
+    // // hack
+    // geo_point_t origin1(1127.6, 156.922, 2443.6);
+    // origin1 = origin1 - origin;
+    // double dis1 = origin1.magnitude();
+
+    // if (dis1 < 0.1*units::mm){
+    //   const auto &spcs = sv.pcs();
+    //   std::vector<float_t> x;
+    //   std::vector<float_t> y;
+    //   std::vector<float_t> z;
+    //   for(const auto& spc : spcs) {   // each little 3D pc --> (blobs)   spc represents x,y,z in a blob
+    // 	const auto& x_ = spc.get().get("x")->elements<float_t>();
+    // 	const auto& y_ = spc.get().get("y")->elements<float_t>();
+    // 	const auto& z_ = spc.get().get("z")->elements<float_t>();
+    // 	const size_t n = x_.size();
+	
+    // 	x.insert(x.end(), x_.begin(), x_.end()); // Append x_ to x
+    // 	y.insert(y.end(), y_.begin(), y_.end());
+    // 	z.insert(z.end(), z_.begin(), z_.end());
+    //   }
+    //   for (size_t i=0;i!=x.size();i++){
+    // 	std::cout << "all " <<  i << " " << x.at(i) << " " << y.at(i) << " " << z.at(i) << std::endl;
+    //   }
+      
+
+    //   for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+    // 	auto& [pit,dist] = rad[pt_ind];
+    // 	std::cout << "kd " << pt_ind << " " << pit->at(0) << " " << pit->at(1) << " " << pit->at(2) << " " << dist << std::endl;
+    //   }
+      
+    //   //  for (size_t i=0;i!=skd.points().size();i++){
+    //   //	std::cout << i << " " << skd.points()
+    // }
     
 
     // this algorithm was not correctly translated !!!
@@ -185,12 +217,15 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
 	  const auto charge = blob->charge;
 
 	  // hack ...
-	  if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << std::endl;
+	  //if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << " " << sv.npoints() << " " << skd.points().size() << std::endl;
 	  
 	  ret += blob->center_pos() * charge;
 	  total_charge += charge;
         }
     }
+   
+
+    
     if (total_charge != 0) {
         ret = ret / total_charge;
     }
@@ -208,7 +243,7 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
     Scope scope = { "3d", {"x","y","z"} };
     const auto& sv = m_node->value.scoped_view(scope);
     const auto& skd = sv.kd();
-    auto rad = skd.radius(dis, origin);
+    auto rad = skd.radius(dis*dis, origin);
     /// FIXME: what if rad is empty?
     if(rad.size() == 0) {
         // raise<ValueError>("empty point cloud");
