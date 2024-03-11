@@ -154,12 +154,14 @@ bool Graph::call_node(Node* node)
 
 bool Graph::connected()
 {
+    int nerrors = 0;
     for (auto n : m_nodes) {
         if (!n->connected()) {
-            return false;
+            l->warn("disconnected node: {}", n->ident());
+            ++nerrors;
         }
     }
-    return true;
+    return nerrors == 0;
 }
 
 void Graph::print_timers() const
