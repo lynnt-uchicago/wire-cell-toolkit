@@ -151,11 +151,29 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
         return {0,0,0};
     }
     const auto& snodes = sv.nodes();
-    std::set<size_t> maj_inds;                           //set, no duplications ...
+
+    // average position
+    geo_point_t ret(0,0,0);
+    double total_charge{0};
+    
+    //std::set<size_t> maj_inds;                           //set, no duplications ...
     for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
-      auto& [pit,dist] = rad[pt_ind];                    // what is the pit (point?)
+      auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
       const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
-      maj_inds.insert(maj_ind);
+      //  maj_inds.insert(maj_ind);
+
+      const auto blob = m_blobs[maj_ind];    // this must be the blob ...
+      auto charge = blob->charge;
+
+      // set a minimal charge
+      if (charge == 0) charge = 1;
+
+      // hack ...
+      // if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << " " << sv.npoints() << " " << skd.points().size() << std::endl;
+      
+      ret += blob->center_pos() * charge;
+      total_charge += charge;
+      
     }
 
     // // hack
@@ -196,8 +214,8 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     // this algorithm was not correctly translated !!!
     
     // debug("maj_inds.size() {} ", maj_inds.size());
-    geo_point_t ret(0,0,0);
-    double total_charge{0};
+
+    /*
     for (size_t maj_ind : maj_inds) {
         if (alg == 0) {
             const auto* node = snodes[maj_ind];
@@ -216,13 +234,15 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
 	  const auto blob = m_blobs[maj_ind];    // this must be the blob ...
 	  const auto charge = blob->charge;
 
-	  // hack ...
-	  //if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << " " << sv.npoints() << " " << skd.points().size() << std::endl;
+
 	  
+
+
 	  ret += blob->center_pos() * charge;
 	  total_charge += charge;
         }
     }
+    */
    
 
     
@@ -262,7 +282,7 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
                                        bh::axis::regular<>( 360, -pi, pi ) );
 
         for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
-            auto& [pit,dist] = rad[pt_ind];
+            auto& [pit,dist2] = rad[pt_ind];
 
 	    // get average charge information ...
 	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
@@ -300,7 +320,7 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
                                        bh::axis::regular<>( 360, -pi, pi ) );
 
         for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
-            auto& [pit,dist] = rad[pt_ind];
+            auto& [pit,dist2] = rad[pt_ind];
 
 	    // get average charge information
 	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
