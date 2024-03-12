@@ -142,7 +142,8 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     // debug("sv {}", dump_pcs(sv.pcs()));
     const auto& skd = sv.kd();
 
-        
+    // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
+
     auto rad = skd.radius(dis*dis, origin);                     // return is vector of (pointer, distance)
     //auto rad = skd.radius(100*units::m, origin);                     // return is vector of (pointer, distance)
     /// FIXME: what if rad is empty?
@@ -155,7 +156,8 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     // average position
     geo_point_t ret(0,0,0);
     double total_charge{0};
-    
+    // alg following https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/PR3DCluster.cxx#L3956
+
     //std::set<size_t> maj_inds;                           //set, no duplications ...
     for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
       auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
@@ -166,6 +168,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
       auto charge = blob->charge;
 
       // set a minimal charge
+      // following: https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/inc/WCPData/SlimMergeGeomCell.h#L59
       if (charge == 0) charge = 1;
 
       // hack ...
