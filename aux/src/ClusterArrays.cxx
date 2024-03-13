@@ -730,8 +730,8 @@ cluster_graph_t ClusterArrays::to_cluster(const node_array_set_t& nas,
         }
     }
 
-
-    {                           // measure
+    // An ICluster output by BlobClustering has no 'm' nodes.
+    if (nas.find('m') != nas.end()) { // measure
         const auto& arr = nas.at('m');
         const size_t nnodes = arr.shape()[0];
         for (size_t ind=0; ind<nnodes; ++ind) {

@@ -25,10 +25,10 @@ namespace WireCell::PointCloud::Facade {
         float_t pitch_u {3*units::mm};
         float_t pitch_v {3*units::mm};
         float_t pitch_w {3*units::mm};
-        // float_t angle_u {60};
-        // float_t angle_v {60};
-        // float_t angle_w {90};
-        float_t ts_width {3.2*units::mm}; // time slice width 2 us * 1.6 mm/us ~ 3.2 mm
+        float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
+        float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
+        float_t angle_w {0};        // 0 degrees    uboone geometry ...
+        float_t ts_width {2.202*units::mm}; // time slice width 2 us * 1.101 mm/us ~ 2.202 mm   uboone geometry ...
     };
 
     class Blob : public IData<Blob> {
@@ -37,6 +37,7 @@ namespace WireCell::PointCloud::Facade {
         node_t* m_node;  /// do not own
 
         geo_point_t center_pos() const;
+	int_t num_points() const;
         bool overlap_fast(const Blob& b, const int offset) const;
 
         /// FIXME: cache all scalers?
@@ -44,6 +45,8 @@ namespace WireCell::PointCloud::Facade {
         float_t center_x {0};
         float_t center_y {0};
         float_t center_z {0};
+	int_t npoints {0};
+	
         int_t slice_index_min {0};
         int_t slice_index_max {0};
 
@@ -65,6 +68,8 @@ namespace WireCell::PointCloud::Facade {
         Blob::vector m_blobs;
 
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
+	std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > get_closest_point(const geo_point_t& origin) const;
+	
         Blob::vector is_connected(const Cluster& c, const int offset) const;
         // alg 0: cos(theta), 1: theta
         std::pair<double, double> hough_transform(const geo_point_t& origin, const double dis, const int alg = 0) const;
