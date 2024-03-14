@@ -47,7 +47,7 @@ namespace WireCell::PointCloud::Facade {
         float_t center_z {0};
 	int_t npoints {0};
 	
-        int_t slice_index_min {0};
+        int_t slice_index_min {0}; // unit: tick
         int_t slice_index_max {0};
 
         int_t u_wire_index_min {0};
