@@ -242,7 +242,7 @@ namespace {
 namespace {
     using spdlog::debug;
     void clustering_live_dead(Points::node_ptr& root_live,                                   // in/out
-                              const Points::node_ptr& root_dead,                                   // in
+                              const Points::node_ptr& root_dead,                             // in
                               std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
                               std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
                               const TPCParams& tp,                                           // common params
