@@ -241,6 +241,7 @@ namespace {
 
 namespace {
     using spdlog::debug;
+
     void clustering_live_dead(Points::node_ptr& root_live,                                   // in/out
                               const Points::node_ptr& root_dead,                             // in
                               std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
@@ -626,6 +627,47 @@ namespace {
         // replace old with new
         root_live = std::move(root_live_new);
     }
+
+    void clustering_extend(Points::node_ptr& root_live,                                   // in/out
+                           std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
+                           std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+                           const TPCParams& tp,                                           // common params
+                           const int flag,                                                //
+                           const double length_cut,                                       //
+                           const int num_try,                                             //
+                           const double length_2_cut,                                     //
+                           const int num_dead_try                                         //
+    )
+    {
+    }
+
+    void clustering_regular(Points::node_ptr& root_live,                                   // in/out
+                            std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
+                            std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+                            const TPCParams& tp,                                           // common params
+                            const double length_cut,                                       //
+                            bool flag_enable_extend                                        //
+    )
+    {
+    }
+
+    void clustering_parallel_prolong(Points::node_ptr& root_live,                                   // in/out
+                                     std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
+                                     std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+                                     const TPCParams& tp,                                           // common params
+                                     const double length_cut                                        //
+    )
+    {
+    }
+
+    void clustering_close(Points::node_ptr& root_live,                                   // in/out
+                          std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
+                          std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+                          const TPCParams& tp,                                           // common params
+                          const double length_cut                                        //
+    )
+    {
+    }
 }  // namespace
 
 bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointer& outts)
@@ -666,7 +708,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     }
     log->debug("Got pctree with {} children", root_dead->children().size());
 
-    // BEE debug root_live
+    // BEE debug direct imaging output and dead blobs
     if (!m_bee_dir.empty()) {
         std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);
         Persist::assuredir(sub_dir);
@@ -695,14 +737,15 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     // log->debug("calc_ave_pos alg0 {} ms", timers["alg0"].count());
     // log->debug("calc_ave_pos alg1 {} ms", timers["alg1"].count());
 
+    /// TODO: how to pass the parameters? for now, using default params
+    WireCell::PointCloud::Facade::TPCParams tp;
+
     // dead_live
     // Calculate the length of all the clusters and save them into a map
-    WireCell::PointCloud::Facade::TPCParams tp;
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double> cluster_length_map;
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_connected_dead;
     clustering_live_dead(root_live, root_dead, cluster_length_map, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
-
     // BEE debug dead-live
     if (!m_bee_dir.empty()) {
         std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);

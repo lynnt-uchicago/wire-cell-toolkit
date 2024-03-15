@@ -154,7 +154,7 @@ namespace {
         ds.add("center_z", Array({(float_t)center.z()}));
 	ds.add("npoints", Array({(int_t)npoints}));
         const auto& islice = iblob->slice();
-        ds.add("slice_index_min", Array({(int_t)(islice->start()/tick_span)}));
+        ds.add("slice_index_min", Array({(int_t)(islice->start()/tick_span)})); // unit: tick
         ds.add("slice_index_max", Array({(int_t)((islice->start()+islice->span())/tick_span)}));
         const auto& shape = iblob->shape();
         const auto& strips = shape.strips();
