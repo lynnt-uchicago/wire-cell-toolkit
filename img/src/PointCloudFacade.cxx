@@ -385,8 +385,8 @@ std::tuple<int, int, int, int> Cluster::get_uvwt_range() const {
 double Cluster::get_length(const TPCParams& tp) const {
     const auto [u, v, w, t] = get_uvwt_range();
 
-    // bug ... time_slice is in original time tick, ts_width is in 4 ticks ...
-    double length = std::sqrt(2./3.*(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w) + t*t*tp.ts_width*tp.ts_width / 16.);
+    // t is in tick
+    double length = std::sqrt(2./3.*(u*u*tp.pitch_u*tp.pitch_u + v*v*tp.pitch_v*tp.pitch_v + w*w*tp.pitch_w*tp.pitch_w) + t*t*tp.tick_width*tp.tick_width);
 
     //    if (length > 100*units::cm)
     // debug("u {} v {} w {} t {} length {}", u, v, w, t, length/units::cm);
