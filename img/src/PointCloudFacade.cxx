@@ -106,7 +106,7 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     return ret;
 }
 
-std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > Cluster::get_closest_point(const geo_point_t& origin) const{
+std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > Cluster::get_closest_point_mcell(const geo_point_t& origin) const{
   
   Scope scope = { "3d", {"x","y","z"} };
   const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
