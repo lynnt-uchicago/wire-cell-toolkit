@@ -160,6 +160,10 @@ struct BlobSampler::Sampler : public Aux::Logger
     {
         return anodeface->planes()[plane_index]->pimpos();
     }
+    double plane_x(int plane_index=2) const
+    {
+        return anodeface->planes()[plane_index]->wires().front()->center().x();
+    }
 
     // Convert a signal time to its location along global drift
     // coordinates.
@@ -167,7 +171,8 @@ struct BlobSampler::Sampler : public Aux::Logger
     {
         const Pimpos* colpimpos = pimpos(2);
         const double drift = (time + cc.time_offset)*cc.drift_speed;
-        double xorig = colpimpos->origin()[0];
+        double xorig = plane_x(2); // colpimpos->origin()[0];
+        /// TODO: how to determine xsign?
         double xsign = colpimpos->axis(0)[0];
         return xorig + xsign*drift;
     }
