@@ -128,6 +128,18 @@ namespace WireCell {
             return scalar;
         }
 
+        /// Return angle between this vector and the other.
+        T angle(const D3Vector& rhs) const
+        {
+            T m1 = this->magnitude();
+            T m2 = rhs.magnitude();
+            if (m1 <= 0 || m2 <= 0) {
+                return 0;
+            }
+            T cosine = this->dot(rhs) / (m1 * m2);
+            return std::acos(std::min(std::max(cosine, T(-1)), T(1)));
+        }
+
         /// Return the magnitude of this vector.
         T magnitude() const { return std::sqrt(x() * x() + y() * y() + z() * z()); }
 

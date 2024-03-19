@@ -36,7 +36,7 @@ def options(opt):
     opt.add_option('--with-spdlog-static', type=str, default="yes",
                    help="Def is true, set to false if your spdlog is not compiled (not recomended)")
     opt.add_option('--with-spdlog-active-level',
-                   default = info,
+                   default = "info",
                    choices = log_levels,
                    help="The compiled minimum log level for SPDLOG_<LEVEL>() macros (def=info)")
 

@@ -6,6 +6,7 @@
 
 #include "WireCellUtil/PointGraph.h"
 #include "WireCellIface/ITensor.h"
+#include "WireCellAux/TensorDMcommon.h"
 
 namespace WireCell::Aux::TensorDM {
 
@@ -19,6 +20,8 @@ namespace WireCell::Aux::TensorDM {
        empty the first pcgraph found is used.
      */
     PointGraph as_pointgraph(const ITensor::vector& tens,
+                             const std::string& datapath="");
+    PointGraph as_pointgraph(const TensorIndex& ti,
                              const std::string& datapath="");
 
     /** Convert a point graph to tensors.

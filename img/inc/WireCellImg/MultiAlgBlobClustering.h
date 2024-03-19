@@ -18,6 +18,9 @@ namespace WireCell::Img {
         virtual bool operator()(const input_pointer& in, output_pointer& out);
          
       private:
+        // directory to save the bee debug file
+        std::string m_bee_dir {""};
+
         // Count how many times we are called
         size_t m_count{0};
 
@@ -38,6 +41,9 @@ namespace WireCell::Img {
          * interpolated with the ident number of the input tensor set.
          */
         std::string m_outpath{""};
+
+        // configurable parameters for dead-live clustering
+        int m_dead_live_overlap_offset{2};
     };
 }
 

@@ -4,27 +4,41 @@
 #ifndef WIRECELL_IMG_POINTTREEBUILDING
 #define WIRECELL_IMG_POINTTREEBUILDING
 
-#include "WireCellIface/IClusterTensorSet.h"
+#include "WireCellIface/IClusterFaninTensorSet.h"
 #include "WireCellIface/IBlobSampler.h"
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellAux/Logger.h"
+#include "WireCellUtil/PointTree.h"
+#include "WireCellUtil/Units.h"
 
 
 namespace WireCell::Img {
 
-    class PointTreeBuilding : public Aux::Logger, public IClusterTensorSet, public IConfigurable
+    class PointTreeBuilding : public Aux::Logger, public IClusterFaninTensorSet, public IConfigurable
     {
       public:
         PointTreeBuilding();
         virtual ~PointTreeBuilding();
 
+        // INode, override because we get multiplicity at run time.
+        virtual std::vector<std::string> input_types();
+
         // IConfigurable
         virtual void configure(const WireCell::Configuration& cfg);
         virtual WireCell::Configuration default_configuration() const;
 
-        virtual bool operator()(const input_pointer& icluster, output_pointer& tensorset);
+        virtual bool operator()(const input_vector& invec, output_pointer& tensorset);
 
       private:
+        // sampling for live/dead
+        WireCell::PointCloud::Tree::Points::node_ptr sample_live(const WireCell::ICluster::pointer cluster) const;
+        WireCell::PointCloud::Tree::Points::node_ptr sample_dead(const WireCell::ICluster::pointer cluster) const;
+
+        size_t m_multiplicity {2};
+        std::vector<std::string> m_tags;
+        size_t m_count{0};
+
+        double m_tick {0.5*units::us};
         
         /** Configuration: "samplers"
 
@@ -41,8 +55,6 @@ namespace WireCell::Img {
             interpolated with the IBlobSet::ident() value.
          */
         std::string m_datapath = "pointtrees/%d";
-
-        size_t m_count{0};
 
     };
 }

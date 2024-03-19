@@ -1,29 +1,20 @@
 #include "WireCellAux/Testing.h"
 
-#include "WireCellUtil/PluginManager.h"
+#include "WireCellUtil/Testing.h"
 #include "WireCellUtil/NamedFactory.h"
-#include "WireCellIface/IConfigurable.h"
+
+#include "WireCellIface/IWireSchema.h"
 
 #include <algorithm>            // find
 
 using namespace WireCell;
 using namespace WireCell::Aux;
 
-void Testing::load_plugins(std::vector<std::string> list)
-{
-    PluginManager& pm = PluginManager::instance();
-
-    if (list.empty()) {
-        list = {"WireCellAux", "WireCellGen", "WireCellSigProc", "WireCellPgraph", "WireCellImg", "WireCellSio", "WireCellApps"};
-    }
-    for (const auto& one : list) {
-        pm.add(one);
-    }
-}
-
 WireCell::IDFT::pointer Testing::get_dft()
 {
-    load_plugins({"WireCellAux"});
+    // load_plugins({"WireCellAux"});
+    // we are in Aux, so no need to load!
+
     return Factory::lookup<IDFT>("FftwDFT"); // not configurable
 }
 
@@ -40,77 +31,59 @@ WireCell::IRandom::pointer Testing::get_random(const std::string& name)
 }
 
 
-static std::vector<std::string> knowndets = {"uboone", "pdsp"};
-const std::vector<std::string>& Testing::known_detectors()
-{
-    return knowndets;
-}
-
-static void assert_known_det(const std::string& det)
-{
-    if (std::find(knowndets.begin(), knowndets.end(), det) == knowndets.end()) {
-        THROW(ValueError() << errmsg{"unknown detector: " + det});
-    }
-}
-
 IAnodePlane::vector Testing::anodes(std::string detector)
 {
-    assert_known_det(detector);
-    load_plugins({"WireCellGen", "WireCellSigProc"});
-    IAnodePlane::vector anodes;
+    // Probably should move WSF and FR to aux....
+    Testing::load_plugins({"WireCellGen", "WireCellSigProc"});
+
+    auto kds = detectors();
+    const auto& kd = kds[detector];
+    if (kd.isNull()) {
+        raise<ValueError>("unknown detector \"%s\"", detector);
+    }        
+
+    const std::string ws_tn = "WireSchemaFile";
     {
-        int nanodes = 1;
-        // Note: these files must be located via WIRECELL_PATH
-        std::string ws_fname = "microboone-celltree-wires-v2.1.json.bz2";
-        std::string fr_fname = "ub-10-half.json.bz2";
-        if (detector == "uboone") {
-            ws_fname = "microboone-celltree-wires-v2.1.json.bz2";
-            fr_fname = "ub-10-half.json.bz2";
-        }
-        if (detector == "pdsp") {
-            ws_fname = "protodune-wires-larsoft-v4.json.bz2";
-            fr_fname = "garfield-1d-3planes-21wires-6impacts-dune-v1.json.bz2";
-            nanodes = 6;
-        }
+        auto icfg = Factory::lookup<IConfigurable>(ws_tn);
+        auto cfg = icfg->default_configuration();
+        cfg["filename"] = kd["wires"];
+        icfg->configure(cfg);
+    }
 
-        const std::string fr_tn = "FieldResponse";
-        const std::string ws_tn = "WireSchemaFile";
+    const std::string fr_tn = "FieldResponse";
+    {
+        auto icfg = Factory::lookup<IConfigurable>(fr_tn);
+        auto cfg = icfg->default_configuration();
+        cfg["filename"] = kd["fields"];
+        icfg->configure(cfg);
+    }
 
-        {
-            auto icfg = Factory::lookup<IConfigurable>(fr_tn);
-            auto cfg = icfg->default_configuration();
-            cfg["filename"] = fr_fname;
-            icfg->configure(cfg);
-        }
-        {
-            auto icfg = Factory::lookup<IConfigurable>(ws_tn);
-            auto cfg = icfg->default_configuration();
-            cfg["filename"] = ws_fname;
-            icfg->configure(cfg);
-        }
+    auto iwsf = Factory::lookup_tn<IWireSchema>(ws_tn);
+    const auto& wstore = iwsf->wire_schema_store();
+    const auto& wdets = wstore.detectors();
+    const auto& wanodes = wstore.detectors();
 
-        for (int ianode = 0; ianode < nanodes; ++ianode) {
+    IAnodePlane::vector ret;
+    for (const auto& det : wdets) {
+        for (const auto& anode_index : det.anodes) {
+            const auto& anode = wanodes[anode_index];
+            const int ianode = anode.ident;
+            
             std::string tn = String::format("AnodePlane:%d", ianode);
             auto icfg = Factory::lookup_tn<IConfigurable>(tn);
             auto cfg = icfg->default_configuration();
             cfg["ident"] = ianode;
             cfg["wire_schema"] = ws_tn;
+
+            // FIXME: this is NOT general and needs to be retrieved from detectors.jsonnet somehow!!!!
             cfg["faces"][0]["response"] = 10 * units::cm - 6 * units::mm;
             cfg["faces"][0]["cathode"] = 2.5604 * units::m;
+
             icfg->configure(cfg);
-            anodes.push_back(Factory::find_tn<IAnodePlane>(tn));
+            ret.push_back(Factory::find_tn<IAnodePlane>(tn));
         }
     }
-    return anodes;
+    return ret;
 }
 
 
-// void Testing::loginit(const char* argv0)
-// {
-//     std::string name = argv0;
-//     name += ".log";
-//     Log::add_stderr(true, "trace");
-//     Log::add_file(name, "trace");
-//     Log::set_level("trace");
-//     Log::set_pattern("[%H:%M:%S.%03e] %L [%^%=8n%$] %v");
-// }

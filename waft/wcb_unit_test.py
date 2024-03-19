@@ -102,7 +102,6 @@ def make_interpreted_test(self):
         self.ut_env = env
     else:
         self.ut_env = dict(os.environ)
-    Logs.debug("wut: bats lib path: " + self.ut_env.get("BATS_LIB_PATH", "none"))
 
     paths = getattr(self, 'test_scripts_paths', {})
     for (k,v) in paths.items():
@@ -321,7 +320,6 @@ def options(opt):
     """
     Provide the ``--alltests``, ``--notests`` and ``--testcmd`` command-line options.
     """
-
     opt.add_option('--tests', default=None, action='store_true',
                    help="Activate tests [default: off]")
     opt.add_option('--test-duration', type="float", action='store',
@@ -343,6 +341,7 @@ def options(opt):
     opt.add_option('--dump-test-scripts', action='store_true', default=False,
                    help='Create python scripts to help debug tests', dest='dump_test_scripts')
 
+
 def intern_test_options(ctx, force=False):
     '''
     Set ctx.env from options if they are given or forced.
@@ -350,6 +349,7 @@ def intern_test_options(ctx, force=False):
     
     if force or ctx.options.tests is not None:
         ctx.env.TESTS = bool(ctx.options.tests)
+    Logs.debug(f'wut: tests:{ctx.options.tests} TESTS:{ctx.env.TESTS}')
 
     if force or ctx.options.test_duration is not None:
         ctx.env.TEST_DURATION = ctx.options.test_duration

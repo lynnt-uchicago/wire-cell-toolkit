@@ -7,6 +7,7 @@
 #include "WireCellIface/ICluster.h"
 #include "WireCellIface/ITensor.h"
 #include "WireCellIface/IAnodePlane.h"
+#include "WireCellAux/TensorDMcommon.h"
 
 namespace WireCell::Aux::TensorDM {
 
@@ -37,6 +38,9 @@ namespace WireCell::Aux::TensorDM {
        values to their IData object representation.
     */
     ICluster::pointer as_cluster(const ITensor::vector& tens,
+                                 const IAnodePlane::vector& anodes,
+                                 const std::string& datapath="");
+    ICluster::pointer as_cluster(const TensorIndex& ti,
                                  const IAnodePlane::vector& anodes,
                                  const std::string& datapath="");
 }
