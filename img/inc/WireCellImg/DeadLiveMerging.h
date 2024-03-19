@@ -24,7 +24,7 @@ namespace WireCell {
             size_t m_multiplicity{2};
             std::vector<std::string> m_tags;
 
-            int m_count{0};
+            // int m_count{0};
         };
     }
 }

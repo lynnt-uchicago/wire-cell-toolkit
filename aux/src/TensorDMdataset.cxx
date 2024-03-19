@@ -106,25 +106,27 @@ PointCloud::Array WireCell::Aux::TensorDM::as_array(const ITensor::pointer& ten,
 PointCloud::Dataset
 WireCell::Aux::TensorDM::as_dataset(const ITensor::vector& tens,
                                     const std::string& datapath,
-                                    const located_t& located,
                                     bool share)
 {
-    ITensor::pointer top = top_tensor(tens, "pcdataset", datapath, located);
-    if (!top) {
-        THROW(ValueError() << errmsg{"no array of datatype \"pcdataset\""});
-    }
+    TensorIndex ti(tens);
+    return as_dataset(ti, datapath, share);
+
+}
+PointCloud::Dataset
+WireCell::Aux::TensorDM::as_dataset(const TensorIndex& ti,
+                                    const std::string& datapath,
+                                    bool share)
+{
+    auto top = ti.at(datapath, "pcdataset");
 
     PointCloud::Dataset ret;
     auto topmd = top->metadata();
     ret.metadata() = topmd;
     auto arrrefs = topmd["arrays"];
     for (const auto& name : arrrefs.getMemberNames()) {
-        const auto path = arrrefs[name].asString();
-        const auto it = located.find(path);
-        if (it == located.end()) {
-            THROW(ValueError() << errmsg{"no array \"" + name + "\" at path \"" + path + "\""});
-        }
-        auto arr = as_array(it->second, share);
+        const auto dpath = arrrefs[name].asString();
+        auto ten = ti.at(dpath, "pcarray");
+        auto arr = as_array(ten, share);
         ret.add(name, arr);
     }
 
@@ -135,9 +137,10 @@ WireCell::Aux::TensorDM::as_dataset(const ITensor::vector& tens,
 PointCloud::Dataset
 WireCell::Aux::TensorDM::as_dataset(const ITensorSet::pointer& tens,
                                     const std::string& datapath,
-                                    const located_t& located,
                                     bool share)
 {
-    auto sv = tens->tensors();
-    return as_dataset(*(sv.get()), datapath, located, share);
+    TensorIndex ti(*tens->tensors());
+    return as_dataset(ti, datapath, share);
+
+
 }

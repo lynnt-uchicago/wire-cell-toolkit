@@ -214,7 +214,7 @@ namespace {
                 const auto& z = pc_scalar.get("z")->elements<float_t>();
                 std::vector<Point2D> points;
                 for (size_t i = 0; i < y.size(); ++i) {
-                    points.push_back({y[i], z[i]});
+                    points.push_back({(float)y[i], (float)z[i]});
                 }
                 auto sorted = sort_angular(points);
                 Json::Value jarea(Json::arrayValue);

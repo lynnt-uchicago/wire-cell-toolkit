@@ -95,18 +95,18 @@ void test_tensor(IFrame::pointer frame, FrameTensorMode mode, bool truncate,
     CHECK(fmd["datatype"].asString() == "frame");
     CHECK(fmd["datapath"].asString() == "frames/0");
 
-    auto ften2 = first_of(itenvec, "frame");
+    TensorIndex ti(itenvec);
+    auto ften2 = ti.at_of("frame");
     CHECK(ften == ften2);
 
-    auto store = index_datapaths(itenvec);
-    CHECK(store[datapath] == ften);
+    CHECK(ti.at(datapath) == ften);
 
     CHECK(fmd["traces"].size() == ntraces);
     size_t count=0;
     for (auto jtrdp : fmd["traces"]) {
         debug("traces [{} / {}]", count++, ntraces);
 
-        auto iten = store[jtrdp.asString()];
+        auto iten = ti.at(jtrdp.asString());
         CHECK(iten);
 
         // dump_tensor(iten,"\t");
@@ -118,7 +118,7 @@ void test_tensor(IFrame::pointer frame, FrameTensorMode mode, bool truncate,
     count = 0;
     for (auto jtrdp : fmd["tracedata"]) {
         debug("tracedata [{} / {}]", count++, fmd["tracedata"].size());
-        auto iten = store[jtrdp.asString()];
+        auto iten = ti.at(jtrdp.asString());
         CHECK(iten);
 
         // dump_tensor(iten, "\t");
@@ -129,7 +129,7 @@ void test_tensor(IFrame::pointer frame, FrameTensorMode mode, bool truncate,
         CHECK(startswith(dp, datapath));
         CHECK(md["datatype"].asString() == "pcdataset");
 
-        auto ds = as_dataset(itenvec, dp);
+        auto ds = as_dataset(ti, dp);
         auto keys = ds.keys();
         if (tag.empty()) {
             // convention to save whole frame, must have chids
@@ -155,7 +155,7 @@ void test_tensor(IFrame::pointer frame, FrameTensorMode mode, bool truncate,
     }
 
     // round trip back to frame
-    auto frame2 = as_frame(itenvec, datapath);
+    auto frame2 = as_frame(ti, datapath);
     CHECK(frame2->ident() == frame->ident());
     CHECK(frame2->time() == frame->time());
     CHECK(frame2->tick() == frame->tick());

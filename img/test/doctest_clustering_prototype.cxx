@@ -190,6 +190,7 @@ TEST_CASE("test PointTree API")
 TEST_CASE("test PointCloudFacade")
 {
     auto root = make_simple_pctree();
+    REQUIRE(root);
     Cluster pcc(root);
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
     debug("expecting 1.1666666666666665");

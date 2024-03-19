@@ -9,17 +9,23 @@ using namespace WireCell::Aux;
 using namespace WireCell::Aux::TensorDM;
 
 WireCell::Aux::TensorDM::named_pointclouds_t
-WireCell::Aux::TensorDM::as_pcnamedset(const ITensor::vector& tens, const std::string& datapath, const located_t& located)
+WireCell::Aux::TensorDM::as_pcnamedset(const ITensor::vector& tens, const std::string& datapath)
+{
+    TensorIndex ti(tens);
+    return as_pcnamedset(ti, datapath);
+}
+
+WireCell::Aux::TensorDM::named_pointclouds_t
+WireCell::Aux::TensorDM::as_pcnamedset(const TensorIndex& ti, const std::string& datapath)
 {
     named_pointclouds_t ret;
-    auto top = top_tensor(tens, "pcnamedset", datapath, located);
-
+    auto top = ti.at(datapath, "pcnamedset");
     const auto& md = top->metadata();
     auto items = md["items"];
     for (const auto& name : items.getMemberNames()) {
         const auto path = items[name].asString();
 
-        auto ds = as_dataset(tens, path, located);
+        auto ds = as_dataset(ti, path);
         ret.emplace(name, ds);
     }
     return ret;
@@ -71,21 +77,29 @@ std::unique_ptr<WireCell::PointCloud::Tree::Points::node_t>
 WireCell::Aux::TensorDM::as_pctree(const ITensor::vector& tens,
                                    const std::string& datapath)
 {
+    TensorIndex ti(tens);
+    return as_pctree(ti, datapath);
+}
+
+std::unique_ptr<WireCell::PointCloud::Tree::Points::node_t>
+WireCell::Aux::TensorDM::as_pctree(const TensorIndex& ti,
+                                   const std::string& datapath)
+{
     using WireCell::PointCloud::Tree::Points;
 
     std::unordered_map<std::string, Points::node_t*> nodes_by_datapath;
     Points::node_t::owned_ptr root;
-    const auto& located = index_datapaths(tens);
+
     std::function<void(const std::string& dpath)> dochildren;
     dochildren = [&](const std::string& dpath) -> void {
 
+        auto top = ti.at(dpath, "pctreenode");
 
-        auto top = top_tensor(tens, "pctreenode", dpath, located);
         auto const& md = top->metadata();        
 
         named_pointclouds_t pcns;
         if (! md["pointclouds"].asString().empty() ) {
-            pcns = as_pcnamedset(tens, md["pointclouds"].asString(), located);
+            pcns = as_pcnamedset(ti, md["pointclouds"].asString());
         }
 
         std::string ppath = md["parent"].asString();

@@ -219,7 +219,7 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
     }
     auto& sampler = m_samplers.at("3d");
     for (auto& [cluster_id, vdescs] : clusters) {
-        auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
+        auto cnode = root->insert(std::make_unique<Points::node_t>());
         for (const auto& vdesc : vdescs) {
             const char code = gr[vdesc].code();
             if (code != 'b') {
@@ -237,7 +237,7 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
             // for (const auto& [name, pc] : pcs) {
             //     log->debug("{} -> keys {} size_major {}", name, pc.keys().size(), pc.size_major());
             // }
-            cnode->insert(std::move(Points(std::move(pcs))));
+            cnode->insert(Points(std::move(pcs)));
             ++nblobs;
         }
         /// DEBUGONLY
@@ -263,7 +263,7 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
     // }
     // auto& sampler = m_samplers.at("dead");
     for (auto& [cluster_id, vdescs] : clusters) {
-        auto cnode = root->insert(std::move(std::make_unique<Points::node_t>()));
+        auto cnode = root->insert(std::make_unique<Points::node_t>());
         for (const auto& vdesc : vdescs) {
             const char code = gr[vdesc].code();
             if (code != 'b') {

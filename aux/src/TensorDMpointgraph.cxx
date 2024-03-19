@@ -13,16 +13,17 @@ WireCell::PointGraph
 WireCell::Aux::TensorDM::as_pointgraph(const ITensor::vector& tens,
                                        const std::string& datapath)
 {
-    const auto& located = index_datapaths(tens);
-    ITensor::pointer top = top_tensor(tens, "pcgraph", datapath, located);
-
-    if (!top) {
-        THROW(ValueError() << errmsg{"no array of datatype \"pcgraph\" at datapath \"" + datapath + "\"" });
-    }
-
+    TensorIndex ti(tens);
+    return as_pointgraph(ti, datapath);
+}
+WireCell::PointGraph
+WireCell::Aux::TensorDM::as_pointgraph(const TensorIndex& ti,
+                                       const std::string& datapath)
+{
+    auto top = ti.at(datapath, "pcgraph");
     const auto& topmd = top->metadata();
-    auto nodes = as_dataset(tens, topmd["nodes"].asString(), located);
-    auto edges = as_dataset(tens, topmd["edges"].asString(), located);
+    auto nodes = as_dataset(ti, topmd["nodes"].asString());
+    auto edges = as_dataset(ti, topmd["edges"].asString());
     return PointGraph(nodes, edges);
 }
 

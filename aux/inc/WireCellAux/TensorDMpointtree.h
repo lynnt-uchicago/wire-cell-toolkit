@@ -64,7 +64,8 @@ namespace WireCell::Aux::TensorDM {
        empty in which case the first pcnamedset found is used.
 
      */
-    named_pointclouds_t as_pcnamedset(const ITensor::vector& tens, const std::string& datapath = "", const located_t& located = {});
+    named_pointclouds_t as_pcnamedset(const ITensor::vector& tens, const std::string& datapath = "");
+    named_pointclouds_t as_pcnamedset(const TensorIndex& ti, const std::string& datapath = "");
                                                              
 
 
@@ -93,6 +94,9 @@ namespace WireCell::Aux::TensorDM {
      */
     std::unique_ptr<WireCell::PointCloud::Tree::Points::node_t>
     as_pctree(const ITensor::vector& tens,
+              const std::string& datapath="");
+    std::unique_ptr<WireCell::PointCloud::Tree::Points::node_t>
+    as_pctree(const TensorIndex& ti,
               const std::string& datapath="");
 
 }
