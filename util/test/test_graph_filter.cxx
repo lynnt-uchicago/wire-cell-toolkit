@@ -83,7 +83,8 @@ int main()
     dump(g2, "g2");
 
 
-    std::unordered_set dead = {v2};
+    std::unordered_set<int> dead;
+    dead.insert(v2);
     Filtered fg2(g, {}, [&](vertex_t vtx) {
         return dead.count(g[vtx].num) == 0; });
     graph_t g3;

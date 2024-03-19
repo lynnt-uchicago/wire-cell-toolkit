@@ -281,8 +281,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                             }
                         }
 
-                        //	      flag_merge = true;
-                        std::cout << "xin2: " << flag_merge << std::endl;
+			//flag_merge = true;
+                        std::cout << "xin2: " << cluster_length_map[cluster_1]/units::cm << " " << cluster_length_map[cluster_2]/units::cm << " " << flag_merge << std::endl;
 
                         if (flag_merge) {
                             boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
@@ -380,6 +380,9 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         auto new_cluster = std::make_shared<Cluster>(cnode1);
         auto cnode = root_live_new->insert(std::move(cnode1));
         cluster_length_map[new_cluster] = new_cluster->get_length(tp);
+
+	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
+	
         cluster_connected_dead.insert(new_cluster);
     }
     debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
