@@ -9,8 +9,8 @@
 #include "WireCellAux/TensorDMcommon.h"
 #include "WireCellAux/SimpleTensorSet.h"
 
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/connected_components.hpp>
+#include "WireCellUtil/Graph.h"
+
 
 #include <fstream>
 
@@ -205,7 +205,6 @@ namespace {
 
         // Convert stringstream to JSON array
         Json::Value jdead;
-        Json::Reader reader;
         for (const auto& cnode : root.children()) {
             for (const auto& bnode : cnode->children()) {
                 const auto& lpcs = bnode->value.local_pcs();

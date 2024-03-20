@@ -10,6 +10,8 @@ using namespace WireCell::PointCloud::Tree; // for "Points" node value type
 #include "WireCellUtil/Logging.h"
 using spdlog::debug;
 
+/// unused
+#if 0
 namespace {
     // helper to dump a dataset
     std::string dump_ds(const WireCell::PointCloud::Dataset& ds) {
@@ -32,6 +34,7 @@ namespace {
         return ss.str();
     }
 }
+#endif
 
 Blob::Blob(const node_ptr& n)
   : m_node(n.get())
@@ -407,6 +410,7 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
         return {cell.bin(0).center(), cell.bin(1).center()};
     }
     raise<ValueError>("unknown alg %d", alg);
+    return std::pair<double, double>{}; // keep compiler happy
 }
 
 geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double dis, const int alg) const {
@@ -420,6 +424,7 @@ geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double di
         return {sin(th)*cos(phi), sin(th)*sin(phi), cos(th)};
     }
     raise<ValueError>("unknown alg %d", alg);
+    return geo_point_t{};       // keep compiler happy
 }
 
 std::tuple<int, int, int, int> Cluster::get_uvwt_range() const {

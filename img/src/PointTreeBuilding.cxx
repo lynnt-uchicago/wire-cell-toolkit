@@ -87,6 +87,8 @@ WireCell::Configuration PointTreeBuilding::default_configuration() const
 
 namespace {
 
+// unused....
+#if 0
     std::string dump_ds(const WireCell::PointCloud::Dataset& ds) {
         std::stringstream ss;
         for (const auto& key : ds.keys()) {;
@@ -124,6 +126,7 @@ namespace {
         ss << dump_node(first.get());
         return ss.str();
     }
+#endif
 
     // Calculate the average position of a point cloud tree.
     Point calc_blob_center(const Dataset& ds)
@@ -179,7 +182,6 @@ namespace {
     Dataset make_corner_dataset(const IBlob::pointer iblob)
     {
         using float_t = double;
-        using int_t = int;
 
         Dataset ds;
         const auto& shape = iblob->shape();

@@ -2,8 +2,7 @@
 #define WIRECELL_AUX_SIMPLETENSOR
 
 #include "WireCellIface/ITensor.h"
-
-#include <boost/multi_array.hpp>
+#include "WireCellUtil/MultiArray.h"
 #include <cstring>
 
 namespace WireCell::Aux {

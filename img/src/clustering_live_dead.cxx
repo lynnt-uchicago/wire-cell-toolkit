@@ -116,7 +116,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
                 for (size_t j = i + 1; j < connected_live_clusters.size(); j++) {
                     const auto& cluster_2 = connected_live_clusters.at(j);
-                    const auto& blobs_2 = connected_live_mcells.at(j);
+                    // const auto& blobs_2 = connected_live_mcells.at(j);
 
 		    //                    std::cout << "xin1 " << i << " " << j << " " << blobs_1.size() << " " << blobs_2.size()
 		    //         << std::endl;
@@ -237,6 +237,12 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                                 }
                             }
 
+// This block of code comes from the prototype and should have parentheses
+// applied to make the logic explicit but nobody wants to do that so we tell the
+// compiler to be quiet about it.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
+
                             if (!flag_merge) {
                                 if (length_1 <= 12 * units::cm && length_2 <= 12 * units::cm) {
                                     // both are short
@@ -290,6 +296,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                                         flag_merge = true;
                                 }
                             }
+#pragma GCC diagnostic pop                            
+
                         }
 
 			//flag_merge = true;
@@ -361,7 +369,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
     std::unordered_map<int, int> desc2id;
     std::unordered_map<int, std::set<int> > id2desc;
-    int num_components = boost::connected_components(g, boost::make_assoc_property_map(desc2id));
+    /*int num_components =*/ boost::connected_components(g, boost::make_assoc_property_map(desc2id));
     for (const auto& [desc, id] : desc2id) {
         id2desc[id].insert(desc);
     }
@@ -390,7 +398,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 	
         // new cluster information (need Haiwang to take a look at Facade ...)
         auto new_cluster = std::make_shared<Cluster>(cnode1);
-        auto cnode = root_live_new->insert(std::move(cnode1));
+        /*auto cnode =*/ root_live_new->insert(std::move(cnode1));
         cluster_length_map[new_cluster] = new_cluster->get_length(tp);
 
 	//	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;

@@ -376,15 +376,15 @@ TEST_CASE("point tree example simple tree operations")
   }
 
   // a little helper
-  static const Dataset& get_local_pc(const Points& pval, const std::string& pcname)
-  {
-      const auto& pcs = pval.local_pcs();
-      auto pcit = pcs.find(pcname);
-      if (pcit == pcs.end()) {
-          raise<KeyError>("no pc named " + pcname);
-      }
-      return pcit->second;
-  }
+  // static const Dataset& get_local_pc(const Points& pval, const std::string& pcname)
+  // {
+  //     const auto& pcs = pval.local_pcs();
+  //     auto pcit = pcs.find(pcname);
+  //     if (pcit == pcs.end()) {
+  //         raise<KeyError>("no pc named " + pcname);
+  //     }
+  //     return pcit->second;
+  // }
   
   TEST_CASE("point tree example scoped k-d tree to n-ary nodes")
   {
