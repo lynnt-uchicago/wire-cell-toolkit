@@ -108,6 +108,47 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     return ret;
 }
 
+std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
+  auto rad = skd.radius(pow(search_radius,2), p);
+
+  std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> mcell_point_map;
+  std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, double> mcell_dis_map;
+  
+  for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+    auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
+    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+    //  maj_inds.insert(maj_ind);
+
+    geo_point_t p1(pit->at(0), pit->at(1), pit->at(2));
+    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
+    //  auto charge = blob->charge;
+    // set a minimal charge
+    // following: https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/inc/WCPData/SlimMergeGeomCell.h#L59
+    //    if (charge == 0) charge = 1;
+
+    if (mcell_dis_map.find(blob) == mcell_dis_map.end()){
+      mcell_dis_map[blob] = dist2;
+      mcell_point_map[blob] = p1;
+    }else{
+      if (dist2 < mcell_dis_map[blob]){
+	mcell_dis_map[blob] = dist2;
+	mcell_point_map[blob] = p1;
+      }
+    }
+    
+  }
+
+  
+  return mcell_point_map;
+}
+
 std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > Cluster::get_closest_point_mcell(const geo_point_t& origin) const{
   
   Scope scope = { "3d", {"x","y","z"} };
@@ -123,7 +164,7 @@ std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob>
   if (rad.size()==0)
     return std::make_pair(ret,blob);
 
-  const auto& snodes = sv.nodes();
+  //  const auto& snodes = sv.nodes();
   auto& [pit,dist] = rad[0];                    // what is the pit (point?)
   const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
 
@@ -138,53 +179,68 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     /// FIXME: there are many assumptions made, shoud we check these assumptions?
     /// a bit worriying about the speed.
-    Scope scope = { "3d", {"x","y","z"} };
-    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+    //    Scope scope = { "3d", {"x","y","z"} };
+    //const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     // const auto& spcs = sv.pcs();
     // debug("sv {}", dump_pcs(sv.pcs()));
-    const auto& skd = sv.kd();
+    //const auto& skd = sv.kd();
 
     // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
 
-    auto rad = skd.radius(dis*dis, origin);                     // return is vector of (pointer, distance)
+    //    auto rad = skd.radius(dis*dis, origin);                     // return is vector of (pointer, distance)
     //auto rad = skd.radius(100*units::m, origin);                     // return is vector of (pointer, distance)
     /// FIXME: what if rad is empty?
-    if(rad.size() == 0) {
+    //if(rad.size() == 0) {
         // raise<ValueError>("empty point cloud");
-        return {0,0,0};
-    }
-    const auto& snodes = sv.nodes();
+    //    return {0,0,0};
+    // }
+    //    const auto& snodes = sv.nodes();
 
+
+    std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> pts = get_closest_mcell(origin, dis);
+    
     // average position
-    geo_point_t ret(0,0,0);
-    double total_charge{0};
+    geo_point_t pt(0,0,0);
+    double charge = 0;
     // alg following https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/PR3DCluster.cxx#L3956
 
+    // // hack
+    //geo_point_t origin1(2129.94, 709.449, 1525.01);
+    //origin1 = origin1 - origin;
+    //double dis1 = origin1.magnitude();
+
+    for (auto it = pts.begin(); it!=pts.end(); it++){
+      auto& blob = it->first;
+      double q = blob->charge;
+      if (q==0) q=1;
+      pt += blob->center_pos()*q;
+      charge += q;
+
+      //hack ...
+      //      if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << q << " " << pts.size() << std::endl;
+    }
+    
     //std::set<size_t> maj_inds;                           //set, no duplications ...
-    for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
-      auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
-      const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
+    //    for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+    //  auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
+    //  const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
       //  maj_inds.insert(maj_ind);
 
-      const auto blob = m_blobs[maj_ind];    // this must be the blob ...
-      auto charge = blob->charge;
+    //  const auto blob = m_blobs[maj_ind];    // this must be the blob ...
+    //  auto charge = blob->charge;
 
       // set a minimal charge
       // following: https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/inc/WCPData/SlimMergeGeomCell.h#L59
-      if (charge == 0) charge = 1;
+    //  if (charge == 0) charge = 1;
 
-      // hack ...
-      // if(dis1<1.0*units::mm) std::cout << origin << " " << blob->center_pos() << " " << charge << " " << rad.size() << " " << sv.npoints() << " " << skd.points().size() << std::endl;
+     
       
-      ret += blob->center_pos() * charge;
-      total_charge += charge;
+    // ret += blob->center_pos() * charge;
+    //  total_charge += charge;
       
-    }
+    //}
 
-    // // hack
-    // geo_point_t origin1(1127.6, 156.922, 2443.6);
-    // origin1 = origin1 - origin;
-    // double dis1 = origin1.magnitude();
+    
 
     // if (dis1 < 0.1*units::mm){
     //   const auto &spcs = sv.pcs();
@@ -251,11 +307,11 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
    
 
     
-    if (total_charge != 0) {
-        ret = ret / total_charge;
+    if (charge != 0) {
+        pt = pt / charge;
     }
     // debug("ret {{{} {} {}}}", ret.x(), ret.y(), ret.z());
-    return ret;
+    return pt;
 }
 
 #include <boost/histogram.hpp>
@@ -292,7 +348,9 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
 	    // get average charge information ...
 	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
 	    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
-            const auto charge = blob->charge;
+            auto charge = blob->charge;
+	    // protection against the charge=0 case ...
+	    if (charge ==0) charge = 1;
 	    const auto npoints = blob->num_points();
             // debug("pt {{{} {} {}}}", pit->at(0), pit->at(1), pit->at(2));
             // auto pt = *pit;
@@ -330,7 +388,9 @@ std::pair<double, double> Cluster::hough_transform(const geo_point_t& origin, co
 	    // get average charge information
 	    const auto [maj_ind,min_ind] = pit.index();        // maj_ind --> section, min_ind (within a section, what is the index)
 	    const auto blob = m_blobs[maj_ind];    // this must be the blob ...
-            const auto charge = blob->charge;
+	    auto charge = blob->charge;
+	    // protection against charge = 0 case ...
+	    if (charge ==0) charge = 1;
 	    const auto npoints = blob->num_points();
 
 	    if (charge <=0) continue;

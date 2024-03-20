@@ -69,6 +69,8 @@ namespace WireCell::PointCloud::Facade {
 
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
 	std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > get_closest_point_mcell(const geo_point_t& origin) const;
+	std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
+	
 	
         Blob::vector is_connected(const Cluster& c, const int offset) const;
         // alg 0: cos(theta), 1: theta
