@@ -74,9 +74,6 @@ int main(int argc,const char *argv[])
 
     cfg.env.CXXFLAGS += ['-std=c++17']
 
-    ### we used to be set sloppiness globally.  Now we use #pragma to
-    ### selectively quell warnings.  See util/docs/pragma.org for some info.
-    cfg.env.CXXFLAGS += '-Wall -Wpedantic -Werror'.split()
 
     if cfg.options.with_spdlog_static.lower() in ("yes","on","true"):
         cfg.env.CXXFLAGS += ['-DSPDLOG_COMPILED_LIB=1']
@@ -92,6 +89,10 @@ int main(int argc,const char *argv[])
 
 
 def build(bld):
+    ### we used to be set sloppiness globally.  Now we use #pragma to
+    ### selectively quell warnings.  See util/docs/pragma.org for some info.
+    bld.env.CXXFLAGS += '-Wall -Wpedantic -Werror'.split()
+
     bld.load('wcb')
 
 def dumpenv(bld):
