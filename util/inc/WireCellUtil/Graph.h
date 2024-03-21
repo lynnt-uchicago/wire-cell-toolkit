@@ -13,7 +13,6 @@
 //  If/when this is cleaned up in Boost, remove this comment and the
 //  next line.
 // #define BOOST_ALLOW_DEPRECATED_HEADERS 1
-#include <boost/graph/connected_components.hpp>
 #include <boost/graph/graph_traits.hpp>
 
 #pragma GCC diagnostic push
@@ -21,6 +20,7 @@
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
+#include <boost/graph/connected_components.hpp>
 #pragma GCC diagnostic pop
 
 #include <boost/graph/filtered_graph.hpp>
