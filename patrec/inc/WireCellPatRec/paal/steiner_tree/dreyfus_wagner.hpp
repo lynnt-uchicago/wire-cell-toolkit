@@ -182,7 +182,7 @@ class dreyfus_wagner {
                     connect_vertex(v, subset) + connect_vertex(v, complement);
                 return make_pair(val, subset);
             } else {
-                return std::make_pair(-1, NULL);
+                return std::make_pair(-1, TerminalsBitSet{});
             }
         } else {
             std::pair<Dist, TerminalsBitSet> ret1, ret2;

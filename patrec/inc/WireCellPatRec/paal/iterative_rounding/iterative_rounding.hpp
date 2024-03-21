@@ -26,6 +26,8 @@
 
 #include <cstdlib>
 #include <unordered_map>
+#include <functional>           // std::placeholders::
+
 
 namespace paal {
 namespace ir {
@@ -235,7 +237,7 @@ class iterative_rounding  {
      */
     void set_solution() {
         call<SetSolution>(m_problem, boost::bind(&iterative_rounding::get_val,
-                                               this, _1));
+                                               this, std::placeholders::_1));
     }
 
     /**
