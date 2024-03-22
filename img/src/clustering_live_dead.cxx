@@ -9,7 +9,9 @@ using namespace WireCell::PointCloud::Tree;
 
 void WireCell::PointCloud::Facade::clustering_live_dead(
     Points::node_ptr& root_live,                                   // in/out
-    const Points::node_ptr& root_dead,                             // in
+    Cluster::vector& live_clusters,
+    const Cluster::vector& dead_clusters,
+    //    const Points::node_ptr& root_dead,                             // in
     std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
     std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
     const TPCParams& tp,                                           // common params
@@ -17,31 +19,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 )
 {
     using spdlog::debug;
-    std::unordered_map<std::string, std::chrono::milliseconds> timers;
-    auto start = std::chrono::high_resolution_clock::now();
-    Cluster::vector live_clusters;
-    for (const auto& cnode : root_live->children()) {
-        live_clusters.push_back(std::make_shared<Cluster>(cnode));
-    }
-    Cluster::vector dead_clusters;
-    for (const auto& cnode : root_dead->children()) {
-        dead_clusters.push_back(std::make_shared<Cluster>(cnode));
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    timers["make_facade"] += duration;
-    debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(),
-          timers["make_facade"].count());
-
+    
+    
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
-
-    // loop over all the clusters, and calculate length ...
-    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
-        const auto& live = live_clusters[ilive];
-        cluster_length_map[live] = live->get_length(tp);
-        // std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
-    }
-
+ 
     // form dead -> lives map
     // start = std::chrono::high_resolution_clock::now();
     // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
@@ -63,6 +44,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     // timers["dead2lives-map"] += duration;
     // debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
 
+    Cluster::vector live_clusters_new;
+    
     // form map between live and dead clusters ...
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, Cluster::vector>
         dead_live_cluster_mapping;
@@ -310,6 +293,13 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     for (auto it = cluster_to_be_deleted.begin(); it != cluster_to_be_deleted.end(); it++) {
         cluster_length_map.erase(*it);
         cluster_connected_dead.erase(*it);
+	// delete old clusters ...
+	//	live_clusters.erase(find(live_clusters.begin(), live_clusters.end(), *it));
+    }
+    
+    for (auto it = live_clusters.begin(); it != live_clusters.end(); it++){
+      if (cluster_to_be_deleted.find(*it) == cluster_to_be_deleted.end())
+	live_clusters_new.push_back(*it);
     }
 
     // // from dead -> lives graph
@@ -393,8 +383,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         auto cnode = root_live_new->insert(std::move(cnode1));
         cluster_length_map[new_cluster] = new_cluster->get_length(tp);
 
+	live_clusters_new.push_back(new_cluster);
 	//	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
-	
         cluster_connected_dead.insert(new_cluster);
 	
     }
@@ -408,4 +398,6 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
     // replace old with new
     root_live = std::move(root_live_new);
+    
+    live_clusters = std::move(live_clusters_new);
 }

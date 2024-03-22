@@ -310,12 +310,47 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     /// TODO: how to pass the parameters? for now, using default params
     WireCell::PointCloud::Facade::TPCParams tp;
 
-    // dead_live
     // Calculate the length of all the clusters and save them into a map
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double> cluster_length_map;
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_connected_dead;
-    clustering_live_dead(root_live, root_dead, cluster_length_map, cluster_connected_dead, tp,
+    
+    // initialize clusters ...
+    //std::unordered_map<std::string, std::chrono::milliseconds> timers;
+    start = std::chrono::high_resolution_clock::now();
+    Cluster::vector live_clusters;
+    for (const auto& cnode : root_live->children()) {
+        live_clusters.push_back(std::make_shared<Cluster>(cnode));
+    }
+    // loop over all the clusters, and calculate length ...
+    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+        const auto& live = live_clusters[ilive];
+        cluster_length_map[live] = live->get_length(tp);
+        // std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
+    }
+    
+    Cluster::vector dead_clusters;
+    for (const auto& cnode : root_dead->children()) {
+        dead_clusters.push_back(std::make_shared<Cluster>(cnode));
+    }
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    //timers["make_facade"] += duration;
+    //debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(),
+    //      timers["make_facade"].count());
+    
+    
+
+    
+    // dead_live
+
+    clustering_live_dead(root_live, live_clusters, dead_clusters, cluster_length_map, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
+
+    // second function ...
+    clustering_extend(root_live, cluster_length_map, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
+
+    
+    
     // BEE debug dead-live
     if (!m_bee_dir.empty()) {
         std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);
