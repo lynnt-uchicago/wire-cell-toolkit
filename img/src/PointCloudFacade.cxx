@@ -146,7 +146,71 @@ std::pair<geo_point_t, double> Cluster::get_closest_point_along_vec(geo_point_t&
   return std::make_pair(min_point,min_dis1);
 }
 
-int Cluster::get_num_points(geo_point_t& point, double dis) const{
+int Cluster::get_num_points() const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+  
+  return skd.points().size();
+}
+
+std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir) const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  int num_p1 = 0;
+  int num_p2 = 0;
+
+  auto& points = skd.points();
+
+  for (auto it = points.begin(); it!=points.end(); it++){
+    geo_point_t dir1(it->at(0) - point.x(), it->at(1) - point.y(), it->at(2) - point.z());
+    if (dir1.dot(dir)>=0){
+      num_p1 ++;
+    }else{
+      num_p2 ++;
+    }
+  }
+
+  return std::make_pair(num_p1, num_p2);
+}
+
+std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir, double dis) const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  int num_p1 = 0;
+  int num_p2 = 0;
+
+  auto rad = skd.radius(pow(dis,2), point);
+  for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+    auto& [pit,dist2] = rad[pt_ind];
+
+    geo_point_t dir1(pit->at(0)-point.x(), pit->at(1)-point.y(), pit->at(2)-point.z());
+
+    if (dir1.dot(dir)>=0){
+      num_p1 ++;
+    }else{
+      num_p2 ++;
+    }
+    
+  }
+
+
+  return std::make_pair(num_p1, num_p2);
+}
+
+
+
+int Cluster::get_num_points(const geo_point_t& point, double dis) const{
   //return point_cloud->get_closest_points(p_test, dis).size();
 
   Scope scope = { "3d", {"x","y","z"} };
