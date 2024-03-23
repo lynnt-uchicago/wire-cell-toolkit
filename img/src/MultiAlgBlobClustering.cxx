@@ -347,7 +347,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
                          m_dead_live_overlap_offset);
 
     // second function ...
-    clustering_extend(root_live, cluster_length_map, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
+    clustering_extend(root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
 
     
     

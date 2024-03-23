@@ -70,6 +70,7 @@ namespace WireCell::PointCloud::Facade {
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
 	std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > get_closest_point_mcell(const geo_point_t& origin) const;
 	std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
+	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
 	
 	
         Blob::vector is_connected(const Cluster& c, const int offset) const;
@@ -81,8 +82,14 @@ namespace WireCell::PointCloud::Facade {
         std::tuple<int, int, int, int> get_uvwt_range() const;
         double get_length(const TPCParams& tp) const;
 
+	// added 
+	std::shared_ptr<const WireCell::PointCloud::Facade::Blob> get_first_blob() const;
+	std::shared_ptr<const WireCell::PointCloud::Facade::Blob> get_last_blob() const;
+	
        private:
-        std::unordered_multimap<int, Blob::pointer> m_time_blob_map;
+	// needed a sorted map ...
+        //std::unordered_multimap<int, Blob::pointer> m_time_blob_map;
+	std::multimap<int, Blob::pointer> m_time_blob_map;
     };
 
     inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {
