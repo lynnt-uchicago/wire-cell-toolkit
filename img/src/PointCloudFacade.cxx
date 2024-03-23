@@ -108,6 +108,44 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     return ret;
 }
 
+std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_first_blob() const{
+  return m_time_blob_map.begin()->second;
+}
+std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_last_blob() const{
+  return m_time_blob_map.rbegin()->second;
+}
+
+
+std::pair<geo_point_t, double> Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const{
+
+  bool flag = false;
+  geo_point_t p_test;
+  
+  double min_dis = 1e9;
+  double min_dis1 = 1e9;
+  geo_point_t min_point = p_test1;
+  
+  for (int i=0; i!= int(test_dis/dis_step)+1;i++){
+    p_test.set(p_test1.x() + dir.x() * i * dis_step,p_test1.y() + dir.y() * i * dis_step, p_test1.z() + dir.z() * i * dis_step);
+    
+    auto pts = get_closest_point_mcell(p_test);
+    
+    double dis = sqrt(pow(p_test.x() - pts.first.x(),2)+pow(p_test.y() - pts.first.y(),2)+pow(p_test.z() - pts.first.z(),2));
+    double dis1 = sqrt(pow(p_test1.x() - pts.first.x(),2)+pow(p_test1.y() - pts.first.y(),2)+pow(p_test1.z() - pts.first.z(),2));
+    if (dis < std::min(dis1 * tan(angle_cut/180.*3.1415926),dis_cut)){
+      if (dis < min_dis){
+	min_dis = dis;
+	min_point = pts.first;
+	min_dis1 = dis1;
+      }
+      if (dis < 3*units::cm)
+	return std::make_pair(pts.first,dis1);
+    }
+  }
+
+  return std::make_pair(min_point,min_dis1);
+}
+
 std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
   Scope scope = { "3d", {"x","y","z"} };
   const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
@@ -197,6 +235,8 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     //    const auto& snodes = sv.nodes();
 
 
+    
+    
     std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> pts = get_closest_mcell(origin, dis);
     
     // average position
