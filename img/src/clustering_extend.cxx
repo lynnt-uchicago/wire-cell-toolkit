@@ -30,6 +30,7 @@ void WireCell::PointCloud::Facade::clustering_extend(
   geo_point_t W_dir(0,cos(angle_w),sin(angle_w));
 
   std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > used_clusters;
+  std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
 
   // prepare graph ...
   typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
@@ -56,13 +57,294 @@ void WireCell::PointCloud::Facade::clustering_extend(
       geo_point_t highest_p, lowest_p, earliest_p, latest_p;
       bool flag_para = false;
       bool flag_prol = false;
-      
-    }
 
-    
+      if (flag==1){// prolong case ... 
+
+	std::tie(earliest_p, latest_p) = cluster_1->get_earliest_latest_points();
+	// find earliest point
+
+	geo_point_t dir_earlp = cluster_1->vhough_transform(earliest_p,60*units::cm,1);
+	
+	geo_point_t tempV5,tempV1;
+	tempV1.set(0,dir_earlp.y(),dir_earlp.z());
+	double angle1 = tempV1.angle(U_dir);
+	tempV5.set(fabs(dir_earlp.x()),sqrt(pow(dir_earlp.y(),2)+pow(dir_earlp.z(),2))*sin(angle1),0);
+	angle1 = tempV5.angle(drift_dir);
+
+	double angle2 = tempV1.angle(V_dir);
+	tempV5.set(fabs(dir_earlp.x()),sqrt(pow(dir_earlp.y(),2)+pow(dir_earlp.z(),2))*sin(angle2),0);
+	angle2 = tempV5.angle(drift_dir);
+
+	double angle3 = tempV1.angle(W_dir);
+	tempV5.set(fabs(dir_earlp.x()),sqrt(pow(dir_earlp.y(),2)+pow(dir_earlp.z(),2))*sin(angle3),0);
+	angle3 = tempV5.angle(drift_dir);
+
+
+	// find latest point
+	geo_point_t dir_latep = cluster_1->vhough_transform(latest_p, 60*units::cm,1);
+	tempV1.set(0,dir_latep.y(),dir_latep.z());
+	double angle4 = tempV1.angle(U_dir);
+	tempV5.set(fabs(dir_latep.x()),sqrt(pow(dir_latep.y(),2)+pow(dir_latep.z(),2))*sin(angle4),0);
+	angle4 = tempV5.angle(drift_dir);
+
+	double angle5 = tempV1.angle(V_dir);
+	tempV5.set(fabs(dir_latep.x()),sqrt(pow(dir_latep.y(),2)+pow(dir_latep.z(),2))*sin(angle5),0);
+	angle5 = tempV5.angle(drift_dir);
+
+	double angle6 = tempV1.angle(W_dir);
+	tempV5.set(fabs(dir_latep.x()),sqrt(pow(dir_latep.y(),2)+pow(dir_latep.z(),2))*sin(angle6),0);
+	angle6 = tempV5.angle(drift_dir);
+
+	if (angle1 <5./180.*3.1415926 || angle2 < 5./180.*3.1415926 || angle3 < 5./180.*3.1415926){
+	  flag_prol = true;
+	  
+	  for (size_t j=0;j!=live_clusters.size();j++){
+	    auto cluster_2 = live_clusters.at(j);
+	    if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
+	    if (cluster_2==cluster_1) continue;
+	    if (Clustering_4th_prol(cluster_1,cluster_2,tp,cluster_length_map[cluster_2],earliest_p,dir_earlp,length_cut)){
+	      //	      to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	      boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			      ilive2desc[map_cluster_index[cluster_2]], g);
+	      cluster_to_be_deleted.insert(cluster_1);
+	      cluster_to_be_deleted.insert(cluster_2);
+	      
+	      if (cluster_length_map[cluster_2]<10*units::cm)
+		used_clusters.insert(cluster_2);
+	    }
+	  }
+	}
+	
+	if (angle4<5./180.*3.1415926 || angle5 < 5./180.*3.1415926 || angle6 < 5./180.*3.1415926){
+
+	  flag_prol = true;
+	  for (size_t j=0;j!=live_clusters.size();j++){
+	    auto cluster_2 = live_clusters.at(j);
+	    if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
+	    if (cluster_2==cluster_1) continue;
+	    if (Clustering_4th_prol(cluster_1,cluster_2,tp,cluster_length_map[cluster_2],latest_p,dir_latep,length_cut)){
+	      //to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	      boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			      ilive2desc[map_cluster_index[cluster_2]], g);
+	      cluster_to_be_deleted.insert(cluster_1);
+	      cluster_to_be_deleted.insert(cluster_2);
+	      if (cluster_length_map[cluster_2]<10*units::cm)
+		used_clusters.insert(cluster_2);
+	    }
+	  }
+	}
+      }else if (flag==2){ // parallel case ...
+	std::tie(highest_p, lowest_p) = cluster_1->get_highest_lowest_points();
+	
+	highest_p = cluster_1->calc_ave_pos(highest_p,5*units::cm);
+        geo_point_t dir_highp = cluster_1->vhough_transform(highest_p,100*units::cm,1);
+
+	lowest_p = cluster_1->calc_ave_pos(lowest_p,5*units::cm);
+	geo_point_t dir_lowp = cluster_1->vhough_transform(lowest_p, 100*units::cm,1);
+
+	 if (fabs(dir_highp.angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926){ 
+	   flag_para = true; 
+
+	   for (size_t j=0;j!=live_clusters.size();j++){
+	     auto cluster_2 = live_clusters.at(j);
+	     if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
+	     if (cluster_2==cluster_1) continue;
+	     
+	     if (Clustering_4th_para(cluster_1,cluster_2,tp,cluster_length_map[cluster_1],cluster_length_map[cluster_2],highest_p,dir_highp,length_cut)){
+	       //to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	       boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			      ilive2desc[map_cluster_index[cluster_2]], g);
+	      cluster_to_be_deleted.insert(cluster_1);
+	      cluster_to_be_deleted.insert(cluster_2);
+	       
+	       if (cluster_length_map[cluster_2]<15*units::cm)
+		 used_clusters.insert(cluster_2);
+	     }
+	   }
+	 }/* else if (fabs(dir_highp_1.Angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926){ */
+	 /*   for (size_t j=0;j!=live_clusters.size();j++){ */
+	 /*     PR3DCluster* cluster_2 = live_clusters.at(j); */
+	 /*     if (cluster_2 == cluster_1) continue; */
+	 /*     if (Clustering_4th_para(cluster_1,cluster_2,cluster_length_map[cluster_2],highest_p,dir_highp_1,length_cut)) */
+	 /*       to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2)); */
+	 /*   } */
+	 /* } */
+
+	 if (fabs(dir_lowp.angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926 ){ 
+	   flag_para = true; 
+
+	   for (size_t j=0;j!=live_clusters.size();j++){
+	     auto cluster_2 = live_clusters.at(j);
+	     if (cluster_2==cluster_1) continue;
+	     if (Clustering_4th_para(cluster_1,cluster_2,tp,cluster_length_map[cluster_1],cluster_length_map[cluster_2],lowest_p,dir_lowp,length_cut)){
+	       // to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	       boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			       ilive2desc[map_cluster_index[cluster_2]], g);
+	       cluster_to_be_deleted.insert(cluster_1);
+	       cluster_to_be_deleted.insert(cluster_2);
+	     }
+	   }
+	   
+	 }/* else if (fabs(dir_lowp_1.Angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926){ */
+	 /*    for (size_t j=0;j!=live_clusters.size();j++){ */
+	 /*     PR3DCluster* cluster_2 = live_clusters.at(j); */
+	 /*     if (cluster_2 == cluster_1) continue; */
+	 /*     if (Clustering_4th_para(cluster_1,cluster_2,cluster_length_map[cluster_2],lowest_p,dir_lowp_1,length_cut)) */
+	 /*       to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2)); */
+	 /*   } */
+	 /* } */
+
+      }else if (flag==3){ // regular case ...
+	auto hl_ps = cluster_1->get_highest_lowest_points();
+	auto el_ps = cluster_1->get_earliest_latest_points();
+
+	geo_point_t first_p, second_p;
+
+		
+	if (pow(hl_ps.first.x()-hl_ps.second.x(),2)+pow(hl_ps.first.y()-hl_ps.second.y(),2)+pow(hl_ps.first.z()-hl_ps.second.z(),2) > pow(el_ps.first.x()-el_ps.second.x(),2)+pow(el_ps.first.y()-el_ps.second.y(),2)+pow(el_ps.first.z()-el_ps.second.z(),2)){
+	  first_p = hl_ps.first;
+	  second_p = hl_ps.second;
+	}else{
+	  first_p = el_ps.first;
+	  second_p = el_ps.second;
+	}
+
+	for (size_t j=0;j!=live_clusters.size();j++){
+	  auto cluster_2 = live_clusters.at(j);
+	  if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
+	  if (cluster_2==cluster_1) continue;
+	  
+	  //  if (cluster_length_map[cluster_2] <40*units::cm) continue;
+	  
+	  if (Clustering_4th_reg(cluster_1,cluster_2,tp,cluster_length_map[cluster_1],cluster_length_map[cluster_2],first_p,length_cut)){
+	    //	    to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	    boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			       ilive2desc[map_cluster_index[cluster_2]], g);
+	       cluster_to_be_deleted.insert(cluster_1);
+	       cluster_to_be_deleted.insert(cluster_2);
+	    if (cluster_length_map[cluster_2]<10*units::cm)
+	      used_clusters.insert(cluster_2);
+	      
+	  }else if (Clustering_4th_reg(cluster_1,cluster_2,tp,cluster_length_map[cluster_1],cluster_length_map[cluster_2],second_p,length_cut)){
+	    //to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	    boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			       ilive2desc[map_cluster_index[cluster_2]], g);
+	       cluster_to_be_deleted.insert(cluster_1);
+	       cluster_to_be_deleted.insert(cluster_2);
+	    if (cluster_length_map[cluster_2]<10*units::cm)
+	      used_clusters.insert(cluster_2);
+	  }
+		     	  
+	}
+
+	
+      }else if (flag==4){
+	if (cluster_connected_dead.find(cluster_1)!=cluster_connected_dead.end()){
+	  used_clusters.insert(cluster_1);
+	  for (size_t j=0;j!=live_clusters.size();j++){
+	    auto cluster_2 = live_clusters.at(j);
+	    if (cluster_length_map[cluster_2] < length_2_cut) continue;
+	    if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
+	    if (Clustering_4th_dead(cluster_1,cluster_2,tp,cluster_length_map[cluster_1],cluster_length_map[cluster_2],length_cut,num_dead_try)){
+	      //	      to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
+	      boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
+			       ilive2desc[map_cluster_index[cluster_2]], g);
+	       cluster_to_be_deleted.insert(cluster_1);
+	       cluster_to_be_deleted.insert(cluster_2);
+	      if (cluster_length_map[cluster_2]<10*units::cm)
+		used_clusters.insert(cluster_2);
+	    }
+	  }
+	}
+      }
+    }
   }
 
+
+  // form new clusters
+  for (auto it = cluster_to_be_deleted.begin(); it != cluster_to_be_deleted.end(); it++) {
+    cluster_length_map.erase(*it);
+    cluster_connected_dead.erase(*it);
+    // delete old clusters ...
+    //	live_clusters.erase(find(live_clusters.begin(), live_clusters.end(), *it));
+  }
   
+  for (auto it = live_clusters.begin(); it != live_clusters.end(); it++) {
+    if (cluster_to_be_deleted.find(*it) == cluster_to_be_deleted.end()) live_clusters_new.push_back(*it);
+  }
+
+  // Make new live node tree
+  Points::node_ptr root_live_new = std::make_unique<Points::node_t>();
+  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
+  // std::unordered_set<Cluster::pointer> need_merging;
+  // for (const auto& [dead, lives] : dead2lives) {
+  //     if (lives.size() < 2) {
+  //         continue;
+  //     }
+  //     debug("dead2lives size for dead cluster: {}", lives.size());
+  //     need_merging.insert(lives.begin(), lives.end());
+  //     auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
+  //     for (const auto& live : lives) {
+  //         for (const auto& blob : live->m_blobs) {
+  //             // this also removes blob node from root_live
+  //             cnode->insert(blob->m_node);
+  //         }
+  //         // manually remove the cnode from root_live
+  //         root_live->remove(live->m_node);
+  //     }
+  // }
+  // debug("need_merging size: {}", need_merging.size());
+  
+  std::unordered_map<int, int> desc2id;
+  std::unordered_map<int, std::set<int> > id2desc;
+  int num_components = boost::connected_components(g, boost::make_assoc_property_map(desc2id));
+  for (const auto& [desc, id] : desc2id) {
+    id2desc[id].insert(desc);
+  }
+  //  debug("id2desc size: {}", id2desc.size());
+  for (const auto& [id, descs] : id2desc) {
+    if (descs.size() < 2) {
+      continue;
+    }
+    
+    //debug("id {} descs size: {}", id, descs.size());
+    
+    auto cnode1 = std::make_unique<Points::node_t>();
+    for (const auto& desc : descs) {
+      const int idx = g[desc];
+      if (idx < 0) {  // no need anymore ...
+	continue;
+      }
+      const auto& live = live_clusters[idx];
+      for (const auto& blob : live->m_blobs) {
+	// this also removes blob node from root_live
+	cnode1->insert(blob->m_node);
+      }
+      // manually remove the cnode from root_live
+      root_live->remove(live->m_node);
+    }
+    
+    // new cluster information (need Haiwang to take a look at Facade ...)
+    auto new_cluster = std::make_shared<Cluster>(cnode1);
+    auto cnode = root_live_new->insert(std::move(cnode1));
+    cluster_length_map[new_cluster] = new_cluster->get_length(tp);
+    
+    live_clusters_new.push_back(new_cluster);
+    //	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
+    cluster_connected_dead.insert(new_cluster);
+  }
+  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
+  
+  // move remaining live clusters to new root
+  for (auto& cnode : root_live->children()) {
+    // this will NOT remove cnode from root_live, but set it to nullptr
+    root_live_new->insert(std::move(cnode));
+  }
+  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
+  // replace old with new
+  root_live = std::move(root_live_new);
+  
+  live_clusters = std::move(live_clusters_new);
   
 }
 

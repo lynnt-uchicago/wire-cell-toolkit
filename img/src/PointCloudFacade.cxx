@@ -510,6 +510,27 @@ double Cluster::get_length(const TPCParams& tp) const {
     return length;
 }
 
+std::pair<geo_point_t, geo_point_t> Cluster::get_highest_lowest_points() const{
+   // how to get all the points???
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);
+  const auto& skd = sv.kd();
+  
+  auto& points = skd.points();
+
+  geo_point_t highest_point(points.at(0).at(0),points.at(0).at(1),points.at(0).at(2));
+  geo_point_t lowest_point = highest_point;
+
+  for (auto it = points.begin(); it!=points.end(); it++){
+    if (it->at(1) > highest_point.y()) // find highest Y ...
+      highest_point.set(it->at(0), it->at(1), it->at(2));
+    if (it->at(1) < lowest_point.y()) // find lowest Y point ...
+      lowest_point.set(it->at(0), it->at(1), it->at(2));
+  }
+
+  return std::make_pair(highest_point, lowest_point);
+}
+
 
 std::pair<geo_point_t, geo_point_t> Cluster::get_earliest_latest_points() const{
   // how to get all the points???
@@ -529,5 +550,5 @@ std::pair<geo_point_t, geo_point_t> Cluster::get_earliest_latest_points() const{
       lowest_point.set(it->at(0), it->at(1), it->at(2));
   }
 
-  return std::make_pair(highest_point, lowest_point);
+  return std::make_pair(lowest_point, highest_point);
 }

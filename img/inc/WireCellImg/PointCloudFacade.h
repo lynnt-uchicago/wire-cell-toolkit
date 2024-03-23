@@ -74,6 +74,7 @@ namespace WireCell::PointCloud::Facade {
 	int get_num_points(geo_point_t& point,   double dis) const;
 
 	std::pair<geo_point_t, geo_point_t> get_earliest_latest_points() const;
+	std::pair<geo_point_t, geo_point_t> get_highest_lowest_points() const;
 	
 	
         Blob::vector is_connected(const Cluster& c, const int offset) const;
