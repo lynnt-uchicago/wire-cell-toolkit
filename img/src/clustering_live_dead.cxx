@@ -8,9 +8,8 @@ using namespace WireCell::PointCloud::Facade;
 using namespace WireCell::PointCloud::Tree;
 
 void WireCell::PointCloud::Facade::clustering_live_dead(
-    Points::node_ptr& root_live,                                   // in/out
-    Cluster::vector& live_clusters,
-    const Cluster::vector& dead_clusters,
+    Points::node_ptr& root_live,  // in/out
+    Cluster::vector& live_clusters, const Cluster::vector& dead_clusters,
     //    const Points::node_ptr& root_dead,                             // in
     std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
     std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
@@ -19,10 +18,9 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 )
 {
     using spdlog::debug;
-    
-    
+
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
- 
+
     // form dead -> lives map
     // start = std::chrono::high_resolution_clock::now();
     // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
@@ -45,7 +43,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     // debug("dead2lives-map {} ms", timers["dead2lives-map"].count());
 
     Cluster::vector live_clusters_new;
-    
+
     // form map between live and dead clusters ...
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, Cluster::vector>
         dead_live_cluster_mapping;
@@ -90,7 +88,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         const auto& connected_live_mcells = dead_live_mcells_mapping[the_dead_cluster];
 
         if (connected_live_clusters.size() > 1) {
-	  //            std::cout << "xin " << connected_live_clusters.size() << " " << connected_live_mcells.size() << std::endl;
+            //            std::cout << "xin " << connected_live_clusters.size() << " " << connected_live_mcells.size()
+            //            << std::endl;
 
             for (size_t i = 0; i != connected_live_clusters.size(); i++) {
                 const auto& cluster_1 = connected_live_clusters.at(i);
@@ -101,8 +100,9 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                     const auto& cluster_2 = connected_live_clusters.at(j);
                     const auto& blobs_2 = connected_live_mcells.at(j);
 
-		    //                    std::cout << "xin1 " << i << " " << j << " " << blobs_1.size() << " " << blobs_2.size()
-		    //         << std::endl;
+                    //                    std::cout << "xin1 " << i << " " << j << " " << blobs_1.size() << " " <<
+                    //                    blobs_2.size()
+                    //         << std::endl;
 
                     if (tested_pairs.find(std::make_pair(cluster_1, cluster_2)) == tested_pairs.end()) {
                         tested_pairs.insert(std::make_pair(cluster_1, cluster_2));
@@ -130,7 +130,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                         geo_point_t diff = p1 - p2;
                         double dis = diff.magnitude();
 
-			//                        std::cout << "xin3 " << dis / units::cm << std::endl;
+                        //                        std::cout << "xin3 " << dis / units::cm << std::endl;
 
                         if (dis < 60 * units::cm) {
                             double length_1 = cluster_length_map[cluster_1];
@@ -138,34 +138,33 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
                             geo_point_t mcell1_center = cluster_1->calc_ave_pos(p1, 5 * units::cm, 1);
                             geo_point_t dir1 = cluster_1->vhough_transform(mcell1_center, 30 * units::cm, 1);
-			    // protection against angles ...
-			    geo_point_t dir5 = cluster_1->vhough_transform(p1,30 * units::cm, 1);
-			    if (dir1.angle(dir5)>120/180.*3.1415926) dir1 = dir1 * (-1);
-			    
+                            // protection against angles ...
+                            geo_point_t dir5 = cluster_1->vhough_transform(p1, 30 * units::cm, 1);
+                            if (dir1.angle(dir5) > 120 / 180. * 3.1415926) dir1 = dir1 * (-1);
+
                             geo_point_t mcell2_center = cluster_2->calc_ave_pos(p2, 5 * units::cm, 1);
                             geo_point_t dir3 = cluster_2->vhough_transform(mcell2_center, 30 * units::cm, 1);
-			    // Protection against angles
-			    geo_point_t dir6 = cluster_2->vhough_transform(p2,30*units::cm,1);
-			    if (dir3.angle(dir6)>120/180.*3.1415926) dir3 = dir3 *(-1);
-			    
+                            // Protection against angles
+                            geo_point_t dir6 = cluster_2->vhough_transform(p2, 30 * units::cm, 1);
+                            if (dir3.angle(dir6) > 120 / 180. * 3.1415926) dir3 = dir3 * (-1);
+
                             geo_point_t dir2 = mcell2_center - mcell1_center;
                             geo_point_t dir4 = mcell1_center - mcell2_center;
-
-
 
                             double angle_diff1 = (3.1415926 - dir1.angle(dir2)) / 3.1415926 * 180.;  // 1 to 2
                             double angle_diff2 = (3.1415926 - dir3.angle(dir4)) / 3.1415926 * 180.;  // 2 to 1
                             double angle_diff3 = (3.1415926 - dir1.angle(dir3)) / 3.1415926 * 180.;  // 1 to 2
 
                             // geo_point_t p3(317.6*units::cm,-98.9*units::cm,927*units::cm);
-			    // p3 = p3 - p1;
-			    // if (p3.magnitude() < 20*units::cm){
+                            // p3 = p3 - p1;
+                            // if (p3.magnitude() < 20*units::cm){
                             //     std::cout << "xin4 " << length_1 / units::cm << " " << length_2 / units::cm
                             //               << " " << std::endl;
-                            //     std::cout << "xin5 " << p1 << " " << p2 << " " << mcell1_center << " " << mcell2_center
+                            //     std::cout << "xin5 " << p1 << " " << p2 << " " << mcell1_center << " " <<
+                            //     mcell2_center
                             //               << " " << dir1 << " " << dir3 << " " << angle_diff1 << " " << angle_diff2
                             //               << " " << angle_diff3 << std::endl;
-				
+
                             // }
 
                             bool flag_para = false;
@@ -275,8 +274,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                             }
                         }
 
-			//flag_merge = true;
-			//                        std::cout << "xin2: " << cluster_length_map[cluster_1]/units::cm << " " << cluster_length_map[cluster_2]/units::cm << " " << flag_merge << std::endl;
+                        // flag_merge = true;
+                        //                         std::cout << "xin2: " << cluster_length_map[cluster_1]/units::cm << "
+                        //                         " << cluster_length_map[cluster_2]/units::cm << " " << flag_merge <<
+                        //                         std::endl;
 
                         if (flag_merge) {
                             boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
@@ -293,13 +294,12 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     for (auto it = cluster_to_be_deleted.begin(); it != cluster_to_be_deleted.end(); it++) {
         cluster_length_map.erase(*it);
         cluster_connected_dead.erase(*it);
-	// delete old clusters ...
-	//	live_clusters.erase(find(live_clusters.begin(), live_clusters.end(), *it));
+        // delete old clusters ...
+        //	live_clusters.erase(find(live_clusters.begin(), live_clusters.end(), *it));
     }
-    
-    for (auto it = live_clusters.begin(); it != live_clusters.end(); it++){
-      if (cluster_to_be_deleted.find(*it) == cluster_to_be_deleted.end())
-	live_clusters_new.push_back(*it);
+
+    for (auto it = live_clusters.begin(); it != live_clusters.end(); it++) {
+        if (cluster_to_be_deleted.find(*it) == cluster_to_be_deleted.end()) live_clusters_new.push_back(*it);
     }
 
     // // from dead -> lives graph
@@ -360,7 +360,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         if (descs.size() < 2) {
             continue;
         }
-	
+
         debug("id {} descs size: {}", id, descs.size());
 
         auto cnode1 = std::make_unique<Points::node_t>();
@@ -377,16 +377,15 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
             // manually remove the cnode from root_live
             root_live->remove(live->m_node);
         }
-	
+
         // new cluster information (need Haiwang to take a look at Facade ...)
         auto new_cluster = std::make_shared<Cluster>(cnode1);
         auto cnode = root_live_new->insert(std::move(cnode1));
         cluster_length_map[new_cluster] = new_cluster->get_length(tp);
 
-	live_clusters_new.push_back(new_cluster);
-	//	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
+        live_clusters_new.push_back(new_cluster);
+        //	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
         cluster_connected_dead.insert(new_cluster);
-	
     }
     debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
 
@@ -398,6 +397,6 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
     // replace old with new
     root_live = std::move(root_live_new);
-    
+
     live_clusters = std::move(live_clusters_new);
 }
