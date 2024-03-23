@@ -8,6 +8,7 @@ using namespace WireCell::PointCloud::Facade;
 using namespace WireCell::PointCloud::Tree;
 void WireCell::PointCloud::Facade::clustering_close(
     Points::node_ptr& root_live,                                   // in/out
+    Cluster::vector& live_clusters,
     std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
     std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
     const TPCParams& tp,                                           // common params
@@ -15,3 +16,7 @@ void WireCell::PointCloud::Facade::clustering_close(
 )
 {
 }
+
+
+
+
