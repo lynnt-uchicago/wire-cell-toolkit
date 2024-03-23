@@ -62,7 +62,7 @@ namespace WireCell::PointCloud::Facade {
     };
 
     class Cluster : public IData<Cluster> {
-       public:
+    public:
         Cluster(const node_ptr& n);
         node_t* m_node;  /// do not own
         Blob::vector m_blobs;
@@ -106,7 +106,7 @@ namespace WireCell::PointCloud::Facade {
         return temp_dir1.angle(temp_dir2);
     }
 
-    inline bool is_angle_consistent(const geo_vector_t& dir1, const geo_vector_t& dir2, bool same_direction, double angle_cut, double uplane_angle, double vplane_angle, double wplane_angle, int num_cut) {
+    inline bool is_angle_consistent(const geo_vector_t& dir1, const geo_vector_t& dir2, bool same_direction, double angle_cut, double uplane_angle, double vplane_angle, double wplane_angle, int num_cut=2) {
         double angle_u = cal_proj_angle_diff(dir1, dir2, uplane_angle);
         double angle_v = cal_proj_angle_diff(dir1, dir2, vplane_angle);
         double angle_w = cal_proj_angle_diff(dir1, dir2, wplane_angle);

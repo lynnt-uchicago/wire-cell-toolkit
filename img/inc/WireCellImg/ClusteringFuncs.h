@@ -104,6 +104,7 @@ namespace WireCell::PointCloud::Facade {
     );
     bool Clustering_2nd_round(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
 			      const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
+			      const TPCParams& tp,                                           // common params
 			      double length_1,
 			      double length_2,
 			      double length_cut = 35*units::cm);
