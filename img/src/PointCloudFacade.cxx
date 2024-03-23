@@ -146,6 +146,20 @@ std::pair<geo_point_t, double> Cluster::get_closest_point_along_vec(geo_point_t&
   return std::make_pair(min_point,min_dis1);
 }
 
+int Cluster::get_num_points(geo_point_t& point, double dis) const{
+  //return point_cloud->get_closest_points(p_test, dis).size();
+
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
+  auto rad = skd.radius(pow(dis,2), point);
+  return rad.size();
+}
+
 std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
   Scope scope = { "3d", {"x","y","z"} };
   const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree

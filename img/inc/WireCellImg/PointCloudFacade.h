@@ -71,6 +71,7 @@ namespace WireCell::PointCloud::Facade {
 	std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > get_closest_point_mcell(const geo_point_t& origin) const;
 	std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
 	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
+	int get_num_points(geo_point_t& point,   double dis) const;
 	
 	
         Blob::vector is_connected(const Cluster& c, const int offset) const;

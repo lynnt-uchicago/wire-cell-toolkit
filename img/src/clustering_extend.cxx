@@ -26,32 +26,267 @@ void WireCell::PointCloud::Facade::clustering_extend(
 
 
 
-bool WireCell::PointCloud::Facade::Clustering_4th_prol(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
-						       const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
+bool WireCell::PointCloud::Facade::Clustering_4th_prol(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_1,
+						       const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_2,
 						       const TPCParams& tp,                                           // common params
 						       double length_2,
 						       geo_point_t& earliest_p,
 						       geo_point_t& dir_earlp,
 						       double length_cut){
+
+  auto temp_results = cluster_2->get_closest_point_mcell(earliest_p);
+  geo_point_t p2 = temp_results.first;
+  geo_point_t diff = earliest_p - p2;
+  double dis = diff.magnitude();
+  if (dis < length_cut){
+    geo_point_t dir_bp(p2.x()-earliest_p.x(),p2.y()-earliest_p.y(),p2.z()-earliest_p.z());
+    double angle_diff = (3.1415926-dir_bp.angle( dir_earlp))/3.1415926*180.;
+    if ( (angle_diff < 3 || angle_diff>177 || 
+	  dis * sin(angle_diff/180.*3.1415926) < 6*units::cm)){
+      geo_point_t dir = cluster_2->vhough_transform(p2,60*units::cm,1);
+      if (length_2<10*units::cm && fabs(dir.angle(dir_earlp)-3.141926/2.)>30/180.*3.1415926){
+	return true;
+      }else{
+	if ((3.14151926-dir.angle(dir_earlp))/3.1415926*180.<5. ||
+	    dir.angle(dir_earlp)/3.1415926*180.<5.)
+	  return true;
+      }
+    }
+    
+  }
+    
+  return false;
+  
   
 }
 
-bool WireCell::PointCloud::Facade::Clustering_4th_para(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
-						       const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
+bool WireCell::PointCloud::Facade::Clustering_4th_para(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_1,
+						       const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_2,
 						       const TPCParams& tp,                                           // common params
 						       double length_1, double length_2,
 						       geo_point_t& earliest_p,
 						       geo_point_t& dir_earlp,
 						       double length_cut){
+
+  auto temp_results = cluster_2->get_closest_point_mcell(earliest_p);
+  geo_point_t p2 = temp_results.first;
   
+  geo_point_t diff = p2 - earliest_p;
+  double dis = diff.magnitude();
+  
+  if (dis < length_cut ){
+    
+    geo_point_t test_point; 
+    double min_dis = 1e9, max_dis = -1e9;
+
+     for (int i=-5;i!=10;i++){ 
+       test_point.set(earliest_p.x() - dir_earlp.x() * (dis +i*2*units::cm), earliest_p.y() - dir_earlp.y() * (dis +i*2*units::cm), earliest_p.z() - dir_earlp.z() * (dis +i*2*units::cm)); 
+	
+       auto temp_results = cluster_2->get_closest_point_mcell(test_point); 
+ 	//reuse this 
+       geo_point_t test_point1 = temp_results.first;
+
+	/* std::cout << test_point.x/units::cm << " " << test_point.y/units::cm << " " << test_point.z/units::cm << " " << test_point1.x/units::cm << " " << test_point1.y/units::cm << " " << test_point1.z/units::cm << " " << sqrt(pow(test_point1.x-test_point.x,2)+pow(test_point1.y-test_point.y,2)+pow(test_point1.z-test_point.z,2))/units::cm << std::endl; */
+	
+       if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){ 
+	 double temp_dis = (test_point1.x() - earliest_p.x())*dir_earlp.x() + (test_point1.y() - earliest_p.y())*dir_earlp.y() + (test_point1.z() - earliest_p.z())*dir_earlp.z(); 
+	 temp_dis =(-1) * temp_dis; 
+	 if (temp_dis < min_dis) min_dis = temp_dis; 
+	 if (temp_dis > max_dis) max_dis = temp_dis; 
+       } 
+     }
+     
+     /* if (length_2 > 50*units::cm ) */
+     /*   std::cout << cluster_1->get_cluster_id() << " " << cluster_2->get_cluster_id() << " " << length_1/units::cm << " " << length_2/units::cm << " " << max_dis/units::cm << " " << min_dis/units::cm << " " << dis/units::cm << " " << dir_earlp.X() << " " << dir_earlp.Y() << " " << dir_earlp.Z() << " " << earliest_p.x/units::cm << " " << earliest_p.y/units::cm << " " << earliest_p.z/units::cm << " " << p2.x/units::cm << " " << p2.y/units::cm << " " << p2.z/units::cm << std::endl; */
+     /* return false; */
+     
+     if ((max_dis - min_dis)>2.5*units::cm) return true; 
+     
+  }
+
+  return false;
 }
 
-bool WireCell::PointCloud::Facade::Clustering_4th_reg(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
-						      const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
+bool WireCell::PointCloud::Facade::Clustering_4th_reg(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_1,
+						      const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster_2,
 						      const TPCParams& tp,                                           // common params
 						      double length_1, double length_2,
 						      geo_point_t p1, double length_cut){
 
+  auto temp_results = cluster_2->get_closest_point_mcell(p1);
+  geo_point_t p2 = temp_results.first;
+  geo_point_t diff = p1 - p2;
+  double dis1 = diff.magnitude();
+  
+  temp_results = cluster_1->get_closest_point_mcell(p2);
+  p1 = temp_results.first;
+  /* temp_results = cluster_2->get_closest_point_mcell(p1); */
+  /* p2 = temp_results.second; */
+
+  diff = p1 - p2;
+  double dis = diff.magnitude();
+
+  geo_point_t drift_dir(1, 0, 0);  // assuming the drift direction is along X ...
+  double angle_u = tp.angle_u;
+  double angle_v = tp.angle_v;
+  double angle_w = tp.angle_w;
+
+  if (dis1 > 15*units::cm && dis < 3*units::cm && length_2 > 80*units::cm &&length_1>80*units::cm) return false;
+  
+  if (dis < length_cut && (length_2 >= 40*units::cm || dis < 3*units::cm)){
+    geo_point_t cluster1_ave_pos = cluster_1->calc_ave_pos(p1,5*units::cm);
+    geo_point_t cluster2_ave_pos = cluster_2->calc_ave_pos(p2,5*units::cm);
+    geo_point_t dir1;
+    
+    if (cluster_1->get_num_points(cluster1_ave_pos, 30*units::cm)>50 && length_1 < 120*units::cm){
+      dir1 = cluster_1->vhough_transform(cluster1_ave_pos,30*units::cm,1);
+    }else{
+      dir1 = cluster_1->vhough_transform(cluster1_ave_pos,80*units::cm,1);
+    }
+
+    geo_point_t dir3;
+    if (cluster_2->get_num_points(cluster2_ave_pos, 30*units::cm)>50&&length_2 < 120*units::cm){
+      dir3 = cluster_2->vhough_transform(cluster2_ave_pos,30*units::cm,1);
+    }else{
+      dir3 = cluster_2->vhough_transform(cluster2_ave_pos,80*units::cm,1);
+    }
+
+    geo_point_t dir2(cluster2_ave_pos.x() - cluster1_ave_pos.x(),
+		     cluster2_ave_pos.y() - cluster1_ave_pos.y(),
+		     cluster2_ave_pos.z() - cluster1_ave_pos.z());
+
+    
+    double ave_dis = sqrt(pow(cluster1_ave_pos.x()-cluster2_ave_pos.x(),2) + pow(cluster1_ave_pos.y()-cluster2_ave_pos.y(),2) + pow(cluster1_ave_pos.z()-cluster2_ave_pos.z(),2));
+    geo_point_t test_point;
+    double min_dis = 1e9, max_dis = -1e9;
+
+    if (dir2.angle(dir1)>3.1415926/2. ){
+          
+      /* int num_p1 = cluster_1->get_num_points(p1, 10*units::cm); */
+      /* int num_p2 = cluster_2->get_num_points(p2, 10*units::cm); */
+      
+      
+      for (int i=-5;i!=10;i++){
+	test_point.set(cluster1_ave_pos.x() - dir1.x() * (ave_dis +i*2*units::cm), cluster1_ave_pos.y() - dir1.y() * (ave_dis +i*2*units::cm), cluster1_ave_pos.z() - dir1.z() * (ave_dis +i*2*units::cm));
+	
+	auto temp_results = cluster_2->get_closest_point_mcell(test_point);
+	//reuse this
+	geo_point_t test_point1 = temp_results.first;
+	if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){
+	  double temp_dis = (test_point1.x() - cluster1_ave_pos.x())*dir1.x() + (test_point1.y() - cluster1_ave_pos.y())*dir1.y() + (test_point1.z() - cluster1_ave_pos.z())*dir1.z();
+	  temp_dis *=-1;
+	  if (temp_dis < min_dis) min_dis = temp_dis;
+	  if (temp_dis > max_dis) max_dis = temp_dis;
+	}
+      }
+
+      /* if (cluster_1->get_cluster_id()==22&&length_2 > 200*units::cm) */
+      /* 	std::cout << cluster_1->get_cluster_id() << " " << cluster_2->get_cluster_id() << " " << min_dis/units::cm << " " << max_dis/units::cm << " " << dis/units::cm << " " << length_1/units::cm << " " << length_2/units::cm << " a " << dir1.X() << " " << dir1.Y() << " " << dir1.Z() << std::endl; */
+      
+      if ((max_dis - min_dis)>2.5*units::cm) return true;
+    }
+
+    if (dir2.angle(dir3)<3.1415926/2.){
+            
+      // look at the other side (repeat)
+      // cluster2_ave_pos, dir2
+      min_dis = 1e9;
+      max_dis = -1e9;
+      for (int i=-5;i!=10;i++){
+	test_point.set(cluster2_ave_pos.x() - dir3.x() * (ave_dis +i*2*units::cm), cluster2_ave_pos.y() - dir3.y() * (ave_dis +i*2*units::cm), cluster2_ave_pos.z() - dir3.z() * (ave_dis +i*2*units::cm));
+	
+	auto temp_results = cluster_1->get_closest_point_mcell(test_point);
+	//reuse this
+	geo_point_t test_point1 = temp_results.first;
+	if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){
+	  double temp_dis = (test_point1.x() - cluster2_ave_pos.x())*dir3.x() + (test_point1.y() - cluster2_ave_pos.y())*dir3.y() + (test_point1.z() - cluster2_ave_pos.z())*dir3.z();
+	  temp_dis *=-1;
+	  if (temp_dis < min_dis) min_dis = temp_dis;
+	  if (temp_dis > max_dis) max_dis = temp_dis;
+	}
+      }
+      // std::cout << cluster1->get_cluster_id() << " " << cluster2->get_cluster_id() << " " << min_dis/units::cm << " " << max_dis/units::cm << " " << length_1/units::cm << std::endl;
+      
+       /* if (cluster_1->get_cluster_id()==22&&length_2 > 200*units::cm) */
+       /* 	 std::cout << cluster_1->get_cluster_id() << " " << cluster_2->get_cluster_id() << " " << min_dis/units::cm << " " << max_dis/units::cm << " " << dis/units::cm << " " << length_1/units::cm << " " << length_2/units::cm << " b " << dir3.X() << " " << dir3.Y() << " " << dir3.Z() << std::endl; */
+
+      
+      if ((max_dis - min_dis)>2.5*units::cm) return true;
+    }
+    
+  }else if (dis < 2 * length_cut && length_2 < 40*units::cm){
+
+    // pronlonged case for U 3 and V 4 ...
+    geo_point_t U_dir(0,cos(angle_u),sin(angle_u));
+    geo_point_t V_dir(0,cos(angle_v),-sin(angle_v));
+    
+    geo_point_t dir2(p2.x()-p1.x(),p2.y()-p1.y(),p2.z()-p1.z());
+    bool flag_para = false, flag_prol =false, flag_reg = false;
+    
+    double angle1 = fabs(dir2.angle(drift_dir)-3.1415926/2.)/3.1415926*180.;
+    
+    if (angle1 < 5 && dis < 2*length_cut || angle1 < 2 ){
+      flag_para = true;
+    }else if (dis < 2*length_cut){
+      geo_point_t tempV1(0, p2.y() - p1.y(), p2.z() - p1.z());
+      geo_point_t tempV5;
+      double angle2 = tempV1.angle(U_dir);
+      tempV5.set(fabs(p2.x()-p1.x()),sqrt(pow(p2.y() - p1.y(),2)+pow(p2.z() - p1.z(),2))*sin(angle2),0);
+      angle2 = tempV5.angle(drift_dir)/3.1415926*180.;
+      
+      double angle3 = tempV1.angle(V_dir);
+      tempV5.set(fabs(p2.x()-p1.x()),sqrt(pow(p2.y() - p1.y(),2)+pow(p2.z() - p1.z(),2))*sin(angle3),0);
+      angle3 = tempV5.angle(drift_dir)/3.1415926*180.;
+      if (angle2<7.5 || angle3 < 7.5)
+  	flag_prol = true;
+
+      /* if (cluster_1->get_cluster_id()==448 || cluster_2->get_cluster_id()==85) */
+      /* 	std::cout << cluster_1->get_cluster_id() << " " << cluster_2->get_cluster_id() << " " << angle2 << " " << angle3 << " " << length_2/units::cm << " " << dis/units::cm << " " << std::endl; */
+      
+    }
+
+
+    if (flag_para || flag_prol || flag_reg){
+
+      geo_point_t dir1;
+      if (cluster_1->get_num_points(p1, 15*units::cm)>30 && (flag_prol ||flag_reg) ){
+	dir1 = cluster_1->vhough_transform(p1,15*units::cm,1);
+      }else{
+	dir1 = cluster_1->vhough_transform(p1,60*units::cm,1);
+      }
+
+      geo_point_t dir3;
+      if (cluster_2->get_num_points(p2, 15*units::cm)>30 && (flag_prol || flag_reg)){
+	dir3 = cluster_2->vhough_transform(p2,15*units::cm,1);
+      }else{
+	dir3 = cluster_2->vhough_transform(p2,60*units::cm,1);
+      }
+
+       
+      double angle4 = (3.1415926-dir1.angle(dir2))/3.1415926*180.;
+      double angle5 = dir2.angle(dir3)/3.1415926*180.;
+      
+      if (flag_para && fabs(dir3.angle(drift_dir)-3.141592/2.)<10/180.*3.1415926 && fabs(dir1.angle(drift_dir)-3.141592/2.)<10/180.*3.1415926){
+  	if (angle4 < 30 && (length_2 < 12*units::cm && fabs(angle5-90.)>30 || angle5 < 45))
+  	  return true;
+      }else if (flag_prol){
+  	if (angle4 < 25 && (length_2 < 15*units::cm && fabs(angle5-90.)>30 || angle5 < 25))
+  	  return true;
+      }
+
+      if (fabs(dir2.angle(drift_dir)-3.1415926/2.)/3.1415926*180.>7.5){
+	// non-parallel case ... 
+	if (WireCell::PointCloud::Facade::is_angle_consistent(dir1,dir2,false,10,angle_u,angle_v,angle_w,2)){
+	  if (length_2 < 8*units::cm && WireCell::PointCloud::Facade::is_angle_consistent(dir1,dir2,false,5,angle_u,angle_v,angle_w,2)) 
+		return true; 
+	  if (WireCell::PointCloud::Facade::is_angle_consistent(dir3,dir2,true,10,angle_u,angle_v,angle_w,2)){
+	    return true;
+	  }
+	}
+      }
+    }
+  }
+  return false;
 }
 
 double WireCell::PointCloud::Facade::Find_Closest_Points(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
