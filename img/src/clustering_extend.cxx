@@ -18,6 +18,50 @@ void WireCell::PointCloud::Facade::clustering_extend(
     const double length_2_cut,                                     //
     const int num_dead_try                                         //
 ){
+
+  geo_point_t drift_dir(1, 0, 0);  // assuming the drift direction is along X ...
+  double angle_u = tp.angle_u;
+  double angle_v = tp.angle_v;
+  double angle_w = tp.angle_w;
+
+  // pronlonged case for U 3 and V 4 ...
+  geo_point_t U_dir(0,cos(angle_u),sin(angle_u));
+  geo_point_t V_dir(0,cos(angle_v),sin(angle_v));
+  geo_point_t W_dir(0,cos(angle_w),sin(angle_w));
+
+  std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > used_clusters;
+
+  // prepare graph ...
+  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
+  Graph g;
+  std::unordered_map<int, int> ilive2desc;  // added live index to graph descriptor
+  std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, int> map_cluster_index;
+  for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+    const auto& live = live_clusters[ilive];
+    map_cluster_index[live] = ilive;
+    ilive2desc[ilive] = boost::add_vertex(ilive, g);
+  }
+
+  // original algorithm ... (establish edges ... )
+  Cluster::vector live_clusters_new;
+
+  int length_1_cut = 40*units::cm + num_try * 10*units::cm;
+
+  if (flag==1) length_1_cut = 20*units::cm + num_try*10*units::cm; //prolong case
+  
+  for (size_t i=0;i!=live_clusters.size();i++){
+    auto cluster_1 = live_clusters.at(i);
+
+    if (cluster_length_map[cluster_1] > length_1_cut){
+      geo_point_t highest_p, lowest_p, earliest_p, latest_p;
+      bool flag_para = false;
+      bool flag_prol = false;
+      
+    }
+
+    
+  }
+
   
   
 }
@@ -218,7 +262,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(const std::shared_ptr<cons
 
     // pronlonged case for U 3 and V 4 ...
     geo_point_t U_dir(0,cos(angle_u),sin(angle_u));
-    geo_point_t V_dir(0,cos(angle_v),-sin(angle_v));
+    geo_point_t V_dir(0,cos(angle_v),sin(angle_v));
     
     geo_point_t dir2(p2.x()-p1.x(),p2.y()-p1.y(),p2.z()-p1.z());
     bool flag_para = false, flag_prol =false, flag_reg = false;
