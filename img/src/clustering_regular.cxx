@@ -32,7 +32,6 @@ void WireCell::PointCloud::Facade::clustering_regular(
   }
 
   // original algorithm ... (establish edges ... )
-  Cluster::vector live_clusters_new;
   std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
 
   for (size_t i=0;i!=live_clusters.size();i++){
@@ -52,94 +51,9 @@ void WireCell::PointCloud::Facade::clustering_regular(
     }
   }
 
-   // form new clusters
-  for (auto it = cluster_to_be_deleted.begin(); it != cluster_to_be_deleted.end(); it++) {
-    cluster_length_map.erase(*it);
-    cluster_connected_dead.erase(*it);
-    // delete old clusters ...
-    //	live_clusters.erase(find(live_clusters.begin(), live_clusters.end(), *it));
-  }
-  
-  for (auto it = live_clusters.begin(); it != live_clusters.end(); it++) {
-    if (cluster_to_be_deleted.find(*it) == cluster_to_be_deleted.end()) live_clusters_new.push_back(*it);
-  }
+  // new function to  merge clusters ...
+  merge_clusters(g, root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, cluster_to_be_deleted);
 
-  // Make new live node tree
-  Points::node_ptr root_live_new = std::make_unique<Points::node_t>();
-  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
-  // std::unordered_set<Cluster::pointer> need_merging;
-  // for (const auto& [dead, lives] : dead2lives) {
-  //     if (lives.size() < 2) {
-  //         continue;
-  //     }
-  //     debug("dead2lives size for dead cluster: {}", lives.size());
-  //     need_merging.insert(lives.begin(), lives.end());
-  //     auto cnode = root_live_new->insert(std::move(std::make_unique<Points::node_t>()));
-  //     for (const auto& live : lives) {
-  //         for (const auto& blob : live->m_blobs) {
-  //             // this also removes blob node from root_live
-  //             cnode->insert(blob->m_node);
-  //         }
-  //         // manually remove the cnode from root_live
-  //         root_live->remove(live->m_node);
-  //     }
-  // }
-  // debug("need_merging size: {}", need_merging.size());
-  
-  std::unordered_map<int, int> desc2id;
-  std::unordered_map<int, std::set<int> > id2desc;
-  int num_components = boost::connected_components(g, boost::make_assoc_property_map(desc2id));
-  for (const auto& [desc, id] : desc2id) {
-    id2desc[id].insert(desc);
-  }
-  //  debug("id2desc size: {}", id2desc.size());
-  for (const auto& [id, descs] : id2desc) {
-    if (descs.size() < 2) {
-      continue;
-    }
-    
-    //debug("id {} descs size: {}", id, descs.size());
-    
-    auto cnode1 = std::make_unique<Points::node_t>();
-    for (const auto& desc : descs) {
-      const int idx = g[desc];
-      if (idx < 0) {  // no need anymore ...
-	continue;
-      }
-      const auto& live = live_clusters[idx];
-      for (const auto& blob : live->m_blobs) {
-	// this also removes blob node from root_live
-	cnode1->insert(blob->m_node);
-      }
-      // manually remove the cnode from root_live
-      root_live->remove(live->m_node);
-    }
-    
-    // new cluster information (need Haiwang to take a look at Facade ...)
-    auto new_cluster = std::make_shared<Cluster>(cnode1);
-    auto cnode = root_live_new->insert(std::move(cnode1));
-    cluster_length_map[new_cluster] = new_cluster->get_length(tp);
-    
-    live_clusters_new.push_back(new_cluster);
-    //	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
-    cluster_connected_dead.insert(new_cluster);
-  }
-  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
-  
-  // move remaining live clusters to new root
-  for (auto& cnode : root_live->children()) {
-    // this will NOT remove cnode from root_live, but set it to nullptr
-    root_live_new->insert(std::move(cnode));
-  }
-  //  debug("root_live {} root_live_new {}", root_live->children().size(), root_live_new->children().size());
-  // replace old with new
-  root_live = std::move(root_live_new);
-  
-  live_clusters = std::move(live_clusters_new);
-
-
-  
-  
 }
 
 bool WireCell::PointCloud::Facade::Clustering_1st_round(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,

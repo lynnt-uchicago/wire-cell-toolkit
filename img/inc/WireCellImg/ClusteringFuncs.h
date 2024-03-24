@@ -15,6 +15,18 @@
 
 namespace WireCell::PointCloud::Facade {
     using namespace WireCell::PointCloud::Tree;
+
+    // merging clustering function
+    void merge_clusters(boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int>& g,
+			Points::node_ptr& root_live,                                   // in/out
+			Cluster::vector& live_clusters,
+			std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
+			std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+			const TPCParams& tp,                                           // common params
+			const std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> >& cluster_to_be_deleted
+			);
+    
+    
     // first function ...
     void clustering_live_dead(Points::node_ptr& root_live,                                   // in/out
 			      //                             const Points::node_ptr& root_dead,                             // in
