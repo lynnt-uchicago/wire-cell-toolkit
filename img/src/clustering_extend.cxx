@@ -700,6 +700,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_dead(const std::shared_ptr<con
   double dis = Find_Closest_Points(cluster_1, cluster_2, length_1, length_2, length_cut, mcell1, mcell2, p1,p2);
 
   //add a special one ...  for uboone ...
+  /*
   if (length_1 > 30*units::cm && length_2 > 30*units::cm &&
       (dis < 3*units::cm ||
        fabs(p1.x()-p2.x()) < 1.6*units::cm && (dis < 20*units::cm &&
@@ -710,6 +711,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_dead(const std::shared_ptr<con
        )){
     return true; 
   }
+  */
 
   if ((dis < length_cut || (length_2 > 50*units::cm && dis < 80*units::cm))){
 

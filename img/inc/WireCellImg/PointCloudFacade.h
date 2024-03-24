@@ -82,8 +82,8 @@ namespace WireCell::PointCloud::Facade {
 	
         Blob::vector is_connected(const Cluster& c, const int offset) const;
         // alg 0: cos(theta), 1: theta
-        std::pair<double, double> hough_transform(const geo_point_t& origin, const double dis, const int alg = 0) const;
-        geo_point_t vhough_transform(const geo_point_t& origin, const double dis, const int alg = 0) const;
+        std::pair<double, double> hough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
+        geo_point_t vhough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
 
         // get the number of unique uvwt bins
         std::tuple<int, int, int, int> get_uvwt_range() const;
