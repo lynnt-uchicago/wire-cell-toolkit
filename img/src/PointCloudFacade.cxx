@@ -97,13 +97,17 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     for (const auto& [time, blob] : m_time_blob_map) {
         // loop c.m_time_blob_map
         auto range = c.m_time_blob_map.equal_range(time);
+	bool flag_save = false;
         for (auto it = range.first; it != range.second; ++it) {
             const auto& cblob = it->second;
             if (blob->overlap_fast(*cblob, offset)) {
 	      //ret.push_back(cblob); // dead clusters ... 
-	      ret.push_back(blob); // live clusters ...
-            }
+	      //ret.push_back(blob); // live clusters ...
+	      flag_save = true;
+	      break;
+	    }
         }
+	if (flag_save) ret.push_back(blob); // live clusters ...
     }
     return ret;
 }

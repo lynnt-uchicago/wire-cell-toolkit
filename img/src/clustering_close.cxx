@@ -1,4 +1,5 @@
 #include <WireCellImg/ClusteringFuncs.h>
+#include "WireCellUtil/ExecMon.h"
 
 using namespace WireCell;
 using namespace WireCell::Img;
@@ -15,6 +16,9 @@ void WireCell::PointCloud::Facade::clustering_close(
     const double length_cut                                        //
 )
 {
+
+  //  bool flag_print = false;
+  //ExecMon em("starting");
 
   std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > used_clusters;
   std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
@@ -56,9 +60,12 @@ void WireCell::PointCloud::Facade::clustering_close(
     }
   }
 
+  //  if (flag_print) std::cout << em("core alg") << std::endl;
+
   // new function to  merge clusters ...
   merge_clusters(g, root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, cluster_to_be_deleted);
 
+  //  if (flag_print) std::cout << em("merge clusters") << std::endl;
  
 }
 
@@ -77,8 +84,12 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
   std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell2 = 0;
   geo_point_t p2;
 
+  bool flag_print = false;
+  ExecMon em("starting");
+  
   double dis = WireCell::PointCloud::Facade::Find_Closest_Points(cluster1, cluster2, length_1, length_2, length_cut, mcell1, mcell2, p1,p2);
 
+  //  if (flag_print) std::cout << em("Find Closest Points") << std::endl;
 
   geo_point_t dir1, dir2;
   int num_p1, num_p2, num_tp1, num_tp2;
@@ -95,6 +106,8 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
     dir1 = cluster1->vhough_transform(p1,50*units::cm,1); // cluster 1 direction based on hough
     dir2 = cluster2->vhough_transform(p2,50*units::cm,1); // cluster 1 direction based on hough
 
+    if (flag_print) std::cout << em("Hough Transform") << std::endl;
+    
     std::pair<int,int> num_ps_1 = cluster1->get_num_points(p1,dir1);
     std::pair<int,int> num_ps_2 = cluster2->get_num_points(p2,dir2);
 
@@ -102,6 +115,8 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
     num_p2 = cluster2->get_num_points(p2, 10*units::cm);
     num_tp1 = cluster1->get_num_points();
     num_tp2 = cluster2->get_num_points();
+
+    if (flag_print) std::cout << em("Get Number Points") << std::endl;
     
     if (length_1 > 25*units::cm && length_2 > 25*units::cm){
       /* if (length_1 > 60*units::cm && length_2 > 60*units::cm ){ */
@@ -120,6 +135,7 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
     }
   }
 
+  
   if (dis < length_cut && (length_2 >=12*units::cm || length_1 >=12*units::cm)){
     geo_point_t cluster1_ave_pos = cluster1->calc_ave_pos(p1,10*units::cm);
     geo_point_t cluster2_ave_pos = cluster2->calc_ave_pos(p2,10*units::cm);
@@ -171,8 +187,10 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
 	
       }
     }
+    //    if (flag_print) std::cout << em("additional running") << std::endl;
   }
 
+ 
 
   return false;
   

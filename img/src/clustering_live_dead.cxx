@@ -1,4 +1,5 @@
 #include <WireCellImg/ClusteringFuncs.h>
+#include "WireCellUtil/ExecMon.h"
 
 using namespace WireCell;
 using namespace WireCell::Img;
@@ -17,6 +18,8 @@ void WireCell::PointCloud::Facade::merge_clusters(boost::adjacency_list<boost::v
 						  const std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> >& cluster_to_be_deleted
 						  ){
 
+  
+  
    Cluster::vector live_clusters_new;
     for (auto it = cluster_to_be_deleted.begin(); it != cluster_to_be_deleted.end(); it++) {
         cluster_length_map.erase(*it);
@@ -138,8 +141,12 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     const int dead_live_overlap_offset                             // specific params
 )
 {
-    using spdlog::debug;
+  using spdlog::debug;
+  
+  bool flag_print = true;
+    ExecMon em("starting");
 
+    
     std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
 
     // form dead -> lives map
@@ -170,25 +177,28 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         dead_live_cluster_mapping;
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, std::vector<Blob::vector> >
         dead_live_mcells_mapping;
-    for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
+    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
+      const auto& live = live_clusters[ilive];
+      //const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>& live = live_clusters[ilive];
+      for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
         const auto& dead = dead_clusters[idead];
-        for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
-            // const auto& live = live_clusters[ilive];
-            const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> live = live_clusters[ilive];
-
-            Blob::vector blobs = live->is_connected(*dead, dead_live_overlap_offset);
-            //
-            if (blobs.size() > 0) {
-                //	  if (dead_live_cluster_mapping.find(dead) == dead_live_cluster_mapping.end()){
-                dead_live_cluster_mapping[dead].push_back(live);
-                dead_live_mcells_mapping[dead].push_back(blobs);
-                //}
-            }
-        }
+	
+	Blob::vector blobs = live->is_connected(*dead, dead_live_overlap_offset);
+	//
+	if (blobs.size() > 0) {
+	  //	  if (dead_live_cluster_mapping.find(dead) == dead_live_cluster_mapping.end()){
+	  dead_live_cluster_mapping[dead].push_back(live);
+	  dead_live_mcells_mapping[dead].push_back(blobs);
+	  //}
+	}
+      }
     }
 
-    // prepare a graph ...
-    typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
+    if (flag_print) std::cout << em("construct the dead_live maps") << std::endl;
+    std::cout << dead_live_cluster_mapping.size() << " " << dead_clusters.size() << " " << live_clusters.size() << std::endl;
+																					 
+																					 // prepare a graph ...
+																					 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
     Graph g;
     std::unordered_map<int, int> ilive2desc;  // added live index to graph descriptor
     std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, int> map_cluster_index;
@@ -197,6 +207,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         map_cluster_index[live] = ilive;
         ilive2desc[ilive] = boost::add_vertex(ilive, g);
     }
+
+    if (flag_print) std::cout << em("construct cluster graph") << std::endl;
 
     std::set<std::pair<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>,
                        std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > >
@@ -412,7 +424,9 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         }
     }
 
+    if (flag_print) std::cout << em("core alg") << std::endl;
 
     // new function to merge clusters ...
     merge_clusters(g, root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, cluster_to_be_deleted);
+    if (flag_print) std::cout << em("merge clusters") << std::endl;
 }
