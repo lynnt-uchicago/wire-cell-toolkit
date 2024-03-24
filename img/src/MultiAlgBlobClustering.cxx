@@ -342,14 +342,57 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     
     // dead_live
-
     clustering_live_dead(root_live, live_clusters, dead_clusters, cluster_length_map, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
 
     // second function ...
     clustering_extend(root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
 
+    // first round clustering
+    clustering_regular(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 60*units::cm, false);
+    //  cerr << em("1st regular") << endl;
+    clustering_regular(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 30*units::cm, true); // do extension
+    // cerr << em("2nd regular") << endl;
+
     
+    //dedicated one dealing with parallel and prolonged track
+    clustering_parallel_prolong(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp,35*units::cm);
+    //cerr << em("parallel prolong") << endl;
+    
+    //clustering close distance ones ... 
+    clustering_close(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 1.2*units::cm);
+    // cerr << em("close") << endl;
+    
+
+    int num_try =3;
+    // for very busy events do less ... 
+    if (live_clusters.size() > 1100 ) num_try = 1;
+    for (int i=0;i!= num_try ;i++){
+      //extend the track ...
+      // deal with prolong case
+      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,1,150*units::cm,0);
+      //  cerr << em("extend prolong") << endl;
+      // deal with parallel case 
+      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,2,30*units::cm,0);
+      // cerr << em("extend parallel") << endl;
+      
+      
+      // extension regular case
+      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,3,15*units::cm,0);
+      
+      //std::cout << i << std::endl;
+      
+      //  cerr << em("extend regular") << endl;
+      // extension ones connected to dead region ...
+      if (i==0){
+	clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,4,60*units::cm,i);
+      }else{
+	clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,4,35*units::cm,i);
+      }
+      //  cerr << em("extend dead") << endl;
+    }
+
+
     
     // BEE debug dead-live
     if (!m_bee_dir.empty()) {

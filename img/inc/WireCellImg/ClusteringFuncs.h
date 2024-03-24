@@ -58,10 +58,10 @@ namespace WireCell::PointCloud::Facade {
                            std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
                            const TPCParams& tp,                                           // common params
                            const int flag,                                                //
-                           const double length_cut,                                       //
-                           const int num_try,                                             //
-                           const double length_2_cut,                                     //
-                           const int num_dead_try                                         //
+                           const double length_cut = 150*units::cm,                       //
+                           const int num_try = 0,                                         //
+                           const double length_2_cut = 3*units::cm,                       //
+                           const int num_dead_try =3                                      //
 			   );
     bool Clustering_4th_prol(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
 			     const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
@@ -95,8 +95,8 @@ namespace WireCell::PointCloud::Facade {
                             std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
                             std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
                             const TPCParams& tp,                                           // common params
-                            const double length_cut,                                       //
-                            bool flag_enable_extend                                        //
+                            const double length_cut = 45*units::cm,                                       //
+                            bool flag_enable_extend = true                                       //
     );
     bool Clustering_1st_round(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
 			      const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
@@ -112,7 +112,7 @@ namespace WireCell::PointCloud::Facade {
                                      std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
                                      std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
                                      const TPCParams& tp,                                           // common params
-                                     const double length_cut                                        //
+                                     const double length_cut = 35*units::cm                                       //
     );
     bool Clustering_2nd_round(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
 			      const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
@@ -128,7 +128,7 @@ namespace WireCell::PointCloud::Facade {
                           std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
                           std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
                           const TPCParams& tp,                                           // common params
-                          const double length_cut                                        //
+                          const double length_cut = 1*units::cm                          //
     );
     bool Clustering_3rd_round( const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
 			       const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
