@@ -100,15 +100,135 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     for (const auto& [time, blob] : m_time_blob_map) {
         // loop c.m_time_blob_map
         auto range = c.m_time_blob_map.equal_range(time);
+	bool flag_save = false;
         for (auto it = range.first; it != range.second; ++it) {
             const auto& cblob = it->second;
             if (blob->overlap_fast(*cblob, offset)) {
 	      //ret.push_back(cblob); // dead clusters ... 
-	      ret.push_back(blob); // live clusters ...
-            }
+	      //ret.push_back(blob); // live clusters ...
+	      flag_save = true;
+	      break;
+	    }
         }
+	if (flag_save) ret.push_back(blob); // live clusters ...
     }
     return ret;
+}
+
+std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_first_blob() const{
+  return m_time_blob_map.begin()->second;
+}
+std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_last_blob() const{
+  return m_time_blob_map.rbegin()->second;
+}
+
+
+std::pair<geo_point_t, double> Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const{
+
+  bool flag = false;
+  geo_point_t p_test;
+  
+  double min_dis = 1e9;
+  double min_dis1 = 1e9;
+  geo_point_t min_point = p_test1;
+  
+  for (int i=0; i!= int(test_dis/dis_step)+1;i++){
+    p_test.set(p_test1.x() + dir.x() * i * dis_step,p_test1.y() + dir.y() * i * dis_step, p_test1.z() + dir.z() * i * dis_step);
+    
+    auto pts = get_closest_point_mcell(p_test);
+    
+    double dis = sqrt(pow(p_test.x() - pts.first.x(),2)+pow(p_test.y() - pts.first.y(),2)+pow(p_test.z() - pts.first.z(),2));
+    double dis1 = sqrt(pow(p_test1.x() - pts.first.x(),2)+pow(p_test1.y() - pts.first.y(),2)+pow(p_test1.z() - pts.first.z(),2));
+    if (dis < std::min(dis1 * tan(angle_cut/180.*3.1415926),dis_cut)){
+      if (dis < min_dis){
+	min_dis = dis;
+	min_point = pts.first;
+	min_dis1 = dis1;
+      }
+      if (dis < 3*units::cm)
+	return std::make_pair(pts.first,dis1);
+    }
+  }
+
+  return std::make_pair(min_point,min_dis1);
+}
+
+int Cluster::get_num_points() const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+  
+  return skd.points().size();
+}
+
+std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir) const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  int num_p1 = 0;
+  int num_p2 = 0;
+
+  auto& points = skd.points();
+
+  for (auto it = points.begin(); it!=points.end(); it++){
+    geo_point_t dir1(it->at(0) - point.x(), it->at(1) - point.y(), it->at(2) - point.z());
+    if (dir1.dot(dir)>=0){
+      num_p1 ++;
+    }else{
+      num_p2 ++;
+    }
+  }
+
+  return std::make_pair(num_p1, num_p2);
+}
+
+std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir, double dis) const{
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  int num_p1 = 0;
+  int num_p2 = 0;
+
+  auto rad = skd.radius(pow(dis,2), point);
+  for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
+    auto& [pit,dist2] = rad[pt_ind];
+
+    geo_point_t dir1(pit->at(0)-point.x(), pit->at(1)-point.y(), pit->at(2)-point.z());
+
+    if (dir1.dot(dir)>=0){
+      num_p1 ++;
+    }else{
+      num_p2 ++;
+    }
+    
+  }
+
+
+  return std::make_pair(num_p1, num_p2);
+}
+
+
+
+int Cluster::get_num_points(const geo_point_t& point, double dis) const{
+  //return point_cloud->get_closest_points(p_test, dis).size();
+
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+  // const auto& spcs = sv.pcs();
+  // debug("sv {}", dump_pcs(sv.pcs()));
+  const auto& skd = sv.kd();
+
+  // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
+  auto rad = skd.radius(pow(dis,2), point);
+  return rad.size();
 }
 
 std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
@@ -200,6 +320,8 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     //    const auto& snodes = sv.nodes();
 
 
+    
+    
     std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> pts = get_closest_mcell(origin, dis);
     
     // average position
@@ -459,4 +581,47 @@ double Cluster::get_length(const TPCParams& tp) const {
     // debug("u {} v {} w {} t {} length {}", u, v, w, t, length/units::cm);
     
     return length;
+}
+
+std::pair<geo_point_t, geo_point_t> Cluster::get_highest_lowest_points() const{
+   // how to get all the points???
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);
+  const auto& skd = sv.kd();
+  
+  auto& points = skd.points();
+
+  geo_point_t highest_point(points.at(0).at(0),points.at(0).at(1),points.at(0).at(2));
+  geo_point_t lowest_point = highest_point;
+
+  for (auto it = points.begin(); it!=points.end(); it++){
+    if (it->at(1) > highest_point.y()) // find highest Y ...
+      highest_point.set(it->at(0), it->at(1), it->at(2));
+    if (it->at(1) < lowest_point.y()) // find lowest Y point ...
+      lowest_point.set(it->at(0), it->at(1), it->at(2));
+  }
+
+  return std::make_pair(highest_point, lowest_point);
+}
+
+
+std::pair<geo_point_t, geo_point_t> Cluster::get_earliest_latest_points() const{
+  // how to get all the points???
+  Scope scope = { "3d", {"x","y","z"} };
+  const auto& sv = m_node->value.scoped_view(scope);
+  const auto& skd = sv.kd();
+  
+  auto& points = skd.points();
+
+  geo_point_t highest_point(points.at(0).at(0),points.at(0).at(1),points.at(0).at(2));
+  geo_point_t lowest_point = highest_point;
+
+  for (auto it = points.begin(); it!=points.end(); it++){
+    if (it->at(0) > highest_point.x()) // find highest X ...
+      highest_point.set(it->at(0), it->at(1), it->at(2));
+    if (it->at(0) < lowest_point.x()) // find lowest X point ...
+      lowest_point.set(it->at(0), it->at(1), it->at(2));
+  }
+
+  return std::make_pair(lowest_point, highest_point);
 }

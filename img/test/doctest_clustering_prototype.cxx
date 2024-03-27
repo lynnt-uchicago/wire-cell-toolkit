@@ -62,6 +62,7 @@ Points::node_ptr make_simple_pctree()
             {"center_x", Array({(fa_float_t)0.5})},
             {"center_y", Array({(fa_float_t)0.})},
             {"center_z", Array({(fa_float_t)0.})},
+            {"npoints", Array({(fa_int_t)10})},
             {"slice_index_min", Array({(fa_int_t)0})},
             {"slice_index_max", Array({(fa_int_t)1})},
             {"u_wire_index_min", Array({(fa_int_t)0})},
@@ -85,6 +86,7 @@ Points::node_ptr make_simple_pctree()
             {"center_x", Array({(fa_float_t)1.5})},
             {"center_y", Array({(fa_float_t)0.})},
             {"center_z", Array({(fa_float_t)0.})},
+            {"npoints", Array({(fa_int_t)10})},
             {"slice_index_min", Array({(fa_int_t)0})},
             {"slice_index_max", Array({(fa_int_t)1})},
             {"u_wire_index_min", Array({(fa_int_t)1})},
@@ -207,4 +209,8 @@ TEST_CASE("test PointCloudFacade")
     debug("expecting 10.8738217753");
     const auto length = pcc.get_length({});
     debug("length: {}", length);
+    const auto [earliest, latest] = pcc.get_earliest_latest_points();
+    debug("earliest_latest_points: {} {} | expecting (0 0 0) (1.9 0 0)", earliest, latest);
+    const auto [num1, num2] = pcc.get_num_points({0.5,0,0}, {1,0,0});
+    debug("num_points: {} {} | expecting 15, 5", num1, num2);
 }
