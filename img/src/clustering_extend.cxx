@@ -57,8 +57,8 @@ void WireCell::PointCloud::Facade::clustering_extend(
 
     if (cluster_length_map[cluster_1] > length_1_cut){
       geo_point_t highest_p, lowest_p, earliest_p, latest_p;
-      bool flag_para = false;
-      bool flag_prol = false;
+      // bool flag_para = false;
+      // bool flag_prol = false;
 
       if (flag==1){// prolong case ... 
 
@@ -98,7 +98,7 @@ void WireCell::PointCloud::Facade::clustering_extend(
 	angle6 = tempV5.angle(drift_dir);
 
 	if (angle1 <5./180.*3.1415926 || angle2 < 5./180.*3.1415926 || angle3 < 5./180.*3.1415926){
-	  flag_prol = true;
+	  // flag_prol = true;
 	  
 	  for (size_t j=0;j!=live_clusters.size();j++){
 	    auto cluster_2 = live_clusters.at(j);
@@ -119,7 +119,7 @@ void WireCell::PointCloud::Facade::clustering_extend(
 	
 	if (angle4<5./180.*3.1415926 || angle5 < 5./180.*3.1415926 || angle6 < 5./180.*3.1415926){
 
-	  flag_prol = true;
+	  // flag_prol = true;
 	  for (size_t j=0;j!=live_clusters.size();j++){
 	    auto cluster_2 = live_clusters.at(j);
 	    if (used_clusters.find(cluster_2)!=used_clusters.end()) continue;
@@ -145,7 +145,7 @@ void WireCell::PointCloud::Facade::clustering_extend(
 	geo_point_t dir_lowp = cluster_1->vhough_transform(lowest_p, 100*units::cm,1);
 
 	 if (fabs(dir_highp.angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926){ 
-	   flag_para = true; 
+	   // flag_para = true; 
 
 	   for (size_t j=0;j!=live_clusters.size();j++){
 	     auto cluster_2 = live_clusters.at(j);
@@ -173,7 +173,7 @@ void WireCell::PointCloud::Facade::clustering_extend(
 	 /* } */
 
 	 if (fabs(dir_lowp.angle(drift_dir)-3.1415926/2.)<5/180.*3.1415926 ){ 
-	   flag_para = true; 
+	   // flag_para = true; 
 
 	   for (size_t j=0;j!=live_clusters.size();j++){
 	     auto cluster_2 = live_clusters.at(j);

@@ -77,8 +77,8 @@ bool  WireCell::PointCloud::Facade::Clustering_2nd_round(const std::shared_ptr<c
     geo_point_t cluster2_ave_pos = cluster2->calc_ave_pos(p2,10*units::cm);
 
     bool flag_para = false;
-    bool flag_para_U = false;
-    bool flag_para_V = false;
+    // bool flag_para_U = false;
+    // bool flag_para_V = false;
 
     geo_point_t drift_dir(1, 0, 0);  // assuming the drift direction is along X ...
     double angle_u = tp.angle_u;
@@ -123,7 +123,7 @@ bool  WireCell::PointCloud::Facade::Clustering_2nd_round(const std::shared_ptr<c
 
 	  // look at parallel U
 	  if ((fabs(angle2-3.1415926/2.)<7.5/180.*3.1415926 || (fabs(angle2-3.1415926/2.)<15/180.*3.1415926)&&dis <6*units::cm) && (dis<length_cut || (length_1 + length_2 > 100*units::cm)) && length_1 >15*units::cm && length_2 > 15*units::cm){
-	    flag_para_U = true;
+	    // flag_para_U = true;
 
 	    if ((length_1 < 25*units::cm || length_2 < 25*units::cm) && fabs(angle2-3.1415926/2.)<5.0/180.*3.1415926  && dis < 15* units::cm || dis < 3*units::cm){
 	      // for short or small distance one
@@ -167,7 +167,7 @@ bool  WireCell::PointCloud::Facade::Clustering_2nd_round(const std::shared_ptr<c
 
 	  // look at parallel V
 	  if ((fabs(angle3-3.1415926/2.)<7.5/180.*3.1415926 || (fabs(angle3-3.1415926/2.)<15/180.*3.1415926)&&dis <6*units::cm )&&(dis<length_cut || (length_1 + length_2 > 100*units::cm))&& length_1 >15*units::cm && length_2 > 15*units::cm){
-	    flag_para_V = true;
+	    // flag_para_V = true;
 	    //return true;
 	    
 	    if ((length_1 < 25*units::cm || length_2 < 25*units::cm) && fabs(angle3-3.1415926/2.)<5.0/180.*3.1415926 && dis < 15* units::cm || dis < 2*units::cm){
