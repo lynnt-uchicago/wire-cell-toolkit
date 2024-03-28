@@ -1,6 +1,9 @@
 #include <WireCellImg/ClusteringFuncs.h>
 #include "WireCellUtil/ExecMon.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
+
 using namespace WireCell;
 using namespace WireCell::Img;
 using namespace WireCell::Aux;
@@ -438,3 +441,4 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     merge_clusters(g, root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, cluster_to_be_deleted);
     if (flag_print) std::cout << em("merge clusters") << std::endl;
 }
+#pragma GCC diagnostic pop

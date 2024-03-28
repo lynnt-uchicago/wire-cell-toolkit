@@ -1,6 +1,9 @@
 #include <WireCellImg/ClusteringFuncs.h>
 #include "WireCellUtil/ExecMon.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
+
 using namespace WireCell;
 using namespace WireCell::Img;
 using namespace WireCell::Aux;
@@ -195,3 +198,4 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
   return false;
   
  }
+#pragma GCC diagnostic pop
