@@ -70,7 +70,7 @@ namespace {
         std::vector<float_t> q;
         std::vector<int_t> cluster_id;
         int_t cid = 0;
-        for (const auto& cnode : root.children()) {  // this is a loop through all clusters ...
+        for (const auto cnode : root.children()) {  // this is a loop through all clusters ...
             Scope scope = {"3d", {"x", "y", "z"}};
             const auto& sv = cnode->value.scoped_view(scope);
 
@@ -206,8 +206,8 @@ namespace {
 
         // Convert stringstream to JSON array
         Json::Value jdead;
-        for (const auto& cnode : root.children()) {
-            for (const auto& bnode : cnode->children()) {
+        for (const auto cnode : root.children()) {
+            for (const auto bnode : cnode->children()) {
                 const auto& lpcs = bnode->value.local_pcs();
                 const auto& pc_scalar = lpcs.at("corner");
                 const auto& y = pc_scalar.get("y")->elements<float_t>();
@@ -268,7 +268,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;
     }
-    log->debug("Got pctree with {} children", root_live->children().size());
+    log->debug("Got pctree with {} children", root_live->nchildren());
 
     //    start = std::chrono::high_resolution_clock::now();
     const auto& root_dead = as_pctree(intens, inpath + "/dead");
@@ -279,7 +279,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         log->error("Failed to get point cloud tree from \"{}\"", inpath + "/dead");
         return false;
     }
-    log->debug("Got pctree with {} children", root_dead->children().size());
+    log->debug("Got pctree with {} children", root_dead->nchildren());
 
     // BEE debug direct imaging output and dead blobs
     if (!m_bee_dir.empty()) {
@@ -291,8 +291,8 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     /// DEMO: iterate all clusters from root_live
     // std::unordered_map<std::string, std::chrono::milliseconds> timers;
-    // for(const auto& cnode : root_live->children()) {
-    //     // log->debug("cnode children: {}", cnode->children().size());
+    // for(const auto cnode : root_live->children()) {
+    //     // log->debug("cnode children: {}", cnode->nchildren());
     //     Cluster pcc(cnode);
     //     start = std::chrono::high_resolution_clock::now();
     //     auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 0);
@@ -323,7 +323,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     //std::unordered_map<std::string, std::chrono::milliseconds> timers;
     //    start = std::chrono::high_resolution_clock::now();
     Cluster::vector live_clusters;
-    for (const auto& cnode : root_live->children()) {
+    for (auto cnode : root_live->children()) {
         live_clusters.push_back(std::make_shared<Cluster>(cnode));
     }
     // loop over all the clusters, and calculate length ...
@@ -334,7 +334,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     }
     
     Cluster::vector dead_clusters;
-    for (const auto& cnode : root_dead->children()) {
+    for (auto cnode : root_dead->children()) {
         dead_clusters.push_back(std::make_shared<Cluster>(cnode));
     }
     //    end = std::chrono::high_resolution_clock::now();

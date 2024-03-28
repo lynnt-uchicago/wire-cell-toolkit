@@ -33,7 +33,7 @@ namespace WireCell::PointCloud::Facade {
 
     class Blob : public IData<Blob> {
        public:
-        Blob(const node_ptr& n);
+        Blob(node_t* n);
         node_t* m_node;  /// do not own
 
         geo_point_t center_pos() const;
@@ -63,7 +63,7 @@ namespace WireCell::PointCloud::Facade {
 
     class Cluster : public IData<Cluster> {
     public:
-        Cluster(const node_ptr& n);
+        Cluster(node_t* n);
         node_t* m_node;  /// do not own
         Blob::vector m_blobs;
 

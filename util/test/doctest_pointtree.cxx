@@ -103,7 +103,7 @@ TEST_CASE("point tree with points")
 
     Points& rval = root->value;
 
-    CHECK(root->children().size() == 2);
+    CHECK(root->nchildren() == 2);
     CHECK(root.get() == rval.node());
     CHECK(rval.local_pcs().empty());
     
@@ -196,11 +196,11 @@ TEST_CASE("point tree remove node")
     
     SUBCASE("remove child one") {
         const size_t nleft = pc3d_two.size_major();
-        auto it = root->children().begin();
+        auto cptr = root->children()[0];
         // We get back as unique_ptr so node "dead" stays alive for the context.
-        auto dead = root->remove(it);
+        auto dead = root->remove(cptr);
         CHECK(dead);
-        CHECK(root->children().size() == 1);
+        CHECK(root->nchildren() == 1);
 
         const auto& pc3d = rval.scoped_view(scope).pcs();
         CHECK(pc3d.size() == 1);
@@ -211,12 +211,11 @@ TEST_CASE("point tree remove node")
     }
     SUBCASE("remove child two") {
         const size_t nleft = pc3d_one.size_major();
-        auto it = root->children().begin();
-        ++it;
+        auto cptr = root->children()[1];
         // We get back as unique_ptr so node "dead" stays alive for the context.
-        auto dead = root->remove(it);
+        auto dead = root->remove(cptr);
         CHECK(dead);
-        CHECK(root->children().size() == 1);
+        CHECK(root->nchildren() == 1);
 
         const auto& pc3d = rval.scoped_view(scope).pcs();
         CHECK(pc3d.size() == 1);

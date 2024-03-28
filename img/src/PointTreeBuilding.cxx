@@ -121,9 +121,9 @@ namespace {
     std::string dump_children(const WireCell::PointCloud::Tree::Points::node_t* root)
     {
         std::stringstream ss;
-        ss << "NaryTree: " << root->children().size() << " children";
-        const Points::node_ptr& first = root->children().front();
-        ss << dump_node(first.get());
+        ss << "NaryTree: " << root->nchildren() << " children";
+        const auto first = root->children().front();
+        ss << dump_node(first);
         return ss.str();
     }
 #endif

@@ -36,8 +36,8 @@ namespace {
 }
 #endif
 
-Blob::Blob(const node_ptr& n)
-  : m_node(n.get())
+Blob::Blob(node_t* n)
+  : m_node(n)
 {
     const auto& lpcs = m_node->value.local_pcs();
     const auto& pc_scalar = lpcs.at("scalar");
@@ -80,11 +80,11 @@ int_t Blob::num_points() const{
 }
 
 
-Cluster::Cluster(const node_ptr& n)
-  : m_node(n.get())
+Cluster::Cluster(node_t*n)
+  : m_node(n)
 {
     // build blobs
-    for (const auto& child : m_node->children()) {
+    for (auto child : m_node->children()) {
         auto blob = std::make_shared<Blob>(child);
         m_blobs.push_back(blob);
         for (int slice_index = blob->slice_index_min; slice_index < blob->slice_index_max; ++slice_index) {

@@ -193,7 +193,7 @@ TEST_CASE("test PointCloudFacade")
 {
     auto root = make_simple_pctree();
     REQUIRE(root);
-    Cluster pcc(root);
+    Cluster pcc(root.get());
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
     debug("expecting 1.1666666666666665");
     auto ave_pos_alg0 = pcc.calc_ave_pos({1,0,0}, 1, 0);

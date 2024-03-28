@@ -134,19 +134,19 @@ TEST_CASE("point tree example simple tree operations")
     dump_children(root);
 
     // Find iterator to first child in child list
-    CHECK( root->children().size() == 2 );
-    auto cit = root->children().begin();
+    CHECK( root->nchildren() == 2 );
+    auto cptr = root->children().front();
 
     // Remove it as a child and we get ownership as unique_ptr.
-    auto cuptr = root->remove(cit);
-    CHECK( root->children().size() == 1 );
+    auto cuptr = root->remove(cptr);
+    CHECK( root->nchildren() == 1 );
 
     // We can add that orphaned child back.  This transfers ownership.
-    auto* cptr = root->insert(std::move(cuptr));
-    CHECK( root->children().size() == 2 );
+    auto* cptr2 = root->insert(std::move(cuptr));
+    CHECK( root->nchildren() == 2 );
 
     // But, we caught the return and now have a loaned bare pointer
-    CHECK( cptr );
+    CHECK( cptr2 );
 
     // We should now see the reverse order as above dump.
     dump_children(root);
@@ -376,15 +376,15 @@ TEST_CASE("point tree example simple tree operations")
   }
 
   // a little helper
-  // static const Dataset& get_local_pc(const Points& pval, const std::string& pcname)
-  // {
-  //     const auto& pcs = pval.local_pcs();
-  //     auto pcit = pcs.find(pcname);
-  //     if (pcit == pcs.end()) {
-  //         raise<KeyError>("no pc named " + pcname);
-  //     }
-  //     return pcit->second;
-  // }
+  const Dataset& get_local_pc(const Points& pval, const std::string& pcname)
+  {
+      const auto& pcs = pval.local_pcs();
+      auto pcit = pcs.find(pcname);
+      if (pcit == pcs.end()) {
+          raise<KeyError>("no pc named " + pcname);
+      }
+      return pcit->second;
+  }
   
   TEST_CASE("point tree example scoped k-d tree to n-ary nodes")
   {
@@ -414,7 +414,7 @@ TEST_CASE("point tree example simple tree operations")
           const auto* node = snodes[djind.first];
   
           debug("knn point {} at distance {} from query at node {} with {} children",
-                pt_ind, dist, djind.first, node->children().size());
+                pt_ind, dist, djind.first, node->nchildren());
       }
   }
 
