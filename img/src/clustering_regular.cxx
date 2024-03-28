@@ -115,8 +115,8 @@ bool WireCell::PointCloud::Facade::Clustering_1st_round(const std::shared_ptr<co
     double angle1 = dir2_1.angle(drift_dir);
     double angle2 = dir2.angle(drift_dir);
     
-    double angle3, angle4, angle5;
-    double angle3_1, angle4_1, angle5_1;
+    double angle3, angle4;
+    double angle3_1, angle4_1;
     
     if ((fabs(angle1-3.1415926/2.)<7.5/180.*3.1415926 ||
 	 fabs(angle2-3.1415926/2.)<7.5/180.*3.1415926) && dis < 45*units::cm &&

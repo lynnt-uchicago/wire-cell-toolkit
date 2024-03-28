@@ -125,7 +125,6 @@ std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_last_blob
 
 std::pair<geo_point_t, double> Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const{
 
-  bool flag = false;
   geo_point_t p_test;
   
   double min_dis = 1e9;

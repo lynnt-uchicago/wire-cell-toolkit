@@ -84,7 +84,7 @@ void WireCell::PointCloud::Facade::merge_clusters(boost::adjacency_list<boost::v
 
     std::unordered_map<int, int> desc2id;
     std::unordered_map<int, std::set<int> > id2desc;
-    int num_components = boost::connected_components(g, boost::make_assoc_property_map(desc2id));
+    /*int num_components =*/ boost::connected_components(g, boost::make_assoc_property_map(desc2id));
     for (const auto& [desc, id] : desc2id) {
         id2desc[id].insert(desc);
     }
@@ -113,7 +113,7 @@ void WireCell::PointCloud::Facade::merge_clusters(boost::adjacency_list<boost::v
 
         // new cluster information (need Haiwang to take a look at Facade ...)
         auto new_cluster = std::make_shared<Cluster>(cnode1);
-        auto cnode = root_live_new->insert(std::move(cnode1));
+        /*auto cnode =*/ root_live_new->insert(std::move(cnode1));
         cluster_length_map[new_cluster] = new_cluster->get_length(tp);
         live_clusters_new.push_back(new_cluster);
         //	std::cout << "xin6:  " <<  cluster_length_map[new_cluster]/units::cm << std::endl;
