@@ -95,7 +95,7 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const std::shared_ptr<c
   //  if (flag_print) std::cout << em("Find Closest Points") << std::endl;
 
   geo_point_t dir1, dir2;
-  int num_p1, num_p2, num_tp1, num_tp2;
+  int num_p1{0}, num_p2{0}, num_tp1{0}, num_tp2{0};
 
   // if very close merge anyway???
   if (dis < 0.5*units::cm){
