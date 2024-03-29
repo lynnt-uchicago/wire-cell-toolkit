@@ -316,13 +316,13 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     WireCell::PointCloud::Facade::TPCParams tp;
 
     // Calculate the length of all the clusters and save them into a map
-    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, double> cluster_length_map;
-    std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_connected_dead;
+    std::map<const Cluster::const_pointer, double> cluster_length_map;
+    std::set<Cluster::const_pointer > cluster_connected_dead;
     
     // initialize clusters ...
     //std::unordered_map<std::string, std::chrono::milliseconds> timers;
     //    start = std::chrono::high_resolution_clock::now();
-    Cluster::vector live_clusters;
+    live_clusters_t live_clusters;
     for (auto cnode : root_live->children()) {
         live_clusters.push_back(std::make_shared<Cluster>(cnode));
     }
@@ -333,7 +333,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         // std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
     }
     
-    Cluster::vector dead_clusters;
+    Cluster::const_vector dead_clusters;
     for (auto cnode : root_dead->children()) {
         dead_clusters.push_back(std::make_shared<Cluster>(cnode));
     }

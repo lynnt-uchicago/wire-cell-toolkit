@@ -11,9 +11,9 @@ using namespace WireCell::PointCloud::Facade;
 using namespace WireCell::PointCloud::Tree;
 void WireCell::PointCloud::Facade::clustering_regular(
     Points::node_ptr& root_live,                                   // in/out
-    Cluster::vector& live_clusters,
-    std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
-    std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+    live_clusters_t& live_clusters,
+    cluster_length_map_t& cluster_length_map,  // in/out
+    const_cluster_set_t& cluster_connected_dead,            // in/out
     const TPCParams& tp,                                           // common params
     const double length_cut,                                       //
     bool flag_enable_extend                                        //
@@ -24,10 +24,10 @@ void WireCell::PointCloud::Facade::clustering_regular(
     internal_length_cut = 15 *units::cm;
 
   // prepare graph ...
-  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
+  typedef cluster_connectivity_graph_t Graph;
   Graph g;
   std::unordered_map<int, int> ilive2desc;  // added live index to graph descriptor
-  std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, int> map_cluster_index;
+  std::map<const Cluster::const_pointer, int> map_cluster_index;
   for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
     const auto& live = live_clusters[ilive];
     map_cluster_index[live] = ilive;
@@ -35,7 +35,7 @@ void WireCell::PointCloud::Facade::clustering_regular(
   }
 
   // original algorithm ... (establish edges ... )
-  std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
+  std::set<Cluster::const_pointer > cluster_to_be_deleted;
 
   for (size_t i=0;i!=live_clusters.size();i++){
     auto cluster_1 = live_clusters.at(i);
@@ -59,8 +59,8 @@ void WireCell::PointCloud::Facade::clustering_regular(
 
 }
 
-bool WireCell::PointCloud::Facade::Clustering_1st_round(const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster1,
-							const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> cluster2,
+bool WireCell::PointCloud::Facade::Clustering_1st_round(const Cluster::const_pointer cluster1,
+							const Cluster::const_pointer cluster2,
 							const TPCParams& tp,                                           // common params
 							double length_1,
 							double length_2,
@@ -68,11 +68,11 @@ bool WireCell::PointCloud::Facade::Clustering_1st_round(const std::shared_ptr<co
 							bool flag_enable_extend){
 
   
-  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell1 = 0;
-  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell2 = 0;
-  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell1 = 0;
+  Blob::const_pointer prev_mcell1 = 0;
+  Blob::const_pointer prev_mcell2 = 0;
+  Blob::const_pointer mcell1 = 0;
   geo_point_t p1;
-  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell2 = 0;
+  Blob::const_pointer mcell2 = 0;
   geo_point_t p2;
 
   double dis = WireCell::PointCloud::Facade::Find_Closest_Points(cluster1, cluster2, length_1, length_2, length_cut, mcell1, mcell2, p1,p2);

@@ -14,9 +14,9 @@ using namespace WireCell::PointCloud::Tree;
 
 void WireCell::PointCloud::Facade::clustering_live_dead(
     Points::node_ptr& root_live,  // in/out
-    Cluster::vector& live_clusters, const Cluster::vector& dead_clusters,
-    std::map<const Cluster::pointer, double>& cluster_length_map,  // in/out
-    std::set<Cluster::pointer>& cluster_connected_dead,            // in/out
+    live_clusters_t& live_clusters, const Cluster::const_vector& dead_clusters,
+    cluster_length_map_t& cluster_length_map,  // in/out
+    const_cluster_set_t& cluster_connected_dead,            // in/out
     const TPCParams& tp,                                           // common params
     const int dead_live_overlap_offset                             // specific params
 )
@@ -27,14 +27,14 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     ExecMon em("starting");
 
     
-    std::set<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > cluster_to_be_deleted;
+    std::set<Cluster::const_pointer > cluster_to_be_deleted;
 
     // form dead -> lives map
     // start = std::chrono::high_resolution_clock::now();
-    // std::unordered_map<Cluster::pointer, Cluster::vector> dead2lives;
+    // std::unordered_map<Cluster::const_pointer, Cluster::const_vector> dead2lives;
     // for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
     //     const auto& dead = dead_clusters[idead];
-    //     Cluster::vector lives;
+    //     Cluster::const_vector lives;
     //     for (const auto& live : live_clusters) {
     //         if (live->is_connected(*dead, m_dead_live_overlap_offset).size()) {
     //             lives.push_back(live);
@@ -53,17 +53,17 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
 
     // form map between live and dead clusters ...
-    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, Cluster::vector>
+    std::map<const Cluster::const_pointer, Cluster::const_vector>
         dead_live_cluster_mapping;
-    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, std::vector<Blob::vector> >
+    std::map<const Cluster::const_pointer, std::vector<Blob::const_vector> >
         dead_live_mcells_mapping;
     for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
       const auto& live = live_clusters[ilive];
-      //const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>& live = live_clusters[ilive];
+      //const Cluster::const_pointer& live = live_clusters[ilive];
       for (size_t idead = 0; idead < dead_clusters.size(); ++idead) {
         const auto& dead = dead_clusters[idead];
 	
-	Blob::vector blobs = live->is_connected(*dead, dead_live_overlap_offset);
+	Blob::const_vector blobs = live->is_connected(*dead, dead_live_overlap_offset);
 	//
 	if (blobs.size() > 0) {
 	  //	  if (dead_live_cluster_mapping.find(dead) == dead_live_cluster_mapping.end()){
@@ -78,10 +78,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     std::cout << dead_live_cluster_mapping.size() << " " << dead_clusters.size() << " " << live_clusters.size() << std::endl;
 																					 
 																					 // prepare a graph ...
-																					 typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS, int> Graph;
+																					 typedef cluster_connectivity_graph_t Graph;
     Graph g;
     std::unordered_map<int, int> ilive2desc;  // added live index to graph descriptor
-    std::map<const std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>, int> map_cluster_index;
+    std::map<const Cluster::const_pointer, int> map_cluster_index;
     for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
         const auto& live = live_clusters[ilive];
         map_cluster_index[live] = ilive;
@@ -90,8 +90,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
     if (flag_print) std::cout << em("construct cluster graph") << std::endl;
 
-    std::set<std::pair<std::shared_ptr<const WireCell::PointCloud::Facade::Cluster>,
-                       std::shared_ptr<const WireCell::PointCloud::Facade::Cluster> > >
+    std::set<std::pair<Cluster::const_pointer,
+                       Cluster::const_pointer > >
         tested_pairs;
 
     // start to form edges ...
@@ -123,10 +123,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 
                         bool flag_merge = false;
 
-                        std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell1 = 0;
-                        std::shared_ptr<const WireCell::PointCloud::Facade::Blob> prev_mcell2 = 0;
-                        std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell1 = blobs_1.at(0);
-                        std::shared_ptr<const WireCell::PointCloud::Facade::Blob> mcell2 = 0;
+                        Blob::const_pointer prev_mcell1 = 0;
+                        Blob::const_pointer prev_mcell2 = 0;
+                        Blob::const_pointer mcell1 = blobs_1.at(0);
+                        Blob::const_pointer mcell2 = 0;
 
                         geo_point_t p1 = mcell1->center_pos();
                         std::tie(p1, mcell1) = cluster_1->get_closest_point_mcell(p1);

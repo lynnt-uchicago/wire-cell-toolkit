@@ -1,11 +1,10 @@
-/**
+/** A facade over a PC tree giving semantics to otherwise nodes.
  *
  */
 
 #ifndef WIRECELLIMG_POINTCLOUDFACADE
 #define WIRECELLIMG_POINTCLOUDFACADE
 
-#include "WireCellIface/IData.h"
 #include "WireCellUtil/PointCloudDataset.h"
 #include "WireCellUtil/PointTree.h"
 #include "WireCellUtil/Point.h"
@@ -31,10 +30,26 @@ namespace WireCell::PointCloud::Facade {
         float_t tick_width {0.5*1.101*units::mm}; // width corresponding to one tick time
     };
 
-    class Blob : public IData<Blob> {
+    // Provide common types for an object to be shared via pointer.
+    template<typename T>
+    struct Shared {
+
+        // The wrapped sub class type.
+        using shared_type = T;
+
+        // For holding a facade by a shared pointer.
+        using pointer = std::shared_ptr<T>;
+        using const_pointer = std::shared_ptr<const T>;
+
+        // Simple collection of shared facades.
+        using vector = std::vector<pointer>;
+        using const_vector = std::vector<const_pointer>;
+    };
+    
+
+    class Blob : public Shared<Blob> {
        public:
         Blob(node_t* n);
-        node_t* m_node;  /// do not own
 
         geo_point_t center_pos() const;
 	int_t num_points() const;
@@ -57,19 +72,36 @@ namespace WireCell::PointCloud::Facade {
         int_t w_wire_index_min {0};
         int_t w_wire_index_max {0};
 
+        node_t* node() { return m_node; }
+        const node_t* node() const { return m_node; }
 
-       private:
+      private:
+        node_t* m_node;  /// do not own
     };
 
-    class Cluster : public IData<Cluster> {
+    // A cluster facade adds to a PC tree node semantics of a set of blobs
+    // likely due to connected activity.
+    class Cluster : public Shared<Cluster> {
+        Blob::vector m_blobs;
+        node_t* m_node;  /// do not own
     public:
         Cluster(node_t* n);
-        node_t* m_node;  /// do not own
-        Blob::vector m_blobs;
+
+        node_t* node() { return m_node; }
+        const node_t* node() const { return m_node; }
+
+        // Access the collection of blobs.
+        Blob::const_vector blobs() const {
+            Blob::const_vector ret(m_blobs.size());
+            std::transform(m_blobs.begin(), m_blobs.end(), ret.begin(),
+                           [](auto& bptr) { return std::const_pointer_cast<const Blob>(bptr); });
+            return ret;
+        }
+        Blob::vector blobs() { return m_blobs; }
 
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
-	std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > get_closest_point_mcell(const geo_point_t& origin) const;
-	std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
+	std::pair<geo_point_t, Blob::const_pointer > get_closest_point_mcell(const geo_point_t& origin) const;
+	std::map<Blob::const_pointer, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
 	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
 	int get_num_points(const geo_point_t& point,   double dis) const;
 	int get_num_points() const;
@@ -80,7 +112,7 @@ namespace WireCell::PointCloud::Facade {
 	std::pair<geo_point_t, geo_point_t> get_highest_lowest_points() const;
 	
 	
-        Blob::vector is_connected(const Cluster& c, const int offset) const;
+        Blob::const_vector is_connected(const Cluster& c, const int offset) const;
         // alg 0: cos(theta), 1: theta
         std::pair<double, double> hough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
         geo_point_t vhough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
@@ -90,14 +122,15 @@ namespace WireCell::PointCloud::Facade {
         double get_length(const TPCParams& tp) const;
 
 	// added 
-	std::shared_ptr<const WireCell::PointCloud::Facade::Blob> get_first_blob() const;
-	std::shared_ptr<const WireCell::PointCloud::Facade::Blob> get_last_blob() const;
+	Blob::const_pointer get_first_blob() const;
+	Blob::const_pointer get_last_blob() const;
 	
        private:
 	// needed a sorted map ...
-        //std::unordered_multimap<int, Blob::pointer> m_time_blob_map;
-	std::multimap<int, Blob::pointer> m_time_blob_map;
+        //std::unordered_multimap<int, Blob::const_pointer> m_time_blob_map;
+	std::multimap<int, Blob::const_pointer> m_time_blob_map;
     };
+
 
     inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {
         geo_vector_t temp_dir1;

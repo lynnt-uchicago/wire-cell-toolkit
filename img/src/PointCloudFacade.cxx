@@ -37,7 +37,7 @@ namespace {
 #endif
 
 Blob::Blob(node_t* n)
-  : m_node(n)
+    : m_node(n)
 {
     const auto& lpcs = m_node->value.local_pcs();
     const auto& pc_scalar = lpcs.at("scalar");
@@ -81,11 +81,12 @@ int_t Blob::num_points() const{
 
 
 Cluster::Cluster(node_t*n)
-  : m_node(n)
+    : m_node(n)
 {
     // build blobs
     for (auto child : m_node->children()) {
         auto blob = std::make_shared<Blob>(child);
+
         m_blobs.push_back(blob);
         for (int slice_index = blob->slice_index_min; slice_index < blob->slice_index_max; ++slice_index) {
             m_time_blob_map.insert({slice_index, blob});
@@ -93,9 +94,9 @@ Cluster::Cluster(node_t*n)
     }
 }
 
-Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
+Blob::const_vector Cluster::is_connected(const Cluster& c, const int offset) const
 {
-    Blob::vector ret;
+    Blob::const_vector ret;
     // loop m_time_blob_map
     for (const auto& [time, blob] : m_time_blob_map) {
         // loop c.m_time_blob_map
@@ -115,10 +116,10 @@ Blob::vector Cluster::is_connected(const Cluster& c, const int offset) const
     return ret;
 }
 
-std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_first_blob() const{
+Blob::const_pointer Cluster::get_first_blob() const{
   return m_time_blob_map.begin()->second;
 }
-std::shared_ptr<const WireCell::PointCloud::Facade::Blob> Cluster::get_last_blob() const{
+Blob::const_pointer Cluster::get_last_blob() const{
   return m_time_blob_map.rbegin()->second;
 }
 
@@ -230,7 +231,7 @@ int Cluster::get_num_points(const geo_point_t& point, double dis) const{
   return rad.size();
 }
 
-std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
+std::map<Blob::const_pointer, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& p, double search_radius) const{
   Scope scope = { "3d", {"x","y","z"} };
   const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
   // const auto& spcs = sv.pcs();
@@ -240,8 +241,8 @@ std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t>
   // following the definition in https://github.com/BNLIF/wire-cell-data/blob/5c9fbc4aef81c32b686f7c2dc7b0b9f4593f5f9d/src/ToyPointCloud.cxx#L656C10-L656C30
   auto rad = skd.radius(pow(search_radius,2), p);
 
-  std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> mcell_point_map;
-  std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, double> mcell_dis_map;
+  std::map<Blob::const_pointer, geo_point_t> mcell_point_map;
+  std::map<Blob::const_pointer, double> mcell_dis_map;
   
   for (size_t pt_ind = 0; pt_ind<rad.size(); ++pt_ind) {
     auto& [pit,dist2] = rad[pt_ind];                    // what is the pit (point?)
@@ -271,7 +272,7 @@ std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t>
   return mcell_point_map;
 }
 
-std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob> > Cluster::get_closest_point_mcell(const geo_point_t& origin) const{
+std::pair<geo_point_t, Blob::const_pointer > Cluster::get_closest_point_mcell(const geo_point_t& origin) const{
   
   Scope scope = { "3d", {"x","y","z"} };
   const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
@@ -281,7 +282,7 @@ std::pair<geo_point_t, std::shared_ptr<const WireCell::PointCloud::Facade::Blob>
   auto rad = skd.knn(1, origin);
 
   geo_point_t ret(0,0,0);
-  std::shared_ptr<const WireCell::PointCloud::Facade::Blob> blob = 0;
+  Blob::const_pointer blob = 0;
   
   if (rad.size()==0)
     return std::make_pair(ret,blob);
@@ -321,7 +322,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
 
     
     
-    std::map<std::shared_ptr<const WireCell::PointCloud::Facade::Blob>, geo_point_t> pts = get_closest_mcell(origin, dis);
+    std::map<Blob::const_pointer, geo_point_t> pts = get_closest_mcell(origin, dis);
     
     // average position
     geo_point_t pt(0,0,0);
