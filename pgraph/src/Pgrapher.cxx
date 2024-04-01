@@ -34,6 +34,8 @@ static std::pair<WireCell::INode::pointer, int> get_node(WireCell::Configuration
 void Pgrapher::configure(const WireCell::Configuration& cfg)
 
 {
+    m_verbosity = get(cfg, "verbosity", m_verbosity);
+
     Pgraph::Factory fac;
     log->debug("connecting: {} edges", cfg["edges"].size());
     for (auto jedge : cfg["edges"]) {
@@ -59,7 +61,9 @@ void Pgrapher::execute()
     log->debug("executing graph");
     m_graph.execute();
     log->debug("graph execution complete");
-    m_graph.print_timers();
+    if (m_verbosity) {
+        m_graph.print_timers(m_verbosity == 2);
+    }
 }
 
 Pgrapher::Pgrapher()

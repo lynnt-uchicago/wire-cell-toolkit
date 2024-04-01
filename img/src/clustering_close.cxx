@@ -20,8 +20,8 @@ void WireCell::PointCloud::Facade::clustering_close(
 )
 {
 
-  //  bool flag_print = false;
-  //ExecMon em("starting");
+  // bool flag_print = false;
+  // ExecMon em("starting");
 
   std::set<Cluster::const_pointer > used_clusters;
   std::set<Cluster::const_pointer > cluster_to_be_deleted;
@@ -199,3 +199,8 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round( const Cluster::const_po
   
  }
 #pragma GCC diagnostic pop
+
+// Local Variables:
+// mode: c++
+// c-basic-offset: 2
+// End:
