@@ -10,7 +10,7 @@
 #include "WireCellUtil/Point.h"
 #include "WireCellUtil/Units.h"
 
-using namespace WireCell;
+// using namespace WireCell;  NO!  do not open up namespaces in header files!
 
 namespace WireCell::PointCloud::Facade {
     using node_t = WireCell::PointCloud::Tree::Points::node_t;
@@ -84,6 +84,10 @@ namespace WireCell::PointCloud::Facade {
     class Cluster : public Shared<Cluster> {
         Blob::vector m_blobs;
         node_t* m_node;  /// do not own
+
+        // The expected scope.
+        const WireCell::PointCloud::Tree::Scope scope = { "3d", {"x","y","z"} };
+
     public:
         Cluster(node_t* n);
 
@@ -100,29 +104,73 @@ namespace WireCell::PointCloud::Facade {
         Blob::vector blobs() { return m_blobs; }
 
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
-	std::pair<geo_point_t, Blob::const_pointer > get_closest_point_mcell(const geo_point_t& origin) const;
-	std::map<Blob::const_pointer, geo_point_t> get_closest_mcell(const geo_point_t& p, double search_radius) const;
-	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
-	int get_num_points(const geo_point_t& point,   double dis) const;
-	int get_num_points() const;
-	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir) const;
-	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir, double dis) const;
 
+        // Return blob containing the returned point that is closest to the given point.
+	std::pair<geo_point_t, Blob::const_pointer > get_closest_point_mcell(const geo_point_t& point) const;
+
+        // Return set of blobs each with an a characteristic point.  The set
+        // includes blobs with at least one point within the given radius of the
+        // given point.  The characteristic point is the point in the blob that
+        // is closest to to the given point.
+        //
+        // Note: radius must provide a LINEAR distance measure.
+	std::map<Blob::const_pointer, geo_point_t> get_closest_mcell(const geo_point_t& point, double radius) const;
+
+	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
+
+        // Return the number of points in the k-d tree
+	int get_num_points() const;
+
+        // Return the number of points within radius of the point.  Note, radius
+        // is a LINEAR distance through the L2 metric is used internally.
+	int get_num_points(const geo_point_t& point, double radius) const;
+
+        // Return the number of points in the k-d tree partitioned into pair
+        // (#forward,#backward) based on given direction of view from the given
+        // point.
+	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir) const;
+
+        // Return the number of points with in the radius of the given point in
+        // the k-d tree partitioned into pair (#forward,#backward) based on
+        // given direction of view from the given point.
+        //
+        // Note: the radius is a LINEAR distance measure.
+	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir, double radius) const;
+
+        // Return the points at the extremes of the X-axis.
+        //
+        // Note: the two points are in ASCENDING order!
 	std::pair<geo_point_t, geo_point_t> get_earliest_latest_points() const;
-	std::pair<geo_point_t, geo_point_t> get_highest_lowest_points() const;
+
+        // Return the points at the extremes of the given Cartesian axis.  Default is Y-axis.
+        //
+        // Note: the two points are in DESCENDING order!
+	std::pair<geo_point_t, geo_point_t> get_highest_lowest_points(size_t axis=1) const;
 	
 	
         Blob::const_vector is_connected(const Cluster& c, const int offset) const;
-        // alg 0: cos(theta), 1: theta
-        std::pair<double, double> hough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
-        geo_point_t vhough_transform(const geo_point_t& origin, const double dis, const int alg = 1) const;
+
+        // Return the angles characterizing the points within radius of given point.
+        // The angles are pair (cos(theta), phi) if alg is 0 else (theta, phi).
+        //
+        // Note: radius must provide a LINEAR distance measure.
+        std::pair<double, double> hough_transform(const geo_point_t& point, const double radius, const int alg = 1) const;
+
+        // Call hough_transform() and transform result as to a directional vector representation.
+        //
+        // FIXME: this function should be removed.  Caller should do the
+        // directional vector transform themselves.  We may add that function to
+        // eg Point.h.
+        geo_point_t vhough_transform(const geo_point_t& point, const double radius, const int alg = 1) const;
 
         // get the number of unique uvwt bins
         std::tuple<int, int, int, int> get_uvwt_range() const;
         double get_length(const TPCParams& tp) const;
 
-	// added 
+	// Return blob at the front of the time blob map.
 	Blob::const_pointer get_first_blob() const;
+
+	// Return blob at the back of the time blob map.
 	Blob::const_pointer get_last_blob() const;
 	
        private:

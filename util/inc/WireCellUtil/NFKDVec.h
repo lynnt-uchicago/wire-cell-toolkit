@@ -10,6 +10,7 @@
 #include "WireCellUtil/PointCloudDataset.h"
 
 #include <vector>
+#include <numeric>              // iota
 
 namespace WireCell::NFKDVec {
 
@@ -70,8 +71,10 @@ namespace WireCell::NFKDVec {
         using coordinates_type = std::vector<element_type>;
         // 2D collection of coordinates
         using points_type = std::vector<coordinates_type>;
-        // Track which block a coordinate is in
-        using block_indices_type = std::vector<int>;
+        // Use int, instead of size_t, to save a little memory.
+        using block_number_type = int;
+        // Track from where a point came from by a major/minor index.
+        using block_indices_type = std::vector<block_number_type>;
 
         // nanoflann types
         using metric_type = typename DistanceTraits::template traits<element_type, self_type>::distance_t;
@@ -135,12 +138,23 @@ namespace WireCell::NFKDVec {
         }
 
         // Access the vector of block number by point index.
-        const block_indices_type& block_indices() const { return m_blocks; }
+        const block_indices_type& major_indices() const { return m_major_indices; }
+        const block_indices_type& minor_indices() const { return m_minor_indices; }
 
         // Number of blocks that have been appended.
         size_t nblocks() const {
-            if (m_blocks.empty()) { return 0; }
-            return 1 + m_blocks.back();
+            if (m_major_indices.empty()) { return 0; }
+            return 1 + m_major_indices.back();
+        }
+
+        // Return the number of the block that provided the point at the given index
+        block_number_type major_index(size_t point_index) const {
+            return m_major_indices.at(point_index);
+        }
+
+        // Return the index in its block that provided the point at index
+        block_number_type minor_index(size_t point_index) const {
+            return m_minor_indices.at(point_index);
         }
 
         // Append one PointCloud::Dataset selection (vector of PC arrays)
@@ -151,9 +165,12 @@ namespace WireCell::NFKDVec {
                 auto sdim = sel[dim]->elements<element_type>();
                 vdim.insert(vdim.end(), sdim.begin(), sdim.end());
             }
-            const size_t oldsize = m_blocks.size();
+            const size_t oldsize = m_major_indices.size();
             const size_t adding = sel[0]->size_major();
-            m_blocks.resize(m_points[0].size(), nblocks());
+            const size_t block_index = nblocks();
+            m_minor_indices.resize(m_points[0].size());
+            std::iota(m_minor_indices.begin() + oldsize, m_minor_indices.end(), 0);
+            m_major_indices.resize(m_points[0].size(), block_index);
             this->addn<nfkdindex_type>(oldsize, adding);
         }
 
@@ -165,9 +182,13 @@ namespace WireCell::NFKDVec {
                 const auto& sdim = sel[dim];
                 vdim.insert(vdim.end(), sdim.begin(), sdim.end());
             }
-            const size_t oldsize = m_blocks.size();
+            const size_t oldsize = m_major_indices.size();
             const size_t adding = sel[0].size();
-            m_blocks.resize(m_points[0].size(), nblocks());
+            const size_t block_index = nblocks();
+
+            m_minor_indices.resize(m_points[0].size());
+            std::iota(m_minor_indices.begin() + oldsize, m_minor_indices.end(), 0);
+            m_major_indices.resize(m_points[0].size(), block_index);
             this->addn<nfkdindex_type>(oldsize, adding);
         }
 
@@ -234,7 +255,7 @@ namespace WireCell::NFKDVec {
       private:
         points_type m_points;
         nfkdindex_type m_nfkdindex;
-        block_indices_type m_blocks;
+        block_indices_type m_major_indices, m_minor_indices;
 
         mutable size_t m_point_calls{0};
         
