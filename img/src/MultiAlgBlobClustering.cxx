@@ -259,11 +259,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
 
     const auto& intens = *ints->tensors();
     log->debug("Input {} tensors", intens.size());
-    //    auto start = std::chrono::high_resolution_clock::now();
     auto root_live = std::move(as_pctree(intens, inpath + "/live"));
-    //auto end = std::chrono::high_resolution_clock::now();
-    //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //log->debug("as_pctree for {} took {} ms", inpath + "/live", duration.count());
     if (!root_live) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;
@@ -271,11 +267,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     log->debug("Got live pctree with {} children", root_live->nchildren());
     log->debug(em("got live pctree"));
 
-    //    start = std::chrono::high_resolution_clock::now();
-    const auto& root_dead = as_pctree(intens, inpath + "/dead");
-    //end = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //log->debug("as_pctree for {} took {} ms", inpath + "/dead", duration.count());
+    auto root_dead = as_pctree(intens, inpath + "/dead");
     if (!root_dead) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath + "/dead");
         return false;
@@ -292,27 +284,6 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     }
     log->debug(em("dump live+dead to bee"));
 
-    /// DEMO: iterate all clusters from root_live
-    // std::unordered_map<std::string, std::chrono::milliseconds> timers;
-    // for(const auto cnode : root_live->children()) {
-    //     // log->debug("cnode children: {}", cnode->nchildren());
-    //     Cluster pcc(cnode);
-    //     start = std::chrono::high_resolution_clock::now();
-    //     auto pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 0);
-    //     end = std::chrono::high_resolution_clock::now();
-    //     // log->debug("alg0 pos: {}", pos);
-    //     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //     timers["alg0"] += duration;
-    //     start = std::chrono::high_resolution_clock::now();
-    //     pos = pcc.calc_ave_pos(Point(0,0,0), 1e8, 1);
-    //     end = std::chrono::high_resolution_clock::now();
-    //     // log->debug("alg1 pos: {}", pos);
-    //     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //     timers["alg1"] += duration;
-    // }
-    // log->debug("calc_ave_pos alg0 {} ms", timers["alg0"].count());
-    // log->debug("calc_ave_pos alg1 {} ms", timers["alg1"].count());
-
     if (flag_print) std::cout << em("Finish PC/Facade Conversion ") << std::endl;
     
     /// TODO: how to pass the parameters? for now, using default params
@@ -323,15 +294,13 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     std::set<Cluster::const_pointer > cluster_connected_dead;
     
     // initialize clusters ...
-    //std::unordered_map<std::string, std::chrono::milliseconds> timers;
-    //    start = std::chrono::high_resolution_clock::now();
     live_clusters_t live_clusters;
     for (auto cnode : root_live->children()) {
         live_clusters.push_back(std::make_shared<Cluster>(cnode));
     }
     log->debug(em("make live clusters"));
 
-    {
+    {  // ATTENTION, this block is just for debugging.
         // This is here just to trigger k-d tree building so that we can separate
         // that out its time/memory from those of the first algorithm
         size_t npts=0;
@@ -367,16 +336,6 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         log->debug(em("make dead k-d tree"));
     }
 
-
-    //    end = std::chrono::high_resolution_clock::now();
-    // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //timers["make_facade"] += duration;
-    //debug("make_facade {} live {} dead {} ms", live_clusters.size(), dead_clusters.size(),
-    //      timers["make_facade"].count());
-    
-    
-
-    
     // dead_live
     clustering_live_dead(root_live, live_clusters, dead_clusters, cluster_length_map, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
@@ -451,28 +410,26 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     if (outpath.find("%") != std::string::npos) {
         outpath = String::format(outpath, ident);
     }
-    //    start = std::chrono::high_resolution_clock::now();
     auto outtens = as_tensors(*root_live.get(), outpath + "/live");
     log->debug(em("as tensors live"));
-    //end = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //log->debug("as_tensors live took {} ms", duration.count());
 
-    //start = std::chrono::high_resolution_clock::now();
     auto outtens_dead = as_tensors(*root_dead.get(), outpath + "/dead");
     log->debug(em("as tensors dead"));
-    //end = std::chrono::high_resolution_clock::now();
-    //duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    //log->debug("as_tensors dead took {} ms", duration.count());
 
     if (flag_print) std::cout << em("dump bee") << std::endl;
     
     // Merge
-    /// TODO: is make_move_iterator faster?
     outtens.insert(outtens.end(), outtens_dead.begin(), outtens_dead.end());
     log->debug("Total outtens {} tensors", outtens.size());
     outts = as_tensorset(outtens, ident);
     log->debug(em("as tensors set output"));
+
+    live_clusters.clear();
+    dead_clusters.clear();
+    root_live = nullptr;
+    root_dead = nullptr;
+
+    log->debug(em("clear memory"));
 
     return true;
 }
