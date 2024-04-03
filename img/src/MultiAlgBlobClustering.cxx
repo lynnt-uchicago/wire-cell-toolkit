@@ -349,6 +349,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         cluster_length_map[live] = live->get_length(tp);
         // std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
     }
+    log->debug(em("get live lengths"));
     
     Cluster::const_vector dead_clusters;
     for (auto cnode : root_dead->children()) {
