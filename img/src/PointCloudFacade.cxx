@@ -88,30 +88,25 @@ Cluster::Cluster(node_t*n)
         auto blob = std::make_shared<Blob>(child);
 
         m_blobs.push_back(blob);
-        for (int slice_index = blob->slice_index_min; slice_index < blob->slice_index_max; ++slice_index) {
-            m_time_blob_map.insert({slice_index, blob});
-        }
+        m_time_blob_map.insert({blob->slice_index_min, blob});
     }
 }
 
 Blob::const_vector Cluster::is_connected(const Cluster& c, const int offset) const
 {
     Blob::const_vector ret;
-    // loop m_time_blob_map
-    for (const auto& [time, blob] : m_time_blob_map) {
-        // loop c.m_time_blob_map
-        auto range = c.m_time_blob_map.equal_range(time);
-	bool flag_save = false;
-        for (auto it = range.first; it != range.second; ++it) {
-            const auto& cblob = it->second;
-            if (blob->overlap_fast(*cblob, offset)) {
-                //ret.push_back(cblob); // dead clusters ... 
-                //ret.push_back(blob); // live clusters ...
-                flag_save = true;
-                break;
-	    }
+    for (const auto& [badtime, badblob] : c.m_time_blob_map) {
+        auto bad_start = badtime;
+        auto bad_end = badblob->slice_index_max; // not inclusive
+        for (const auto& [good_start, goodblob] : m_time_blob_map) {
+            auto good_end = goodblob->slice_index_max; // not inclusive
+            if (good_end < bad_start || good_start >= bad_end) {
+                continue;
+            }
+            if (goodblob->overlap_fast(*badblob, offset)) {
+                ret.push_back(goodblob);
+            }
         }
-	if (flag_save) ret.push_back(blob); // live clusters ...
     }
     return ret;
 }
