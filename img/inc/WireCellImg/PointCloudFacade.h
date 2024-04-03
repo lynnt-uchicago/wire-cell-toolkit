@@ -174,8 +174,8 @@ namespace WireCell::PointCloud::Facade {
 	Blob::const_pointer get_last_blob() const;
 	
        private:
-	// needed a sorted map ...
-        //std::unordered_multimap<int, Blob::const_pointer> m_time_blob_map;
+       // start slice index (tick number) to blob facade pointer
+       // can be duplicated, example usage: https://github.com/HaiwangYu/learn-cpp/blob/main/test-multimap.cxx
 	std::multimap<int, Blob::const_pointer> m_time_blob_map;
     };
 
