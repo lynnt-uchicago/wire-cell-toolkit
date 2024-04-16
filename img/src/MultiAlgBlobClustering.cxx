@@ -158,25 +158,10 @@ namespace {
         float y;
     };
 
-    bool anglular_less(const Point2D& a, const Point2D& b, const Point2D& center)
-    {
-        if (a.x - center.x >= 0 && b.x - center.x < 0) return true;
-        if (a.x - center.x < 0 && b.x - center.x >= 0) return false;
-        if (a.x - center.x == 0 && b.x - center.x == 0) {
-            if (a.y - center.y >= 0 || b.y - center.y >= 0) return a.y > b.y;
-            return b.y > a.y;
-        }
-
-        // compute the cross product of vectors (center -> a) x (center -> b)
-        int det = (a.x - center.x) * (b.y - center.y) - (b.x - center.x) * (a.y - center.y);
-        if (det < 0) return true;
-        if (det > 0) return false;
-
-        // points a and b are on the same line from the center
-        // check which point is closer to the center
-        int d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
-        int d2 = (b.x - center.x) * (b.x - center.x) + (b.y - center.y) * (b.y - center.y);
-        return d1 > d2;
+    bool angular_less(const Point2D& a, const Point2D& b, const Point2D& center) {
+        double angleA = std::atan2(a.y - center.y, a.x - center.x);
+        double angleB = std::atan2(b.y - center.y, b.x - center.x);
+        return angleA < angleB;
     }
 
     std::vector<Point2D> sort_angular(const std::vector<Point2D>& points)
@@ -195,10 +180,26 @@ namespace {
 
         std::vector<Point2D> sorted = points;
         std::sort(sorted.begin(), sorted.end(),
-                  [&](const Point2D& a, const Point2D& b) { return anglular_less(a, b, center); });
+                  [&](const Point2D& a, const Point2D& b) { return angular_less(a, b, center); });
         return sorted;
     }
-
+    std::vector<Point2D> unique(const std::vector<Point2D>& points, const float tolerance = 0.1)
+    {
+        auto less_with_tolerance = [&](const Point2D& a, const Point2D& b) {
+            if (std::abs(a.x - b.x) > tolerance) return a.x < b.x;
+            if (std::abs(a.y - b.y) > tolerance) return a.y < b.y;
+            return false;
+        };
+        std::set<Point2D, decltype(less_with_tolerance)> unique_points(less_with_tolerance);
+        for (const auto& point : points) {
+            unique_points.insert(point);
+        }
+        std::vector<Point2D> unique_points_vec;
+        for (const auto& point : unique_points) {
+            unique_points_vec.push_back(point);
+        }
+        return unique_points_vec;
+    }
     void dumpe_deadarea(const Points::node_t& root, const std::string& fn)
     {
         using WireCell::PointCloud::Facade::float_t;
@@ -214,14 +215,17 @@ namespace {
                 const auto& z = pc_scalar.get("z")->elements<float_t>();
                 std::vector<Point2D> points;
                 for (size_t i = 0; i < y.size(); ++i) {
-                    points.push_back({(float)y[i], (float)z[i]});
+                    points.push_back({(float)y[i] / units::cm, (float)z[i] / units::cm});
                 }
-                auto sorted = sort_angular(points);
+                // Remove duplicate points with xxx cm tolerance
+                auto unique_points = unique(points, 1.0);
+                if(unique_points.size() < 3) continue;
+                auto sorted = sort_angular(unique_points);
                 Json::Value jarea(Json::arrayValue);
                 for (const auto& point : sorted) {
                     Json::Value jpoint(Json::arrayValue);
-                    jpoint.append(point.x / units::cm);
-                    jpoint.append(point.y / units::cm);
+                    jpoint.append(point.x);
+                    jpoint.append(point.y);
                     jarea.append(jpoint);
                 }
                 jdead.append(jarea);
