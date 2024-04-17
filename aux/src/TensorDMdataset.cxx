@@ -72,7 +72,7 @@ WireCell::Aux::TensorDM::as_tensors(const PointCloud::Dataset& dataset,
 template<typename ElementType>
 PointCloud::Array make_array(const ITensor::pointer& ten, bool share)
 {
-    ElementType* data = (ElementType*)ten->data();
+    ElementType* data = (ElementType*)ten->data(); // break const, but honor share.
     PointCloud::Array arr(data, ten->shape(), share);
     arr.metadata() = ten->metadata();
     return arr;
@@ -118,7 +118,14 @@ WireCell::Aux::TensorDM::as_dataset(const TensorIndex& ti,
                                     bool share)
 {
     auto top = ti.at(datapath, "pcdataset");
+    return as_dataset(ti, top, share);
+}
 
+PointCloud::Dataset
+WireCell::Aux::TensorDM::as_dataset(const TensorIndex& ti,
+                                    ITensor::pointer top,
+                                    bool share)
+{
     PointCloud::Dataset ret;
     auto topmd = top->metadata();
     ret.metadata() = topmd;
@@ -132,7 +139,6 @@ WireCell::Aux::TensorDM::as_dataset(const TensorIndex& ti,
 
     return ret;    
 }
-
 
 PointCloud::Dataset
 WireCell::Aux::TensorDM::as_dataset(const ITensorSet::pointer& tens,

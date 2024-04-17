@@ -104,6 +104,12 @@ namespace WireCell::NaryTree {
             notify<Value>("constructed", this);
         }
 
+        // Insert a child node of default value
+        Node* insert() {
+            owned_ptr nptr = std::make_unique<self_type>();
+            return insert(std::move(nptr));
+        }
+
         // Insert a child by its value copy.
         Node* insert(const value_type& val) {
             owned_ptr nptr = std::make_unique<self_type>(val);

@@ -101,6 +101,23 @@ namespace WireCell::PointCloud {
             assign(&*il.begin(), {il.size()}, false);
         }
 
+        /// Construct with bytes
+        Array(std::byte* data, const shape_t& shape, size_t esize)
+            : m_shape(shape)
+            , m_ele_size(esize)
+        {
+            size_t nbytes = esize;
+            for (const auto& n : shape) {
+                nbytes *= n;
+            }
+            m_store.assign(data, data+nbytes);
+            update_span();
+        }
+
+        // Return subset of array starting at major axis position and spanning
+        // count major axis elements.
+        Array slice(size_t position, size_t count) const;
+
         /** Discard any held data and assign new data.  See
             constructor for arguments.
         */
@@ -302,6 +319,10 @@ namespace WireCell::PointCloud {
                 return false;
             }
             return WireCell::dtype<ElementType>() == m_dtype;
+        }
+
+        size_t element_size() const {
+            return m_ele_size;
         }
 
         metadata_t& metadata() { return m_metadata; }

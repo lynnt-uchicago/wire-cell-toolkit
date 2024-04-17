@@ -29,7 +29,6 @@ Points::node_ptr make_simple_pctree()
                     make_janky_track(
                         Ray(Point(-1, 2, 3), Point(1, -2, -3)))}}));
 
-
     const auto& pc2 = n2->value.local_pcs().at("3d");
 
     REQUIRE(pc1 != pc2);
@@ -41,10 +40,13 @@ Points::node_ptr make_simple_pctree()
 TEST_CASE("tensordm pctree")
 {
     auto root = make_simple_pctree();
+    REQUIRE(root);
+
     const std::string datapath = "root";
     auto tens = as_tensors(*root.get(), datapath);
-    CHECK(tens.size() > 0);
+    REQUIRE(tens.size() > 0);
 
+    debug("pctree as tensor metadata:");
     debug("{:20} {}", "datatype", "datapath");
     for (auto ten : tens) {
         auto md = ten->metadata();
@@ -52,6 +54,6 @@ TEST_CASE("tensordm pctree")
     }
 
     auto root2 = as_pctree(tens, datapath);
-    CHECK(root2);
+    REQUIRE(root2);
 }
 

@@ -62,6 +62,23 @@ Array& Array::operator=(Array&& rhs)
     return *this;
 }
 
+Array Array::slice(size_t position, size_t count) const
+{
+    const size_t ndims = m_shape.size();
+    shape_t shape = m_shape;
+    shape[0] = count;
+
+    // The number of bytes into the flattened (possibly N-d) array where major
+    // axis element position starts.
+    size_t start_bytes = m_ele_size * position;
+    for (size_t idim=1; idim < ndims; ++idim) {
+        start_bytes *= m_shape[idim];
+    }
+
+    // Build array on the slice 
+    return Array(m_store.data() + start_bytes, shape, m_ele_size);
+}
+
 Array Array::zeros_like(size_t nmaj)
 {
     Array ret;
