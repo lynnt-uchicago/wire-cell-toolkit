@@ -200,6 +200,22 @@ namespace {
         }
         return unique_points_vec;
     }
+    bool valid(const std::vector<Point2D>& points, const float threshold = 1.)
+    {
+        if (points.size() < 3) return false;
+        float min_x = points[0].x;
+        float max_x = points[0].x;
+        float min_y = points[0].y;
+        float max_y = points[0].y;
+        for (const auto& point : points) {
+            if (point.x < min_x) min_x = point.x;
+            if (point.x > max_x) max_x = point.x;
+            if (point.y < min_y) min_y = point.y;
+            if (point.y > max_y) max_y = point.y;
+        }
+        if (max_x - min_x < threshold && max_y - min_y < threshold) return false;
+        return true;
+    }
     void dumpe_deadarea(const Points::node_t& root, const std::string& fn)
     {
         using WireCell::PointCloud::Facade::float_t;
@@ -218,8 +234,8 @@ namespace {
                     points.push_back({(float)y[i] / units::cm, (float)z[i] / units::cm});
                 }
                 // Remove duplicate points with xxx cm tolerance
-                auto unique_points = unique(points, 1.0);
-                if(unique_points.size() < 3) continue;
+                auto unique_points = unique(points, 0.1);
+                if (!valid(unique_points, 1.0)) continue;
                 auto sorted = sort_angular(unique_points);
                 Json::Value jarea(Json::arrayValue);
                 for (const auto& point : sorted) {
