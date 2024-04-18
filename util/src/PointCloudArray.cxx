@@ -33,6 +33,39 @@ Array::Array(Array&& rhs)
 {
 }
 
+Array::Array(const std::byte* data, const shape_t& shape, size_t esize)
+{
+    assign(data,shape,esize);
+}
+Array::Array(std::byte* data, const shape_t& shape, size_t esize, bool share)
+{
+    assign(data,shape,esize,share);
+}
+
+void Array::assign(const std::byte* data, const shape_t& shape, size_t esize)
+{
+    assign(const_cast<std::byte*>(data), shape, esize, false);
+}
+
+void Array::assign(std::byte* data, const shape_t& shape, size_t esize, bool share)
+{
+    m_store.clear();
+    m_shape = shape;
+    m_ele_size = esize;
+
+    size_t nbytes = esize;
+    for (const auto& n : shape) {
+        nbytes *= n;
+    }
+    if (share) {
+        m_bytes = span_t<std::byte>(data, nbytes);
+    }
+    else {
+        m_store.assign(data, data+nbytes);
+        update_span();
+    }
+}
+
 // Assignment 
 Array& Array::operator=(const Array& rhs)
 {
@@ -62,6 +95,22 @@ Array& Array::operator=(Array&& rhs)
     return *this;
 }
 
+Array Array::slice(size_t position, size_t count, bool share) 
+{
+    const size_t ndims = m_shape.size();
+    shape_t shape = m_shape;
+    shape[0] = count;
+
+    // The number of bytes into the flattened (possibly N-d) array where major
+    // axis element position starts.
+    size_t start_bytes = m_ele_size * position;
+    for (size_t idim=1; idim < ndims; ++idim) {
+        start_bytes *= m_shape[idim];
+    }
+
+    // Build array on the slice 
+    return Array(m_store.data() + start_bytes, shape, m_ele_size, share);
+}
 Array Array::slice(size_t position, size_t count) const
 {
     const size_t ndims = m_shape.size();

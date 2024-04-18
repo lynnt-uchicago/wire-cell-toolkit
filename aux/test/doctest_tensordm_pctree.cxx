@@ -37,6 +37,71 @@ Points::node_ptr make_simple_pctree()
     return root;
 }
 
+template<typename M>
+void same_keys(const M& a, const M& b)
+{
+    for (auto ait : a) {
+        auto bit = b.find(ait.first);
+        REQUIRE(bit != b.end());
+    }
+}
+
+template<typename P>
+void same_pc(const P& a, const P& b)
+{
+    REQUIRE(a.size_major() == b.size_major());
+    REQUIRE(a.keys().size() == b.keys().size());
+    for (auto key : a.keys()) {
+        REQUIRE(b.has(key));
+
+        // check array level
+        auto aa = a.get(key)->bytes();
+        auto bb = b.get(key)->bytes();
+
+        debug("PC array {} with {} =?= {} bytes", key, aa.size(), bb.size());
+        REQUIRE(aa.size() == bb.size());
+        size_t nbytes = aa.size();
+        for (size_t ind=0; ind<nbytes; ++ind) {
+            REQUIRE(aa[ind] == bb[ind]);
+        }
+    }
+}
+
+
+template<typename M>
+void same_pcs(const M& a, const M& b)
+{
+    REQUIRE(a.size() == a.size());
+
+    same_keys(a, b);
+    same_keys(b, a);
+
+    for (auto ait : a) {
+        auto bit = b.find(ait.first);
+        debug("PC {}", ait.first);
+        same_pc(ait.second, bit->second);
+    }
+}
+
+
+void nodes_equal(Points::node_t* a, Points::node_t* b)
+{
+    // PCs
+    auto pcsa = a->value.local_pcs();
+    auto pcsb = b->value.local_pcs();
+    same_pcs(pcsa, pcsb);
+
+    // tree structure
+    REQUIRE (a->nchildren() == b->nchildren());
+    auto acs = a->children();
+    auto bcs = b->children();
+
+    for (size_t ind=0; ind<a->nchildren(); ++ind) {
+        nodes_equal(acs[ind], bcs[ind]);
+    }
+}
+
+
 TEST_CASE("tensordm pctree")
 {
     auto root = make_simple_pctree();
@@ -55,5 +120,7 @@ TEST_CASE("tensordm pctree")
 
     auto root2 = as_pctree(tens, datapath);
     REQUIRE(root2);
+
+    nodes_equal(root.get(), root2.get());
 }
 

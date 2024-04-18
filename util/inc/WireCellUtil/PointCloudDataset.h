@@ -35,6 +35,7 @@ namespace WireCell::PointCloud {
         /// Return a dataset that consists of a slice of the arrays in this
         /// dataset with count points starting at position.
         Dataset slice(size_t position, size_t count) const;
+        Dataset slice(size_t position, size_t count, bool share);
 
         /// Return the common number of elements along the major axis
         /// of the arrays.  This returns the size of the first
