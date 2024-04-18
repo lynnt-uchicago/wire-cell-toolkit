@@ -202,6 +202,7 @@ namespace {
         }
         return unique_points_vec;
     }
+#if 0
     bool valid(const std::vector<Point2D>& points, const float threshold = 1.)
     {
         if (points.size() < 3) return false;
@@ -218,6 +219,7 @@ namespace {
         if (max_x - min_x < threshold && max_y - min_y < threshold) return false;
         return true;
     }
+#endif
     void dumpe_deadarea(const Points::node_t& root, const std::string& fn)
     {
         using WireCell::PointCloud::Facade::float_t;
