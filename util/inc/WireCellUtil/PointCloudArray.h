@@ -50,6 +50,22 @@ namespace WireCell::PointCloud {
         template<typename ElementType, size_t NumDims>
         using const_indexed_t = boost::const_multi_array_ref<ElementType, NumDims>;
 
+        // Default constructor.
+        Array();
+
+        // Copy constructor
+        Array(const Array& rhs);
+
+        // Move constructor
+        Array(Array&& rhs);
+
+        // special case, 1D constructor using vector-like
+        template<typename Range>
+        explicit Array(const Range& r)
+        {
+            assign(&*std::begin(r), {r.size()}, false);
+        }
+
         /** Store a point array given in flattened, row-major aka
             C-order.  If share is true then no copy of elements is
             done.  See assure_mutable().
@@ -71,21 +87,17 @@ namespace WireCell::PointCloud {
             assign(&*std::begin(r), shape, share);
         }
 
-        // special case, 1D constructor using vector-like
-        template<typename Range>
-        explicit Array(const Range& r)
-        {
-            assign(&*std::begin(r), {r.size()}, false);
+        /// Construct with bytes, shape, element size and whether to share the data or not.
+        Array(const std::byte* data, const std::string& dtype, const shape_t& shape);
+        Array(std::byte* data, const std::string& dtype, const shape_t& shape, bool share);
+
+
+        /// Special constructor on initializer list
+        template<typename ElementType>
+        Array(std::initializer_list<ElementType> il) {
+            assign(&*il.begin(), {il.size()}, false);
         }
 
-        // Want defaults for all the rest.
-        Array();
-
-        // Copy constructor
-        Array(const Array& rhs);
-
-        // Move constructor
-        Array(Array&& rhs);
 
         // Copy assignment 
         Array& operator=(const Array& rhs);
@@ -95,24 +107,15 @@ namespace WireCell::PointCloud {
 
         ~Array();
 
-        /// Special constructor on initializer list
-        template<typename ElementType>
-        Array(std::initializer_list<ElementType> il) {
-            assign(&*il.begin(), {il.size()}, false);
-        }
-
-        /// Construct with bytes, shape, element size and whether to share the data or not.
-        Array(const std::byte* data, const shape_t& shape, size_t esize);
-        Array(std::byte* data, const shape_t& shape, size_t esize, bool share);
 
         /** The various assign() methods will discard any held data and assign new data provided as bytes.
          */
 
         // Const byte data, will copy.
-        void assign(const std::byte* data, const shape_t& shape, size_t esize);
+        void assign(const std::byte* data, const std::string& dtype, const shape_t& shape);
 
         /// Mutable byte data, shareable.
-        void assign(std::byte* data, const shape_t& shape, size_t esize, bool share);
+        void assign(std::byte* data, const std::string& dtype, const shape_t& shape, bool share);
 
         template<typename ElementType>
         void assign(ElementType* elements, const shape_t& shape, bool share)

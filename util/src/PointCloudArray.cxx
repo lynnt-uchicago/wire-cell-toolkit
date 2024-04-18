@@ -1,5 +1,6 @@
 #include "WireCellUtil/PointCloudArray.h"
 #include "WireCellUtil/Logging.h"
+#include "WireCellUtil/Dtype.h"
 
 using namespace WireCell::PointCloud;
 
@@ -33,27 +34,27 @@ Array::Array(Array&& rhs)
 {
 }
 
-Array::Array(const std::byte* data, const shape_t& shape, size_t esize)
+Array::Array(const std::byte* data, const std::string& dtype, const shape_t& shape)
 {
-    assign(data,shape,esize);
+    assign(data,dtype,shape);
 }
-Array::Array(std::byte* data, const shape_t& shape, size_t esize, bool share)
+Array::Array(std::byte* data, const std::string& dtype, const shape_t& shape, bool share)
 {
-    assign(data,shape,esize,share);
-}
-
-void Array::assign(const std::byte* data, const shape_t& shape, size_t esize)
-{
-    assign(const_cast<std::byte*>(data), shape, esize, false);
+    assign(data,dtype,shape,share);
 }
 
-void Array::assign(std::byte* data, const shape_t& shape, size_t esize, bool share)
+void Array::assign(const std::byte* data, const std::string& dtype, const shape_t& shape)
+{
+    assign(const_cast<std::byte*>(data), dtype, shape, false);
+}
+
+void Array::assign(std::byte* data, const std::string& dtype, const shape_t& shape, bool share)
 {
     m_store.clear();
     m_shape = shape;
-    m_ele_size = esize;
+    m_dtype = dtype;
+    size_t nbytes = m_ele_size = dtype_size(dtype);
 
-    size_t nbytes = esize;
     for (const auto& n : shape) {
         nbytes *= n;
     }
@@ -109,7 +110,7 @@ Array Array::slice(size_t position, size_t count, bool share)
     }
 
     // Build array on the slice 
-    return Array(m_store.data() + start_bytes, shape, m_ele_size, share);
+    return Array(m_store.data() + start_bytes, m_dtype, shape, share);
 }
 Array Array::slice(size_t position, size_t count) const
 {
@@ -125,7 +126,7 @@ Array Array::slice(size_t position, size_t count) const
     }
 
     // Build array on the slice 
-    return Array(m_store.data() + start_bytes, shape, m_ele_size);
+    return Array(m_store.data() + start_bytes, m_dtype, shape);
 }
 
 Array Array::zeros_like(size_t nmaj)

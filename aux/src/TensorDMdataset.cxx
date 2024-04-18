@@ -40,7 +40,8 @@ ITensor::pointer WireCell::Aux::TensorDM::as_tensor(const PointCloud::Array& arr
     if (array.is_type<std::complex<float>>()) return make_array_tensor<std::complex<float>>(array, datapath);
     if (array.is_type<std::complex<double>>()) return make_array_tensor<std::complex<double>>(array, datapath);
 
-    THROW(ValueError() << errmsg{"unsupported point cloud array type: " + array.dtype()});
+    raise<ValueError>("unsupported point cloud array type: \"%s\"", array.dtype());
+    return nullptr;             // quell compiler warning
 }
 
 ITensor::vector

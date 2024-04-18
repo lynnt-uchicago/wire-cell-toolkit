@@ -117,7 +117,10 @@ void check_b_slice(const Array& b)
 TEST_CASE("point cloud slice")
 {
     Array aa({1.0, 2.0, 3.0});
-    check_a_slice(aa.slice(1,1));
+    auto aas = aa.slice(1,1);
+    check_a_slice(aas);
+    CHECK(aas.dtype() == aa.dtype());
+    
 
     // major
     // axis
@@ -132,8 +135,9 @@ TEST_CASE("point cloud slice")
     std::vector<int> counts(24);
     std::iota(counts.begin(), counts.end(), 0);
     Array bb(counts, shape, false);
-
-    check_b_slice(bb.slice(1,1));
+    auto bbs = bb.slice(1,1);
+    check_b_slice(bbs);
+    CHECK(bbs.dtype() == bb.dtype());
 
     Dataset ds({
             {"a", aa},
