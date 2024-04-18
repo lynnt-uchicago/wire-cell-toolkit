@@ -57,7 +57,7 @@ namespace {
         using WireCell::PointCloud::Facade::float_t;
         using WireCell::PointCloud::Facade::int_t;
 
-        Configuration bee;
+        Json::Value bee;
         bee["runNo"] = 0;
         bee["subRunNo"] = 0;
         bee["eventNo"] = 0;
@@ -158,25 +158,10 @@ namespace {
         float y;
     };
 
-    bool anglular_less(const Point2D& a, const Point2D& b, const Point2D& center)
-    {
-        if (a.x - center.x >= 0 && b.x - center.x < 0) return true;
-        if (a.x - center.x < 0 && b.x - center.x >= 0) return false;
-        if (a.x - center.x == 0 && b.x - center.x == 0) {
-            if (a.y - center.y >= 0 || b.y - center.y >= 0) return a.y > b.y;
-            return b.y > a.y;
-        }
-
-        // compute the cross product of vectors (center -> a) x (center -> b)
-        int det = (a.x - center.x) * (b.y - center.y) - (b.x - center.x) * (a.y - center.y);
-        if (det < 0) return true;
-        if (det > 0) return false;
-
-        // points a and b are on the same line from the center
-        // check which point is closer to the center
-        int d1 = (a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y);
-        int d2 = (b.x - center.x) * (b.x - center.x) + (b.y - center.y) * (b.y - center.y);
-        return d1 > d2;
+    bool angular_less(const Point2D& a, const Point2D& b, const Point2D& center) {
+        double angleA = std::atan2(a.y - center.y, a.x - center.x);
+        double angleB = std::atan2(b.y - center.y, b.x - center.x);
+        return angleA < angleB;
     }
 
     std::vector<Point2D> sort_angular(const std::vector<Point2D>& points)
@@ -195,10 +180,42 @@ namespace {
 
         std::vector<Point2D> sorted = points;
         std::sort(sorted.begin(), sorted.end(),
-                  [&](const Point2D& a, const Point2D& b) { return anglular_less(a, b, center); });
+                  [&](const Point2D& a, const Point2D& b) { return angular_less(a, b, center); });
         return sorted;
     }
-
+    std::vector<Point2D> unique(const std::vector<Point2D>& points, const float tolerance = 0.1)
+    {
+        auto less_with_tolerance = [&](const Point2D& a, const Point2D& b) {
+            if (std::abs(a.x - b.x) > tolerance) return a.x < b.x;
+            if (std::abs(a.y - b.y) > tolerance) return a.y < b.y;
+            return false;
+        };
+        std::set<Point2D, decltype(less_with_tolerance)> unique_points(less_with_tolerance);
+        for (const auto& point : points) {
+            unique_points.insert(point);
+        }
+        std::vector<Point2D> unique_points_vec;
+        for (const auto& point : unique_points) {
+            unique_points_vec.push_back(point);
+        }
+        return unique_points_vec;
+    }
+    bool valid(const std::vector<Point2D>& points, const float threshold = 1.)
+    {
+        if (points.size() < 3) return false;
+        float min_x = points[0].x;
+        float max_x = points[0].x;
+        float min_y = points[0].y;
+        float max_y = points[0].y;
+        for (const auto& point : points) {
+            if (point.x < min_x) min_x = point.x;
+            if (point.x > max_x) max_x = point.x;
+            if (point.y < min_y) min_y = point.y;
+            if (point.y > max_y) max_y = point.y;
+        }
+        if (max_x - min_x < threshold && max_y - min_y < threshold) return false;
+        return true;
+    }
     void dumpe_deadarea(const Points::node_t& root, const std::string& fn)
     {
         using WireCell::PointCloud::Facade::float_t;
@@ -209,19 +226,26 @@ namespace {
         for (const auto cnode : root.children()) {
             for (const auto bnode : cnode->children()) {
                 const auto& lpcs = bnode->value.local_pcs();
-                const auto& pc_scalar = lpcs.at("corner");
-                const auto& y = pc_scalar.get("y")->elements<float_t>();
-                const auto& z = pc_scalar.get("z")->elements<float_t>();
+                const auto& pc_scalar = lpcs.at("scalar");
+                const auto& slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
+                if (slice_index_min != 0) continue;
+                const auto& pc_corner = lpcs.at("corner");
+                const auto& y = pc_corner.get("y")->elements<float_t>();
+                const auto& z = pc_corner.get("z")->elements<float_t>();
                 std::vector<Point2D> points;
                 for (size_t i = 0; i < y.size(); ++i) {
-                    points.push_back({(float)y[i], (float)z[i]});
+                    points.push_back({(float)y[i] / (float)units::cm, (float)z[i] / (float)units::cm});
                 }
-                auto sorted = sort_angular(points);
+                // Remove duplicate points with xxx cm tolerance
+                auto unique_points = unique(points, 0.1);
+                // if (!valid(unique_points, 1.0)) continue;
+                if (unique_points.size() < 3) continue;
+                auto sorted = sort_angular(unique_points);
                 Json::Value jarea(Json::arrayValue);
                 for (const auto& point : sorted) {
                     Json::Value jpoint(Json::arrayValue);
-                    jpoint.append(point.x / units::cm);
-                    jpoint.append(point.y / units::cm);
+                    jpoint.append(point.x);
+                    jpoint.append(point.y);
                     jarea.append(jpoint);
                 }
                 jdead.append(jarea);
@@ -231,7 +255,14 @@ namespace {
         // Output jsonArray to file
         std::ofstream file(fn);
         if (file.is_open()) {
-            file << jdead.toStyledString();
+            Json::StreamWriterBuilder builder;
+            builder.settings_["indentation"] = "    ";
+            builder.settings_["precision"] = 6; // significant digits
+            // option available in jsoncpp 1.9.0
+            // https://github.com/open-source-parsers/jsoncpp/blob/1.9.0/src/lib_json/json_writer.cpp#L128
+            // builder.settings_["precisionType"] = "decimal";
+            std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+            writer->write(jdead, &file);
             file.close();
         }
         else {
