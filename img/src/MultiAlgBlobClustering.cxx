@@ -57,7 +57,7 @@ namespace {
         using WireCell::PointCloud::Facade::float_t;
         using WireCell::PointCloud::Facade::int_t;
 
-        Configuration bee;
+        Json::Value bee;
         bee["runNo"] = 0;
         bee["subRunNo"] = 0;
         bee["eventNo"] = 0;
@@ -226,16 +226,20 @@ namespace {
         for (const auto cnode : root.children()) {
             for (const auto bnode : cnode->children()) {
                 const auto& lpcs = bnode->value.local_pcs();
-                const auto& pc_scalar = lpcs.at("corner");
-                const auto& y = pc_scalar.get("y")->elements<float_t>();
-                const auto& z = pc_scalar.get("z")->elements<float_t>();
+                const auto& pc_scalar = lpcs.at("scalar");
+                const auto& slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
+                if (slice_index_min != 0) continue;
+                const auto& pc_corner = lpcs.at("corner");
+                const auto& y = pc_corner.get("y")->elements<float_t>();
+                const auto& z = pc_corner.get("z")->elements<float_t>();
                 std::vector<Point2D> points;
                 for (size_t i = 0; i < y.size(); ++i) {
-                    points.push_back({(float)y[i] / units::cm, (float)z[i] / units::cm});
+                    points.push_back({(float)y[i] / (float)units::cm, (float)z[i] / (float)units::cm});
                 }
                 // Remove duplicate points with xxx cm tolerance
                 auto unique_points = unique(points, 0.1);
-                if (!valid(unique_points, 1.0)) continue;
+                // if (!valid(unique_points, 1.0)) continue;
+                if (unique_points.size() < 3) continue;
                 auto sorted = sort_angular(unique_points);
                 Json::Value jarea(Json::arrayValue);
                 for (const auto& point : sorted) {
@@ -251,7 +255,14 @@ namespace {
         // Output jsonArray to file
         std::ofstream file(fn);
         if (file.is_open()) {
-            file << jdead.toStyledString();
+            Json::StreamWriterBuilder builder;
+            builder.settings_["indentation"] = "    ";
+            builder.settings_["precision"] = 6; // significant digits
+            // option available in jsoncpp 1.9.0
+            // https://github.com/open-source-parsers/jsoncpp/blob/1.9.0/src/lib_json/json_writer.cpp#L128
+            // builder.settings_["precisionType"] = "decimal";
+            std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+            writer->write(jdead, &file);
             file.close();
         }
         else {
