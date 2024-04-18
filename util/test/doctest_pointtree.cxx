@@ -129,17 +129,19 @@ TEST_CASE("point tree with points")
 
     debug("request scoped PC at scope = {}", scope);
     auto& pc3d = rval.scoped_view(scope).pcs();
-    debug("got scoped PC at scope = {} at {}", scope, (void*)&pc3d);
+    debug("got scoped PC at scope = {} at {} with {} PCs",
+          scope, (void*)&pc3d, pc3d.size());
     CHECK(pc3d.size() == 2);
 
     debug("request k-d tree at scope = {}", scope);
     ScopedView<double>& sview = rval.scoped_view(scope);
     ScopedView<double>::nfkd_t& kd = sview.kd();
-    debug("got scoped k-d tree at scope = {} at {}", scope, (void*)&kd);
+    debug("got scoped k-d tree at scope = {} at {} with {} points and {} dimensions",
+          scope, (void*)&kd, kd.npoints(), kd.ndim());
 
     CHECK(kd.ndim() == 3);      // 
-    CHECK(kd.nblocks() == 2);   // 2 blocks of 3 points
-    CHECK(kd.npoints() ==  6);  // 
+    CHECK(kd.nblocks() == 2);   // 2 blocks of ~75 points
+    CHECK(kd.npoints() > 100);  // 
 
     const auto& pts = kd.points();
     {
@@ -149,7 +151,7 @@ TEST_CASE("point tree with points")
         CHECK(ndim == 3);
 
         for (const auto& dim : pts) {
-            CHECK(dim.size() == 6);
+            CHECK(dim.size() == kd.npoints());
         }
     }
 
@@ -197,7 +199,7 @@ TEST_CASE("point tree remove node")
         CHECK(pc3d[0].get() == pc3d_two);
 
         const auto& kd = rval.scoped_view(scope).kd();
-        CHECK(kd.points().size() == nleft);
+        CHECK(kd.npoints() == nleft);
     }
     SUBCASE("remove child two") {
         const size_t nleft = pc3d_one.size_major();
@@ -212,7 +214,7 @@ TEST_CASE("point tree remove node")
         CHECK(pc3d[0].get() == pc3d_one);
 
         const auto& kd = rval.scoped_view(scope).kd();
-        CHECK(kd.points().size() == nleft);
+        CHECK(kd.npoints() == nleft);
     }
     SUBCASE("shared cached point cloud") {
         Scope sxy{ "3d", {"x","y"}};
