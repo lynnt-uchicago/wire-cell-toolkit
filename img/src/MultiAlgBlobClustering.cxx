@@ -35,6 +35,7 @@ void MultiAlgBlobClustering::configure(const WireCell::Configuration& cfg)
     m_inpath = get(cfg, "inpath", m_inpath);
     m_outpath = get(cfg, "outpath", m_outpath);
     m_bee_dir = get(cfg, "bee_dir", m_bee_dir);
+    m_save_deadarea = get(cfg, "save_deadarea", m_save_deadarea);
 
     m_dead_live_overlap_offset = get(cfg, "dead_live_overlap_offset", m_dead_live_overlap_offset);
 }
@@ -45,6 +46,7 @@ WireCell::Configuration MultiAlgBlobClustering::default_configuration() const
     cfg["inpath"] = m_inpath;
     cfg["outpath"] = m_outpath;
     cfg["bee_dir"] = m_bee_dir;
+    cfg["save_deadarea"] = m_save_deadarea;
 
     cfg["dead_live_overlap_offset"] = m_dead_live_overlap_offset;
     return cfg;
@@ -311,7 +313,9 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);
         Persist::assuredir(sub_dir);
         dump_bee(*root_live.get(), String::format("%s/%d-img.json", sub_dir, ident));
-        dumpe_deadarea(*root_dead.get(), String::format("%s/%d-channel-deadarea.json", sub_dir, ident));
+        if (m_save_deadarea) {
+            dumpe_deadarea(*root_dead.get(), String::format("%s/%d-channel-deadarea.json", sub_dir, ident));
+        }
     }
     log->debug(em("dump live+dead to bee"));
 

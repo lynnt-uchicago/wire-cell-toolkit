@@ -20,6 +20,7 @@ namespace WireCell::Img {
       private:
         // directory to save the bee debug file
         std::string m_bee_dir {""};
+        bool m_save_deadarea{false};
 
         // Count how many times we are called
         size_t m_count{0};
