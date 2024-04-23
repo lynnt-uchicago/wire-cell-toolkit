@@ -141,6 +141,7 @@ namespace {
         if (file.is_open()) {
             Json::StreamWriterBuilder writer;
             writer["indentation"] = "    ";
+            writer["precision"] = 6; // significant digits
             std::unique_ptr<Json::StreamWriter> jsonWriter(writer.newStreamWriter());
             jsonWriter->write(bee, &file);
             file.close();
