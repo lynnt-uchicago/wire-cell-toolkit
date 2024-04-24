@@ -72,6 +72,19 @@ namespace WireCell::PointCloud::Tree {
     class ScopedBase;
     template<typename ElementType> class ScopedView;
 
+    class Points;
+    using PointsNode = NaryTree::Node<Points>;
+    struct Facade {
+        // User may provide arbitrary subclass to "bolt on" additional
+        // functionality and data attached to a node.  Points will hold the
+        // Facade by an owning unique_ptr.
+
+        // Subclass implements this to learn about the node.  Points retains
+        // ownership.  May receive nullptr.
+        virtual void set_node(PointsNode* node) {};
+    };
+
+
     /** Points is a payload value type for a NaryTree::Node.
 
         A Points instance stores a set of point clouds local to the node.
@@ -87,6 +100,8 @@ namespace WireCell::PointCloud::Tree {
         using node_t = NaryTree::Node<Points>;
         using node_ptr = std::unique_ptr<node_t>;
         using node_path_t = std::vector<node_t*>;
+        using facade_t = Facade;
+        using facade_ptr = std::unique_ptr<facade_t>;
 
         // template<typename ElementType>
         // using kdtree_t = typename KDTree<ElementType>::kdtree_type;
@@ -105,16 +120,36 @@ namespace WireCell::PointCloud::Tree {
         Points& operator=(Points&& other) = default;
 
         /// Construct with local point clouds by copy
-        explicit Points(const named_pointclouds_t& pcs)
-            : m_lpcs(pcs.begin(), pcs.end()) {}
+        explicit Points(const named_pointclouds_t& pcs, facade_ptr fac = nullptr)
+            : m_lpcs(pcs.begin(), pcs.end()) {
+            set_facade(std::move(fac));
+        }
 
         /// Construct with local point clouds by move
-        explicit Points(named_pointclouds_t&& pcs)
-            : m_lpcs(std::move(pcs)) {}
+        explicit Points(named_pointclouds_t&& pcs, facade_ptr fac = nullptr)
+            : m_lpcs(std::move(pcs)) {
+            set_facade(std::move(fac));
+        }
 
         /// Access the node that holds us, if any.
         const node_t* node() const { return m_node; };
         node_t* node() { return m_node; };
+
+        /// Access the facade.  May return nullptr.  Points retains ownership.
+        const facade_t* facade() const { return m_facade.get(); }
+        facade_t* facade() { return m_facade.get(); }
+
+        /// Set the facade.  Caller may pass nullptr.  Will release any prior
+        /// facade.  Points takes ownership.
+        void set_facade(facade_ptr fac) {
+            if (m_facade) {
+                m_facade->set_node(nullptr);
+            }
+            m_facade = std::move(fac);
+            if (m_facade) {
+                m_facade->set_node(m_node);
+            }
+        }
 
         /// Access the set of point clouds local to this node.
         named_pointclouds_t& local_pcs() { return m_lpcs; }
@@ -146,6 +181,7 @@ namespace WireCell::PointCloud::Tree {
 
         // our node
         node_t* m_node {nullptr};
+        facade_ptr m_facade {nullptr};
 
         // our node-local point clouds
         named_pointclouds_t m_lpcs;

@@ -156,6 +156,9 @@ void WireCell::PointCloud::Tree::Points::init(const WireCell::PointCloud::Tree::
 void Tree::Points::on_construct(Tree::Points::node_t* node)
 {
     m_node = node;
+    if (m_facade) {
+        m_facade->set_node(m_node);
+    }
 }
 
 
