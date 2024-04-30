@@ -327,101 +327,88 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     /// TODO: how to pass the parameters? for now, using default params
     WireCell::PointCloud::Facade::TPCParams tp;
 
-    // Calculate the length of all the clusters and save them into a map
-    std::map<const Cluster::const_pointer, double> cluster_length_map;
-    std::set<Cluster::const_pointer > cluster_connected_dead;
+    cluster_set_t cluster_connected_dead;
     
     // initialize clusters ...
-    live_clusters_t live_clusters;
-    for (auto cnode : root_live->children()) {
-        live_clusters.push_back(std::make_shared<Cluster>(cnode));
-    }
+    root_live->value.set_facade(std::make_unique<Grouping>());
+    Grouping& live_grouping = *root_live->value.facade<Grouping>();
     log->debug(em("make live clusters"));
+
 
     {  // ATTENTION, this block is just for debugging.
         // This is here just to trigger k-d tree building so that we can separate
         // that out its time/memory from those of the first algorithm
         size_t npts=0;
-        for (const auto& cl : live_clusters) {
+        for (const auto& cl : live_grouping.children()) {
             cl->get_closest_point_mcell(geo_point_t(0,0,0));
             npts += cl->get_num_points();
         }
-        log->debug("made {} live clusters with {} points", live_clusters.size(), npts);
+        log->debug("made {} live clusters with {} points", live_grouping.nchildren(), npts);
         log->debug(em("make live k-d tree"));
     }
 
-    // loop over all the clusters, and calculate length ...
-    for (size_t ilive = 0; ilive < live_clusters.size(); ++ilive) {
-        const auto& live = live_clusters[ilive];
-        cluster_length_map[live] = live->get_length(tp);
-        // std::cout << ilive << " xin " << live->get_length(tp)/units::cm << std::endl;
-    }
-    log->debug(em("get live lengths"));
-    
-    Cluster::const_vector dead_clusters;
-    for (auto cnode : root_dead->children()) {
-        dead_clusters.push_back(std::make_shared<Cluster>(cnode));
-    }
+    root_dead->value.set_facade(std::make_unique<Grouping>());
+    Grouping& dead_grouping = *root_dead->value.facade<Grouping>();
     log->debug(em("make dead clusters"));
 
     {                           // trigger k-d tree building early for perf testing
         size_t npts=0;
-        for (const auto& cl : dead_clusters) {
+        for (const auto& cl : dead_grouping.children()) {
             cl->get_closest_point_mcell(geo_point_t(0,0,0));
             npts += cl->get_num_points();
         }
-        log->debug("made {} dead clusters with {} points", dead_clusters.size(), npts);
+        log->debug("made {} dead clusters with {} points", dead_grouping.nchildren(), npts);
         log->debug(em("make dead k-d tree"));
     }
 
     // dead_live
-    clustering_live_dead(root_live, live_clusters, dead_clusters, cluster_length_map, cluster_connected_dead, tp,
+    clustering_live_dead(live_grouping, dead_grouping, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
     log->debug(em("clustering_live_dead"));
 
     if (flag_print) std::cout << em("live_dead") << std::endl;
     // second function ...
-    clustering_extend(root_live, live_clusters, cluster_length_map, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
+    clustering_extend(live_grouping, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
     log->debug(em("clustering_extend"));
     if (flag_print) std::cout << em("first extend") << std::endl;
     
     // first round clustering
-    clustering_regular(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 60*units::cm, false);
+    clustering_regular(live_grouping, cluster_connected_dead,tp, 60*units::cm, false);
     log->debug(em("clustering_regular 1st"));
     if (flag_print) std::cout << em("1st regular") << std::endl;
-    clustering_regular(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 30*units::cm, true); // do extension
+    clustering_regular(live_grouping, cluster_connected_dead,tp, 30*units::cm, true); // do extension
     log->debug(em("clustering_regular 2nd"));
     if (flag_print) std::cout << em("2nd regular") << std::endl;
 
     
     //dedicated one dealing with parallel and prolonged track
-    clustering_parallel_prolong(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp,35*units::cm);
+    clustering_parallel_prolong(live_grouping, cluster_connected_dead,tp,35*units::cm);
     log->debug(em("clustering_parallel_prolong"));
     if (flag_print) std::cout << em("parallel prolong") << std::endl;
     
     //clustering close distance ones ... 
-    clustering_close(root_live, live_clusters, cluster_length_map,cluster_connected_dead,tp, 1.2*units::cm);
+    clustering_close(live_grouping, cluster_connected_dead,tp, 1.2*units::cm);
     log->debug(em("clustering_close"));
     if (flag_print) std::cout << em("close") << std::endl;
     
 
     int num_try =3;
     // for very busy events do less ... 
-    if (live_clusters.size() > 1100 ) num_try = 1;
+    if (live_grouping.nchildren() > 1100 ) num_try = 1;
     for (int i=0;i!= num_try ;i++){
       //extend the track ...
       // deal with prolong case
-      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,1,150*units::cm,0);
+      clustering_extend(live_grouping, cluster_connected_dead,tp,1,150*units::cm,0);
       log->debug(em("clustering_extend prolong"));
       if (flag_print) std::cout << em("extend prolong") << std::endl;
       // deal with parallel case 
-      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,2,30*units::cm,0);
+      clustering_extend(live_grouping, cluster_connected_dead,tp,2,30*units::cm,0);
       log->debug(em("clustering_extend parallel"));
       if (flag_print) std::cout << em("extend parallel") << std::endl;
       
       
       // extension regular case
-      clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,3,15*units::cm,0);
+      clustering_extend(live_grouping, cluster_connected_dead,tp,3,15*units::cm,0);
       log->debug(em("clustering_extend regular"));
       
       if (flag_print) std::cout << i << std::endl;
@@ -429,9 +416,9 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
       if (flag_print) std::cout << em("extend regular") << std::endl;
       // extension ones connected to dead region ...
       if (i==0){
-	clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,4,60*units::cm,i);
+	clustering_extend(live_grouping, cluster_connected_dead,tp,4,60*units::cm,i);
       }else{
-	clustering_extend(root_live,live_clusters, cluster_length_map,cluster_connected_dead,tp,4,35*units::cm,i);
+	clustering_extend(live_grouping, cluster_connected_dead,tp,4,35*units::cm,i);
       }
       log->debug(em("clustering_extend dead"));
       if (flag_print) std::cout << em("extend dead") << std::endl;
@@ -462,8 +449,6 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     outts = as_tensorset(outtens, ident);
     log->debug(em("as tensors set output"));
 
-    live_clusters.clear();
-    dead_clusters.clear();
     root_live = nullptr;
     root_dead = nullptr;
 

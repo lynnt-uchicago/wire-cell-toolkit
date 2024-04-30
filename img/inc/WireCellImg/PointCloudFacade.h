@@ -13,13 +13,17 @@
 // using namespace WireCell;  NO!  do not open up namespaces in header files!
 
 namespace WireCell::PointCloud::Facade {
-    using node_t = WireCell::PointCloud::Tree::Points::node_t;
+    using points_t = Tree::Points;
+    using node_t = Tree::Points::node_t;
     using node_ptr = std::unique_ptr<node_t>;
     using geo_point_t = WireCell::Point;
     using geo_vector_t = WireCell::Vector;
+
+    // FIXME: why define these out?
     using float_t = double;
     using int_t = int;
 
+    // FIXME: refactor to vector<pitch>, etc?  or vector<TPCPlane> with ::pitch/::angle?
     struct TPCParams {
         float_t pitch_u {3*units::mm};
         float_t pitch_v {3*units::mm};
@@ -27,35 +31,23 @@ namespace WireCell::PointCloud::Facade {
         float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
         float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
         float_t angle_w {0};        // 0 degrees    uboone geometry ...
-        float_t tick_width {0.5*1.101*units::mm}; // width corresponding to one tick time
+        float_t tick_drift {0.5*1.101*units::mm}; // tick * speed
     };
 
-    // Provide common types for an object to be shared via pointer.
-    template<typename T>
-    struct Shared {
 
-        // The wrapped sub class type.
-        using shared_type = T;
-
-        // For holding a facade by a shared pointer.
-        using pointer = std::shared_ptr<T>;
-        using const_pointer = std::shared_ptr<const T>;
-
-        // Simple collection of shared facades.
-        using vector = std::vector<pointer>;
-        using const_vector = std::vector<const_pointer>;
-    };
-    
-
-    class Blob : public Shared<Blob> {
-       public:
-        Blob(node_t* n);
+    /// Give a node "Blob" semantics
+    class Blob : public NaryTree::Facade<points_t> {
+    public:
+        
+        Blob() = default;
+        virtual ~Blob() {}
+            
 
         geo_point_t center_pos() const;
 	int_t num_points() const;
         bool overlap_fast(const Blob& b, const int offset) const;
 
-        /// FIXME: cache all scalers?
+        // fixme: make data private.  factor into collections.
         float_t charge {0};
         float_t center_x {0};
         float_t center_y {0};
@@ -72,51 +64,40 @@ namespace WireCell::PointCloud::Facade {
         int_t w_wire_index_min {0};
         int_t w_wire_index_max {0};
 
-        node_t* node() { return m_node; }
-        const node_t* node() const { return m_node; }
-
-      private:
-        node_t* m_node;  /// do not own
+    protected:
+        virtual void notify_new_node_base();
     };
 
-    // A cluster facade adds to a PC tree node semantics of a set of blobs
-    // likely due to connected activity.
-    class Cluster : public Shared<Cluster> {
-        Blob::vector m_blobs;
-        node_t* m_node;  /// do not own
+    // Give a node "Cluster" semantics.  A cluster node's children are blob nodes.
+    class Cluster : public NaryTree::FacadeParent<Blob, points_t> {
 
         // The expected scope.
         const WireCell::PointCloud::Tree::Scope scope = { "3d", {"x","y","z"} };
 
     public:
-        Cluster(node_t* n);
 
-        node_t* node() { return m_node; }
-        const node_t* node() const { return m_node; }
+        Cluster() = default;
+        virtual ~Cluster() {}
 
-        // Access the collection of blobs.
-        Blob::const_vector blobs() const {
-            Blob::const_vector ret(m_blobs.size());
-            std::transform(m_blobs.begin(), m_blobs.end(), ret.begin(),
-                           [](auto& bptr) { return std::const_pointer_cast<const Blob>(bptr); });
-            return ret;
-        }
-        Blob::vector blobs() { return m_blobs; }
-
+        // Return charge-weighted average position of points of blobs withing distance of point.
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
 
         // Return blob containing the returned point that is closest to the given point.
-	std::pair<geo_point_t, Blob::const_pointer > get_closest_point_mcell(const geo_point_t& point) const;
+        using point_blob_map_t = std::map<geo_point_t, const Blob*>;
+	std::pair<geo_point_t, const Blob*> get_closest_point_mcell(const geo_point_t& point) const;
 
-        // Return set of blobs each with an a characteristic point.  The set
+        // Return set of blobs each with a corresponding point.  The set
         // includes blobs with at least one point within the given radius of the
-        // given point.  The characteristic point is the point in the blob that
-        // is closest to to the given point.
+        // given point.  The point is one in the blob and that is closest to the
+        // given point.
         //
         // Note: radius must provide a LINEAR distance measure.
-	std::map<Blob::const_pointer, geo_point_t> get_closest_mcell(const geo_point_t& point, double radius) const;
+        using const_blob_point_map_t = std::map<const Blob*, geo_point_t>;
+	const_blob_point_map_t get_closest_mcell(const geo_point_t& point, double radius) const;
 
-	std::pair<geo_point_t, double> get_closest_point_along_vec(geo_point_t& p_test, geo_point_t dir, double test_dis, double dis_step, double angle_cut, double dis_cut) const;
+	std::pair<geo_point_t, double> get_closest_point_along_vec(
+            geo_point_t& p_test, geo_point_t dir, double test_dis,
+            double dis_step, double angle_cut, double dis_cut) const;
 
         // Return the number of points in the k-d tree
 	int get_num_points() const;
@@ -148,38 +129,71 @@ namespace WireCell::PointCloud::Facade {
 	std::pair<geo_point_t, geo_point_t> get_highest_lowest_points(size_t axis=1) const;
 	
 	
-        Blob::const_vector is_connected(const Cluster& c, const int offset) const;
+        std::vector<const Blob*> is_connected(const Cluster& c, const int offset) const;
 
-        // Return the angles characterizing the points within radius of given point.
-        // The angles are pair (cos(theta), phi) if alg is 0 else (theta, phi).
+        // The Hough-based direction finder works in a 2D parameter space.  The
+        // first dimension is associated with theta (angle w.r.t. Z-axis) and
+        // can use an angle or a cosine measure.  Theta angle measure has a
+        // non-uniform metric space, especially near the poles.  Perhaps this
+        // bias is useful.  The cosine(theta) metric space is uniform.
+        enum HoughParamSpace {
+            costh_phi,      // (cos(theta), phi)
+            theta_phi       // (theta, phi)
+        };
+
+        // Return parameter values characterizing the points within radius of
+        // given point.
         //
         // Note: radius must provide a LINEAR distance measure.
-        std::pair<double, double> hough_transform(const geo_point_t& point, const double radius, const int alg = 1) const;
+        std::pair<double, double> hough_transform(
+            const geo_point_t& point, const double radius,
+            HoughParamSpace param_space = HoughParamSpace::theta_phi) const;
 
         // Call hough_transform() and transform result as to a directional vector representation.
         //
-        // FIXME: this function should be removed.  Caller should do the
-        // directional vector transform themselves.  We may add that function to
-        // eg Point.h.
-        geo_point_t vhough_transform(const geo_point_t& point, const double radius, const int alg = 1) const;
+        // Note: radius must provide a LINEAR distance measure.
+        geo_vector_t vhough_transform(const geo_point_t& point, const double radius,
+                                      HoughParamSpace param_space = HoughParamSpace::theta_phi) const;
 
-        // get the number of unique uvwt bins
-        std::tuple<int, int, int, int> get_uvwt_range() const;
+        // Return a quasi geometric size of the cluster based on its transverse
+        // extents in each view and in time.
         double get_length(const TPCParams& tp) const;
 
 	// Return blob at the front of the time blob map.
-	Blob::const_pointer get_first_blob() const;
+	const Blob* get_first_blob() const;
 
 	// Return blob at the back of the time blob map.
-	Blob::const_pointer get_last_blob() const;
+	const Blob* get_last_blob() const;
 	
-       private:
-       // start slice index (tick number) to blob facade pointer
-       // can be duplicated, example usage: https://github.com/HaiwangYu/learn-cpp/blob/main/test-multimap.cxx
-	std::multimap<int, Blob::const_pointer> m_time_blob_map;
+    protected:
+        virtual void notify_new_node_parent();
+
+    private:
+        // start slice index (tick number) to blob facade pointer can be
+        // duplicated, example usage:
+        // https://github.com/HaiwangYu/learn-cpp/blob/main/test-multimap.cxx
+	std::multimap<int, const Blob*> m_time_blob_map;
+
+        // Cached and lazily calculated in get_length().
+        // Getting a new node invalidates by setting to 0.
+        mutable double m_length{0};
+
+        // Return the number of unique wires or ticks.  FIXME: is this really
+        // what is wanted?  It does not return what is normally considered a
+        // "range".
+        std::tuple<int, int, int, int> get_uvwt_range() const;
     };
 
 
+    // Give a node "Grouping" semantics.  A grouping node's children are cluster
+    // nodes that are related in some way.
+    class Grouping : public NaryTree::FacadeParent<Cluster, points_t> {
+    public:
+
+    };
+
+
+    // fixme: why do we inline these?
     inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {
         geo_vector_t temp_dir1;
         geo_vector_t temp_dir2;

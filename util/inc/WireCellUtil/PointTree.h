@@ -10,7 +10,7 @@
 #include "WireCellUtil/PointCloudDataset.h"
 #include "WireCellUtil/PointCloudCoordinates.h"
 #include "WireCellUtil/NFKDVec.h"
-#include "WireCellUtil/NaryTree.h"
+#include "WireCellUtil/NaryTreeFacade.h"
 #include "WireCellUtil/KDTree.h"
 
 #include "WireCellUtil/Logging.h" // debug
@@ -74,16 +74,6 @@ namespace WireCell::PointCloud::Tree {
 
     class Points;
     using PointsNode = NaryTree::Node<Points>;
-    struct Facade {
-        // User may provide arbitrary subclass to "bolt on" additional
-        // functionality and data attached to a node.  Points will hold the
-        // Facade by an owning unique_ptr.
-
-        // Subclass implements this to learn about the node.  Points retains
-        // ownership.  May receive nullptr.
-        virtual void set_node(PointsNode* node) {};
-    };
-
 
     /** Points is a payload value type for a NaryTree::Node.
 
@@ -92,22 +82,26 @@ namespace WireCell::PointCloud::Tree {
         string.
 
         A Points also provides access to "scoped" objects.
+
+        Points is also a Faced and so can accept a NaryTree::Facade.
      */
-    class Points : public NaryTree::Notified<Points> {
+    class Points : public NaryTree::Faced<Points>
+    {
         
       public:
+
+        using self_t = Points;
+        using base_t = NaryTree::Notified<Points>;
 
         using node_t = NaryTree::Node<Points>;
         using node_ptr = std::unique_ptr<node_t>;
         using node_path_t = std::vector<node_t*>;
-        using facade_t = Facade;
-        using facade_ptr = std::unique_ptr<facade_t>;
 
         // template<typename ElementType>
         // using kdtree_t = typename KDTree<ElementType>::kdtree_type;
 
         Points() = default;
-        virtual ~Points() = default;
+        virtual ~Points();
 
         // Copy constructor disabled due to holding unique k-d tree 
         Points(const Points& other) = delete;
@@ -122,33 +116,13 @@ namespace WireCell::PointCloud::Tree {
         /// Construct with local point clouds by copy
         explicit Points(const named_pointclouds_t& pcs, facade_ptr fac = nullptr)
             : m_lpcs(pcs.begin(), pcs.end()) {
-            set_facade(std::move(fac));
+            if (fac) set_facade(std::move(fac));
         }
 
         /// Construct with local point clouds by move
         explicit Points(named_pointclouds_t&& pcs, facade_ptr fac = nullptr)
             : m_lpcs(std::move(pcs)) {
-            set_facade(std::move(fac));
-        }
-
-        /// Access the node that holds us, if any.
-        const node_t* node() const { return m_node; };
-        node_t* node() { return m_node; };
-
-        /// Access the facade.  May return nullptr.  Points retains ownership.
-        const facade_t* facade() const { return m_facade.get(); }
-        facade_t* facade() { return m_facade.get(); }
-
-        /// Set the facade.  Caller may pass nullptr.  Will release any prior
-        /// facade.  Points takes ownership.
-        void set_facade(facade_ptr fac) {
-            if (m_facade) {
-                m_facade->set_node(nullptr);
-            }
-            m_facade = std::move(fac);
-            if (m_facade) {
-                m_facade->set_node(m_node);
-            }
+            if (fac) set_facade(std::move(fac));
         }
 
         /// Access the set of point clouds local to this node.
@@ -163,9 +137,6 @@ namespace WireCell::PointCloud::Tree {
         template<typename ElementType=double>
         ScopedView<ElementType>& scoped_view(const Scope& scope);
 
-        // Receive notification from n-ary tree to learn of our node.
-        virtual void on_construct(node_t* node);
-
         // Receive notification from n-ary tree to update existing
         // NFKDs if node is in any existing scope.
         virtual bool on_insert(const node_path_t& path);
@@ -179,10 +150,6 @@ namespace WireCell::PointCloud::Tree {
 
       private:
 
-        // our node
-        node_t* m_node {nullptr};
-        facade_ptr m_facade {nullptr};
-
         // our node-local point clouds
         named_pointclouds_t m_lpcs;
 
@@ -194,9 +161,7 @@ namespace WireCell::PointCloud::Tree {
         const ScopedBase* get_scoped(const Scope& scope) const;
         ScopedBase* get_scoped(const Scope& scope);
         
-      public:
-        
-    };
+    };                          // Points
 
     template<typename ElementType>
     const ScopedView<ElementType>& Points::scoped_view(const Scope& scope) const
@@ -350,7 +315,6 @@ namespace WireCell::PointCloud::Tree {
         mutable std::unique_ptr<nfkd_t> m_nfkd;
         // mutable std::map<size_t, point_array> m_pas;
     };
-
 
 }
 

@@ -346,3 +346,49 @@ TEST_CASE("nary tree depth limits")
     }
 
 }
+
+void remove_children(bool notify_child)
+{
+    auto root = make_layered_tree({2,4,8});
+    CHECK(root->nchildren() == 2);
+    auto children = root->remove_children(notify_child);
+    CHECK(root->nchildren() == 0);
+    CHECK(children.size() == 2);
+}
+TEST_CASE("nary tree remove children no notify")
+{
+    remove_children(false);
+}
+TEST_CASE("nary tree remove children with notify")
+{
+    remove_children(true);
+}
+
+TEST_CASE("nary tree remove adopt children")
+{
+    auto root = make_layered_tree({2,4,8});
+    CHECK(root->nchildren() == 2);
+    auto children = root->remove_children();
+    CHECK(root->nchildren() == 0);
+    CHECK(children.size() == 2);
+    
+    Introspective::node_type root2;
+    CHECK(root2.nchildren() == 0);
+    root2.adopt_children(children);
+    CHECK(root2.nchildren() == 2);
+    CHECK(children.size() == 0);
+}
+TEST_CASE("nary tree take children")
+{
+    auto root = make_layered_tree({2,4,8});
+    CHECK(root->nchildren() == 2);
+    
+    Introspective::node_type root2;
+    root2.take_children(*root);
+    CHECK(root2.nchildren() == 2);
+    CHECK(root->nchildren() == 0);
+
+    for (auto* child : root2.children()) {
+        CHECK(child != nullptr);
+    }
+}

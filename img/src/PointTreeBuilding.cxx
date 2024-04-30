@@ -157,6 +157,7 @@ namespace {
         ds.add("center_z", Array({(float_t)center.z()}));
 	ds.add("npoints", Array({(int_t)npoints}));
         const auto& islice = iblob->slice();
+        // fixme: possible risk of roundoff error + truncation makes _min == _max?
         ds.add("slice_index_min", Array({(int_t)(islice->start()/tick_span)})); // unit: tick
         ds.add("slice_index_max", Array({(int_t)((islice->start()+islice->span())/tick_span)}));
         const auto& shape = iblob->shape();
@@ -221,7 +222,7 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
     }
     auto& sampler = m_samplers.at("3d");
     for (auto& [cluster_id, vdescs] : clusters) {
-        auto cnode = root->insert(std::make_unique<Points::node_t>());
+        auto cnode = root->insert();
         for (const auto& vdesc : vdescs) {
             const char code = gr[vdesc].code();
             if (code != 'b') {
@@ -248,7 +249,7 @@ Points::node_ptr PointTreeBuilding::sample_live(const WireCell::ICluster::pointe
         // }
     }
     
-    log->debug("sampled {} blobs",nblobs);
+    log->debug("sampled {} live blobs to tree with {} children", nblobs, root->nchildren());
     return root;
 }
 
@@ -288,7 +289,7 @@ Points::node_ptr PointTreeBuilding::sample_dead(const WireCell::ICluster::pointe
         // }
     }
     
-    log->debug("sampled {} blobs",nblobs);
+    log->debug("sampled {} dead blobs to tree with {} children", nblobs, root->nchildren());
     return root;
 }
 

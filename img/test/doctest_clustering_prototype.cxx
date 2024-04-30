@@ -193,7 +193,9 @@ TEST_CASE("test PointCloudFacade")
 {
     auto root = make_simple_pctree();
     REQUIRE(root);
-    Cluster pcc(root.get());
+    root->value.set_facade(std::make_unique<Cluster>());
+    Cluster& pcc = *root->value.facade<Cluster>();
+
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
     debug("expecting 1.1666666666666665");
     auto ave_pos_alg0 = pcc.calc_ave_pos({1,0,0}, 1, 0);
@@ -201,9 +203,9 @@ TEST_CASE("test PointCloudFacade")
     auto ave_pos_alg1 = pcc.calc_ave_pos({1,0,0}, 1, 1);
     debug("ave_pos_alg1: {}", ave_pos_alg1);
     debug("expecting around {1, 0, 0}");
-    const auto vdir_alg0 = pcc.vhough_transform({1,0,0}, 1, 0);
+    const auto vdir_alg0 = pcc.vhough_transform({1,0,0}, 1, Cluster::HoughParamSpace::costh_phi);
     debug("vdir_alg0: {}", vdir_alg0);
-    const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, 1);
+    const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, Cluster::HoughParamSpace::theta_phi);
     debug("vdir_alg1: {}", vdir_alg1);
     // sqrt(3*3*2*2 + 3*3*2*2 + 3*3*2*2 + 3.2*3.2*1*1) = 10.8738217753
     debug("expecting 10.8738217753");
