@@ -22,7 +22,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
 {
     using spdlog::debug;
   
-    bool flag_print = true;
+    const bool flag_print = false;
     ExecMon em("starting");     // fixme: debugging
 
     // form map from dead to set of live clusters ...
@@ -48,7 +48,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
       }
     }
 
-    if (flag_print) std::cerr << em("construct the dead_live maps") << std::endl;
+    if (flag_print) std::cerr << em("clustering_live_dead: construct the dead_live maps") << std::endl;
     if (dead_live_cluster_mapping.empty()) {
         std::cerr
             << "WARNING: clustering_live: empty dead live cluster mapping,"
@@ -68,7 +68,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         ilive2desc[ilive] = boost::add_vertex(ilive, g);
     }
 
-    if (flag_print) std::cerr << em("construct cluster graph") << std::endl;
+    if (flag_print) std::cerr << em("clustering_live_dead: construct cluster graph") << std::endl;
 
     std::set<std::pair<const Cluster*,
                        const Cluster* > >
@@ -288,10 +288,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         }
     }
 
-    if (flag_print) std::cerr << em("core alg") << std::endl;
+    if (flag_print) std::cerr << em("clustering_live_dead: core alg") << std::endl;
 
     // new function to merge clusters ...
     merge_clusters(g, live_grouping, cluster_connected_dead, tp);
-    if (flag_print) std::cerr << em("merge clusters") << std::endl;
+    if (flag_print) std::cerr << em("clustering_live_dead: merge clusters") << std::endl;
 }
 #pragma GCC diagnostic pop

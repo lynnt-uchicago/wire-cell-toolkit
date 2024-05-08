@@ -39,11 +39,11 @@ namespace {
 std::ostream& Facade::operator<<(std::ostream& os, const Facade::Blob& blob)
 {
     os << "<Blob ["<<(void*)&blob<<"]: nptr="
-       << blob.num_points() << " r=" << blob.center_pos()
-       << " t=[" << blob.slice_index_min << "," << blob.slice_index_max << "]"
-       << " u=[" << blob.u_wire_index_min << "," << blob.u_wire_index_max << "]"
-       << " v=[" << blob.v_wire_index_min << "," << blob.v_wire_index_max << "]"
-       << " w=[" << blob.w_wire_index_min << "," << blob.w_wire_index_max << "]"
+       << blob.npoints() << " r=" << blob.center_pos()
+       << " t=[" << blob.slice_index_min() << "," << blob.slice_index_max() << "]"
+       << " u=[" << blob.u_wire_index_min() << "," << blob.u_wire_index_max() << "]"
+       << " v=[" << blob.v_wire_index_min() << "," << blob.v_wire_index_max() << "]"
+       << " w=[" << blob.w_wire_index_min() << "," << blob.w_wire_index_max() << "]"
        << ">";
     return os;
 }
@@ -57,24 +57,22 @@ void Blob::on_construct(node_type* node)
 
     // fixme: transferring these to cache could/should be made lazy.
 
-    // fixme: and each could/should be wrapped in its own getter
-
     // fixme: using a single array of several floats (and etc ints) would avoid
     // many single-entry arrays.
 
-    charge = pc_scalar.get("charge")->elements<float_t>()[0];
-    center_x = pc_scalar.get("center_x")->elements<float_t>()[0];
-    center_y = pc_scalar.get("center_y")->elements<float_t>()[0];
-    center_z = pc_scalar.get("center_z")->elements<float_t>()[0];
-    npoints = pc_scalar.get("npoints")->elements<int_t>()[0];
-    slice_index_min = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
-    slice_index_max = pc_scalar.get("slice_index_max")->elements<int_t>()[0];
-    u_wire_index_min = pc_scalar.get("u_wire_index_min")->elements<int_t>()[0];
-    u_wire_index_max = pc_scalar.get("u_wire_index_max")->elements<int_t>()[0];
-    v_wire_index_min = pc_scalar.get("v_wire_index_min")->elements<int_t>()[0];
-    v_wire_index_max = pc_scalar.get("v_wire_index_max")->elements<int_t>()[0];
-    w_wire_index_min = pc_scalar.get("w_wire_index_min")->elements<int_t>()[0];
-    w_wire_index_max = pc_scalar.get("w_wire_index_max")->elements<int_t>()[0];
+    charge_ = pc_scalar.get("charge")->elements<float_t>()[0];
+    center_x_ = pc_scalar.get("center_x")->elements<float_t>()[0];
+    center_y_ = pc_scalar.get("center_y")->elements<float_t>()[0];
+    center_z_ = pc_scalar.get("center_z")->elements<float_t>()[0];
+    npoints_ = pc_scalar.get("npoints")->elements<int_t>()[0];
+    slice_index_min_ = pc_scalar.get("slice_index_min")->elements<int_t>()[0];
+    slice_index_max_ = pc_scalar.get("slice_index_max")->elements<int_t>()[0];
+    u_wire_index_min_ = pc_scalar.get("u_wire_index_min")->elements<int_t>()[0];
+    u_wire_index_max_= pc_scalar.get("u_wire_index_max")->elements<int_t>()[0];
+    v_wire_index_min_ = pc_scalar.get("v_wire_index_min")->elements<int_t>()[0];
+    v_wire_index_max_ = pc_scalar.get("v_wire_index_max")->elements<int_t>()[0];
+    w_wire_index_min_ = pc_scalar.get("w_wire_index_min")->elements<int_t>()[0];
+    w_wire_index_max_ = pc_scalar.get("w_wire_index_max")->elements<int_t>()[0];
     ///
     ///  MAKE SURE YOU UPDATE doctest_clustering_prototype.cxx if you change the above.
     ///
@@ -82,23 +80,18 @@ void Blob::on_construct(node_type* node)
 
 bool Blob::overlap_fast(const Blob& b, const int offset) const
 {
-    if (u_wire_index_min > b.u_wire_index_max + offset) return false;
-    if (b.u_wire_index_min > u_wire_index_max + offset) return false;
-    if (v_wire_index_min > b.v_wire_index_max + offset) return false;
-    if (b.v_wire_index_min > v_wire_index_max + offset) return false;
-    if (w_wire_index_min > b.w_wire_index_max + offset) return false;
-    if (b.w_wire_index_min > w_wire_index_max + offset) return false;
+    if (u_wire_index_min() > b.u_wire_index_max() + offset) return false;
+    if (b.u_wire_index_min() > u_wire_index_max() + offset) return false;
+    if (v_wire_index_min() > b.v_wire_index_max() + offset) return false;
+    if (b.v_wire_index_min() > v_wire_index_max() + offset) return false;
+    if (w_wire_index_min() > b.w_wire_index_max() + offset) return false;
+    if (b.w_wire_index_min() > w_wire_index_max() + offset) return false;
     return true;
 }
 
 geo_point_t Blob::center_pos() const {
-    return {center_x, center_y, center_z};
+    return {center_x_, center_y_, center_z_};
 }
-
-int_t Blob::num_points() const{
-    return npoints;
-}
-
 
 std::ostream& Facade::operator<<(std::ostream& os, const Facade::Cluster& cluster)
 {
@@ -108,41 +101,25 @@ std::ostream& Facade::operator<<(std::ostream& os, const Facade::Cluster& cluste
     return os;
 }
 
-void Cluster::on_construct(node_type* node)
+const Cluster::time_blob_map_t& Cluster::time_blob_map() const
 {
-    this->NaryTree::FacadeParent<Blob, points_t>::on_construct(node);
-    for (auto* blob : children()) {
-        m_time_blob_map.insert({blob->slice_index_min, blob});
+    if (m_time_blob_map.empty()) {
+        for (const Blob* blob : children()) {
+            m_time_blob_map.insert({blob->slice_index_min(), blob});
+        }
     }
-    // std::cerr << "Cluster["<<(void*)this<<"]::on_construct(" << (void*)node << ") with "
-    //           << nchildren() << " initial children "
-    //           << m_time_blob_map.size() << " time blob map size\n";
-}
-
-bool Cluster::on_insert(const std::vector<node_type*>& path)
-{
-    if (!this->NaryTree::FacadeParent<Blob, points_t>::on_insert(path)) {
-        return false;
-    }
-
-    auto* node = path.back();
-    Blob* blob = node->value.facade<Blob>();
-    m_time_blob_map.insert({blob->slice_index_min, blob});
-    // std::cerr << "Cluster["<<(void*)this<<"]::on_insert(" << (void*)node << ") with "
-    //           << nchildren() << " children\n";
-    
-    return true;
+    return m_time_blob_map;
 }
 
 
 std::vector<const Blob*> Cluster::is_connected(const Cluster& c, const int offset) const
 {
     std::vector<const Blob*> ret;
-    for (const auto& [badtime, badblob] : c.m_time_blob_map) {
+    for (const auto& [badtime, badblob] : c.time_blob_map()) {
         auto bad_start = badtime;
-        auto bad_end = badblob->slice_index_max; // not inclusive
-        for (const auto& [good_start, goodblob] : m_time_blob_map) {
-            auto good_end = goodblob->slice_index_max; // not inclusive
+        auto bad_end = badblob->slice_index_max(); // not inclusive
+        for (const auto& [good_start, goodblob] : time_blob_map()) {
+            auto good_end = goodblob->slice_index_max(); // not inclusive
             if (good_end < bad_start || good_start >= bad_end) {
                 continue;
             }
@@ -154,20 +131,20 @@ std::vector<const Blob*> Cluster::is_connected(const Cluster& c, const int offse
     return ret;
 }
 
-const Blob* Cluster::get_first_blob() const{
-    if (m_time_blob_map.empty()) {
-        std::cerr << "Cluster["<<(void*)this<<"]::get_first_blob() time blob map is empty\n";        
-        return nullptr;
+const Blob* Cluster::get_first_blob() const
+{
+    if (time_blob_map().empty()) {
+        raise<ValueError>("empty cluster has no first blob");
     }
-
-    return m_time_blob_map.begin()->second;
+    return time_blob_map().begin()->second;
 }
-const Blob* Cluster::get_last_blob() const{
-    if (m_time_blob_map.empty()) {
-        std::cerr << "Cluster["<<(void*)this<<"]::get_last_blob() time blob map is empty\n";        
-        return nullptr;
+
+const Blob* Cluster::get_last_blob() const
+{
+    if (time_blob_map().empty()) {
+        raise<ValueError>("empty cluster has no last blob");
     }
-    return m_time_blob_map.rbegin()->second;
+    return time_blob_map().rbegin()->second;
 }
 
 
@@ -356,7 +333,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     double charge = 0;
 
     for (auto [blob, pt] : get_closest_mcell(origin, dis)) {
-        double q = blob->charge;
+        double q = blob->charge();
         if (q==0) q=1;
         pt += q*blob->center_pos();
         charge += q;
@@ -444,12 +421,12 @@ Cluster::hough_transform(const geo_point_t& origin, const double dis,
 
         const auto blob_index = skd.major_index(index);
         const auto* blob = blobs[blob_index];
-        auto charge = blob->charge;
+        auto charge = blob->charge();
         // protection against the charge=0 case ...
         if (charge == 0) charge = 1;
         if (charge <= 0) continue;
             
-        const auto npoints = blob->num_points();
+        const auto npoints = blob->npoints();
 
         geo_point_t pt(points[0][index],
                        points[1][index],
@@ -493,16 +470,16 @@ std::tuple<int, int, int, int> Cluster::get_uvwt_range() const
     std::set<int> w_set;
     std::set<int> t_set;
     for (const auto* blob : children()) {
-        for(int i = blob->u_wire_index_min; i < blob->u_wire_index_max; ++i) {
+        for(int i = blob->u_wire_index_min(); i < blob->u_wire_index_max(); ++i) {
             u_set.insert(i);
         }
-        for(int i = blob->v_wire_index_min; i < blob->v_wire_index_max; ++i) {
+        for(int i = blob->v_wire_index_min(); i < blob->v_wire_index_max(); ++i) {
             v_set.insert(i);
         }
-        for(int i = blob->w_wire_index_min; i < blob->w_wire_index_max; ++i) {
+        for(int i = blob->w_wire_index_min(); i < blob->w_wire_index_max(); ++i) {
             w_set.insert(i);
         }
-        for(int i = blob->slice_index_min; i < blob->slice_index_max; ++i) {
+        for(int i = blob->slice_index_min(); i < blob->slice_index_max(); ++i) {
             t_set.insert(i);
         }
     }
@@ -568,39 +545,26 @@ std::ostream& Facade::operator<<(std::ostream& os, const Facade::Grouping& group
 }
 
 
-std::ostream& Facade::dump_clusters(std::ostream& os, const Facade::Grouping& grouping)
-{
-    os << grouping << "\n";
-    size_t nc = 0;
-    for (const auto* cluster : grouping.children()) {
-        os << nc++ << "\t" << *cluster << "\n";
-    }
-    return os;
-}
-std::string Facade::dump_clusters(const Facade::Grouping& grouping)
+std::string Facade::dump(const Facade::Grouping& grouping, int level)
 {
     std::stringstream ss;
-    dump_clusters(ss, grouping);
-    return ss.str();
-}
 
-std::ostream& Facade::dump_blobs(std::ostream& os, const Facade::Grouping& grouping)
-{
-    os << grouping << "\n";
+    ss << grouping;
+    if (level == 0) {
+        return ss.str();
+    }
+    ss << "\n";
     size_t nc=0;
     for (const auto* cluster : grouping.children()) {
-        os << nc++ << "\t" << *cluster << "\n";
+        ss << nc++ << "\t" << *cluster << "\n";
+        if (level == 1) {
+            continue;
+        }
         size_t nb = 0;
         for (const auto* blob : cluster->children()) {
-            os << nb++ << "\t\t" << *blob << "\n";
+            ss << nb++ << "\t\t" << *blob << "\n";
         }
     }
-    return os;
-}
-std::string Facade::dump_blobs(const Facade::Grouping& grouping)
-{
-    std::stringstream ss;
-    dump_blobs(ss, grouping);
     return ss.str();
 }
 

@@ -44,25 +44,44 @@ namespace WireCell::PointCloud::Facade {
             
 
         geo_point_t center_pos() const;
-	int_t num_points() const;
+
         bool overlap_fast(const Blob& b, const int offset) const;
 
-        // fixme: make data private.  factor into collections.
-        float_t charge {0};
-        float_t center_x {0};
-        float_t center_y {0};
-        float_t center_z {0};
-	int_t npoints {0};
+        float_t charge () const { return  charge_; }
+        float_t center_x () const { return  center_x_; }
+        float_t center_y () const { return  center_y_; }
+        float_t center_z () const { return  center_z_; }
+	int_t npoints () const { return  npoints_; }
 	
-        int_t slice_index_min {0}; // unit: tick
-        int_t slice_index_max {0};
+        // units are number of ticks
+        int_t slice_index_min () const { return  slice_index_min_; }
+        int_t slice_index_max () const { return  slice_index_max_; }
 
-        int_t u_wire_index_min {0};
-        int_t u_wire_index_max {0};
-        int_t v_wire_index_min {0};
-        int_t v_wire_index_max {0};
-        int_t w_wire_index_min {0};
-        int_t w_wire_index_max {0};
+        int_t u_wire_index_min () const { return  u_wire_index_min_; }
+        int_t u_wire_index_max () const { return  u_wire_index_max_; }
+        int_t v_wire_index_min () const { return  v_wire_index_min_; }
+        int_t v_wire_index_max () const { return  v_wire_index_max_; }
+        int_t w_wire_index_min () const { return  w_wire_index_min_; }
+        int_t w_wire_index_max () const { return  w_wire_index_max_; }
+
+
+    private:
+
+        float_t charge_ {0};
+        float_t center_x_ {0};
+        float_t center_y_ {0};
+        float_t center_z_ {0};
+	int_t npoints_ {0};
+	
+        int_t slice_index_min_ {0}; // unit: tick
+        int_t slice_index_max_ {0};
+
+        int_t u_wire_index_min_ {0};
+        int_t u_wire_index_max_ {0};
+        int_t v_wire_index_min_ {0};
+        int_t v_wire_index_max_ {0};
+        int_t w_wire_index_min_ {0};
+        int_t w_wire_index_max_ {0};
 
     protected:
 
@@ -163,24 +182,20 @@ namespace WireCell::PointCloud::Facade {
         // extents in each view and in time.
         double get_length(const TPCParams& tp) const;
 
-	// Return blob at the front of the time blob map.
+	// Return blob at the front of the time blob map.  Raises ValueError if cluster is empty.
 	const Blob* get_first_blob() const;
 
-	// Return blob at the back of the time blob map.
+	// Return blob at the back of the time blob map.  Raises ValueError if cluster is empty.
 	const Blob* get_last_blob() const;
 	
-    protected:
-
-        // Receive notification of a new child
-        virtual void on_construct(node_type* node);
-        virtual bool on_insert(const std::vector<node_type*>& path);
-
-
     private:
         // start slice index (tick number) to blob facade pointer can be
         // duplicated, example usage:
         // https://github.com/HaiwangYu/learn-cpp/blob/main/test-multimap.cxx
-	std::multimap<int, const Blob*> m_time_blob_map;
+
+	using time_blob_map_t = std::multimap<int, const Blob*>;
+        const time_blob_map_t& time_blob_map() const;
+	mutable time_blob_map_t m_time_blob_map; // lazy, do not access directly.
 
         // Cached and lazily calculated in get_length().
         // Getting a new node invalidates by setting to 0.
@@ -201,11 +216,11 @@ namespace WireCell::PointCloud::Facade {
 
     };
     std::ostream& operator<<(std::ostream& os, const Grouping& grouping);
-    std::ostream& dump_clusters(std::ostream& os, const Grouping& grouping);
-    std::string dump_clusters(const Grouping& grouping);
-    std::ostream& dump_blobs(std::ostream& os, const Grouping& grouping);
-    std::string dump_blobs(const Grouping& grouping);
-    
+
+    // Dump the grouping to a string eg for debugging.  Level 0 dumps info about
+    // just the grouping, 1 includes info about the clusters and 2 includes info
+    // about the blobs.
+    std::string dump(const Grouping& grouping, int level=0);
 
     // fixme: why do we inline these?
     inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {
