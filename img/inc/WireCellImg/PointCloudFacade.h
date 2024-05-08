@@ -23,18 +23,6 @@ namespace WireCell::PointCloud::Facade {
     using float_t = double;
     using int_t = int;
 
-    // FIXME: refactor to vector<pitch>, etc?  or vector<TPCPlane> with ::pitch/::angle?
-    struct TPCParams {
-        float_t pitch_u {3*units::mm};
-        float_t pitch_v {3*units::mm};
-        float_t pitch_w {3*units::mm};
-        float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
-        float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
-        float_t angle_w {0};        // 0 degrees    uboone geometry ...
-        float_t tick_drift {0.5*1.101*units::mm}; // tick * speed
-    };
-
-
     /// Give a node "Blob" semantics
     class Blob : public NaryTree::Facade<points_t> {
     public:
@@ -90,6 +78,18 @@ namespace WireCell::PointCloud::Facade {
 
     };
     std::ostream& operator<<(std::ostream& os, const Blob& blob);
+
+    // FIXME: refactor to vector<pitch>, etc?  or vector<TPCPlane> with ::pitch/::angle?
+    struct TPCParams {
+        float_t pitch_u {3*units::mm};
+        float_t pitch_v {3*units::mm};
+        float_t pitch_w {3*units::mm};
+        float_t angle_u {1.0472};  // 60 degrees    uboone geometry ...
+        float_t angle_v {-1.0472};  //-60 degrees   uboone geometry ...
+        float_t angle_w {0};        // 0 degrees    uboone geometry ...
+        float_t tick_drift {0.5*1.101*units::mm}; // tick * speed
+    };
+
 
     // Give a node "Cluster" semantics.  A cluster node's children are blob nodes.
     class Cluster : public NaryTree::FacadeParent<Blob, points_t> {

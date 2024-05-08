@@ -291,7 +291,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
     if (flag_print) std::cerr << em("clustering_live_dead: core alg") << std::endl;
 
     // new function to merge clusters ...
-    merge_clusters(g, live_grouping, cluster_connected_dead, tp);
+    merge_clusters(g, live_grouping, cluster_connected_dead);
     if (flag_print) std::cerr << em("clustering_live_dead: merge clusters") << std::endl;
 }
 #pragma GCC diagnostic pop

@@ -46,8 +46,7 @@ void WireCell::PointCloud::Facade::clustering_parallel_prolong(
   }
 
   // new function to  merge clusters ...
-  merge_clusters(g, live_grouping, cluster_connected_dead, tp);
-
+  merge_clusters(g, live_grouping, cluster_connected_dead);
 }
 
 

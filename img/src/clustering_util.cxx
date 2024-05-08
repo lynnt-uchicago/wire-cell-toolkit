@@ -9,8 +9,7 @@ void WireCell::PointCloud::Facade::merge_clusters(
     cluster_connectivity_graph_t& g,
     Grouping& live_grouping,
     // Live clusters that are "connected" to some dead cluster
-    cluster_set_t& cluster_connected_dead, // in/out
-    const TPCParams& tp)
+    cluster_set_t& cluster_connected_dead) // in/out
 {
     std::unordered_map<int, int> desc2id;
     std::unordered_map<int, std::set<int> > id2desc;

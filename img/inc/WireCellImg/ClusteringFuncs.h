@@ -26,8 +26,7 @@ namespace WireCell::PointCloud::Facade {
     // merging clustering function
     void merge_clusters(cluster_connectivity_graph_t& g, // 
 			Grouping& live_clusters,
-			cluster_set_t& cluster_connected_dead, // in/out
-			const TPCParams& tp);
+			cluster_set_t& cluster_connected_dead); // in/out
     
     
     // clustering_live_dead.cxx

@@ -63,10 +63,9 @@ void WireCell::PointCloud::Facade::clustering_close(
   //  if (flag_print) std::cout << em("core alg") << std::endl;
 
   // new function to  merge clusters ...
-  merge_clusters(g, live_grouping, cluster_connected_dead, tp);
+  merge_clusters(g, live_grouping, cluster_connected_dead);
 
   //  if (flag_print) std::cout << em("merge clusters") << std::endl;
- 
 }
 
 

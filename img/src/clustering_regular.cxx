@@ -55,8 +55,7 @@ void WireCell::PointCloud::Facade::clustering_regular(
   }
 
   // new function to  merge clusters ...
-  merge_clusters(g, live_grouping, cluster_connected_dead, tp);
-
+  merge_clusters(g, live_grouping, cluster_connected_dead);
 }
 
 bool WireCell::PointCloud::Facade::Clustering_1st_round(
