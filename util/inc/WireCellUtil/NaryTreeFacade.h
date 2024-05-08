@@ -115,6 +115,7 @@ namespace WireCell::NaryTree {
         // Intercept notices from the node in order to forward to the held
         // facade (and to this).
         virtual void notify(node_type* node, Action action) {
+            // std::cerr << "NaryTree::Faced::notify(" << (void*)node << "," << action << ")\n";
             this->base_type::notify(node, action);
             if (m_facade) {
                 m_facade->notify(node, action);
@@ -172,23 +173,24 @@ namespace WireCell::NaryTree {
 
         // Adopt the other's children into this parent.  This leaves
         // other parent childless.
-        void take_children(self_type& other, bool notify_children=false) {
-            this->m_node->take_children(*other.node(), notify_children);
+        void take_children(self_type& other, bool notify_value=true) {
+            // std::cerr << "take_children() " << other.nchildren() << "\n";
+            this->m_node->take_children(*other.node(), notify_value);
             invalidate_children();
             other.invalidate_children();
         }
 
         // Remove kid's node from this parent's node and return an owning
         // pointer which will be nullptr if it's not our kid.
-        node_ptr remove_child(child_type& kid) {
+        node_ptr remove_child(child_type& kid, bool notify_value=true) {
             invalidate_children();
-            return this->m_node->remove(kid.node());
+            return this->m_node->remove(kid.node(), notify_value);
         }
 
         // Make a new child, returning its facade.
-        child_type& make_child() {
+        child_type& make_child(bool notify_value=true) {
             invalidate_children();
-            node_type* cnode = this->m_node->insert();
+            node_type* cnode = this->m_node->insert(notify_value);
             cnode->value.set_facade(std::make_unique<child_type>());
             return *cnode->value.template facade<child_type>();
         }

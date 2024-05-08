@@ -48,9 +48,14 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
       }
     }
 
-    if (flag_print) std::cout << em("construct the dead_live maps") << std::endl;
-    std::cout << dead_live_cluster_mapping.size() << " " << dead_clusters.size() << " " << live_clusters.size() << std::endl;
-																					 
+    if (flag_print) std::cerr << em("construct the dead_live maps") << std::endl;
+    if (dead_live_cluster_mapping.empty()) {
+        std::cerr
+            << "WARNING: clustering_live: empty dead live cluster mapping,"
+            << " ndead=" << dead_clusters.size()
+            << " nlive=" << live_clusters.size() << std::endl;
+    }
+
     // prepare a graph ...
     typedef cluster_connectivity_graph_t Graph;
 
@@ -63,7 +68,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         ilive2desc[ilive] = boost::add_vertex(ilive, g);
     }
 
-    if (flag_print) std::cout << em("construct cluster graph") << std::endl;
+    if (flag_print) std::cerr << em("construct cluster graph") << std::endl;
 
     std::set<std::pair<const Cluster*,
                        const Cluster* > >
@@ -76,7 +81,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         const auto& connected_live_mcells = dead_live_mcells_mapping[the_dead_cluster];
 
         if (connected_live_clusters.size() > 1) {
-            //            std::cout << "xin " << connected_live_clusters.size() << " " << connected_live_mcells.size()
+            //            std::cerr << "xin " << connected_live_clusters.size() << " " << connected_live_mcells.size()
             //            << std::endl;
 
             for (size_t i = 0; i != connected_live_clusters.size(); i++) {
@@ -88,7 +93,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                     const auto& cluster_2 = connected_live_clusters.at(j);
                     // const auto& blobs_2 = connected_live_mcells.at(j);
 
-                    //                    std::cout << "xin1 " << i << " " << j << " " << blobs_1.size() << " " <<
+                    //                    std::cerr << "xin1 " << i << " " << j << " " << blobs_1.size() << " " <<
                     //                    blobs_2.size()
                     //         << std::endl;
 
@@ -118,7 +123,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                         geo_point_t diff = p1 - p2;
                         double dis = diff.magnitude();
 
-                        //                        std::cout << "xin3 " << dis / units::cm << std::endl;
+                        //                        std::cerr << "xin3 " << dis / units::cm << std::endl;
 
                         if (dis < 60 * units::cm) {
                             double length_1 = cluster_1->get_length(tp);
@@ -146,9 +151,9 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                             // geo_point_t p3(317.6*units::cm,-98.9*units::cm,927*units::cm);
                             // p3 = p3 - p1;
                             // if (p3.magnitude() < 20*units::cm){
-                            //     std::cout << "xin4 " << length_1 / units::cm << " " << length_2 / units::cm
+                            //     std::cerr << "xin4 " << length_1 / units::cm << " " << length_2 / units::cm
                             //               << " " << std::endl;
-                            //     std::cout << "xin5 " << p1 << " " << p2 << " " << mcell1_center << " " <<
+                            //     std::cerr << "xin5 " << p1 << " " << p2 << " " << mcell1_center << " " <<
                             //     mcell2_center
                             //               << " " << dir1 << " " << dir3 << " " << angle_diff1 << " " << angle_diff2
                             //               << " " << angle_diff3 << std::endl;
@@ -283,10 +288,10 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
         }
     }
 
-    if (flag_print) std::cout << em("core alg") << std::endl;
+    if (flag_print) std::cerr << em("core alg") << std::endl;
 
     // new function to merge clusters ...
     merge_clusters(g, live_grouping, cluster_connected_dead, tp);
-    if (flag_print) std::cout << em("merge clusters") << std::endl;
+    if (flag_print) std::cerr << em("merge clusters") << std::endl;
 }
 #pragma GCC diagnostic pop

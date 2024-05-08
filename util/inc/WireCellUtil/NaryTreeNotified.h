@@ -53,7 +53,7 @@ namespace WireCell::NaryTree {
         // A subclass may override this, for example to intercept all
         // notifications.
         virtual void notify(node_type* node, Action action) {
-            // std::cerr << "catching action: " << action << "\n";
+            // std::cerr << "NaryTree::Notified::notify(" << (void*)node << "," << action << ")\n";
             if (action == Action::constructed) {
                 on_construct(node);
                 return;

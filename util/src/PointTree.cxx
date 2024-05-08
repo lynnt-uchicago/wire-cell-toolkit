@@ -199,7 +199,7 @@ bool in_scope(const Tree::Scope& scope, const Tree::Points::node_t* node, size_t
     return true;    
 }
 
-bool Tree::Points::on_insert(const Tree::Points::node_path_t& path)
+bool Tree::Points::on_insert(const std::vector<node_type*>& path)
 {
     auto* node = path.back();
 
@@ -213,7 +213,7 @@ bool Tree::Points::on_insert(const Tree::Points::node_path_t& path)
 }
 
 
-bool Tree::Points::on_remove(const Tree::Points::node_path_t& path)
+bool Tree::Points::on_remove(const std::vector<node_type*>& path)
 {
     auto* leaf = path.front();
     size_t psize = path.size();

@@ -1,6 +1,6 @@
 #include <WireCellImg/ClusteringFuncs.h>
 
-#include <cassert>              // temp debug
+#include <iostream>              // temp debug
 
 using namespace WireCell::PointCloud::Facade;
 
@@ -30,13 +30,18 @@ void WireCell::PointCloud::Facade::merge_clusters(
     // invalid memory.  But, it is okay as we never revisit the same cluster in
     // the grouping.  All that to explain a missing "&"! :)
     auto live_clusters = live_grouping.children();
+    // std::cerr << "merge_clusters: "
+    //           << live_clusters.size() << " live clusters " 
+    //           << id2desc.size() << " subgraphs\n";
+
 
     //    debug("id2desc size: {}", id2desc.size());
     for (const auto& [id, descs] : id2desc) {
         if (descs.size() < 2) {
             continue;
         }
-	// debug("id {} descs size: {}", id, descs.size());
+        // std::cerr << "merge_clusters: subgraph id=" << id
+        //           << " with " << descs.size() << " vertices\n";
 
         // it starts with no cluster facade
         Cluster& fresh_cluster = live_grouping.make_child();
@@ -47,11 +52,32 @@ void WireCell::PointCloud::Facade::merge_clusters(
                 continue;
             }
             auto live = live_clusters[idx];
-            fresh_cluster.take_children(*live);
+            fresh_cluster.take_children(*live, true);
 
             live_grouping.remove_child(*live);
             cluster_connected_dead.erase(live);
         }
         cluster_connected_dead.insert(&fresh_cluster);
     }
+
+    // sanity check / debugging
+    for (const auto* cluster : live_grouping.children()) {
+        if (!cluster) {
+            std::cerr << "merge_clusters: null live cluster on output!\n";
+            continue;
+        }
+        if (! cluster->nchildren()) {
+            std::cerr << "merge_clusters: empty live cluster on output!\n";
+            continue;
+        }
+        for (const auto* blob : cluster->children()) {
+            if (!blob) {
+                std::cerr << "merge_clusters: null live blob on output!\n";
+                continue;
+            }
+        }
+    }
+
 }
+
+

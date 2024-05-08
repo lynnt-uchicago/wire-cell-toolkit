@@ -503,8 +503,8 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
 }
 
 double WireCell::PointCloud::Facade::Find_Closest_Points(
-    const Cluster& cluster1,
-    const Cluster& cluster2,
+    const Cluster& cluster1ref,
+    const Cluster& cluster2ref,
     double length_1,
     double length_2,
     double length_cut,
@@ -522,19 +522,41 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
   geo_point_t p2;
   double dis;
 
-  if (length_1 < length_2){
-    mcell1 = cluster1.get_first_blob();
+  const Cluster* cluster1 = &cluster1ref;
+  const Cluster* cluster2 = &cluster2ref;
+
+  // Previously the two branches of the following if/else were identical except
+  // for 1<-->2.  For sanity, we simply swap the order.  The output of the
+  // remaining lone block is p1_save/p2_save and if we swap here, we swap them
+  // before returning.
+  bool swapped = false;
+  if (length_1 >= length_2) {
+      swapped = true;
+      std::swap(cluster1, cluster2);
+      std::swap(length_1, length_2);
+  }
+
+
+  if (! cluster1->nchildren() || ! cluster2->nchildren()) {
+      std::cerr << "Find_Closest_Points: given empty cluster: "
+                << " n1=" << cluster1->nchildren() 
+                << " n2=" << cluster2->nchildren()
+                << "\n";
+  }
+      
+//  if (length_1 < length_2){
+    mcell1 = cluster1->get_first_blob();
     p1 = mcell1->center_pos();
 
     while (mcell1 != prev_mcell1 || mcell2 != prev_mcell2){
       prev_mcell1 = mcell1;
       prev_mcell2 = mcell2;
 
-      auto temp_results = cluster2.get_closest_point_mcell(p1);
+      auto temp_results = cluster2->get_closest_point_mcell(p1);
       p2 = temp_results.first;
       mcell2 = temp_results.second;
 
-      temp_results = cluster1.get_closest_point_mcell(p2);
+      temp_results = cluster1->get_closest_point_mcell(p2);
       p1 = temp_results.first;
       mcell1 = temp_results.second;
     }
@@ -550,7 +572,7 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
     prev_mcell1 = 0;
     prev_mcell2 = 0;
 
-    mcell1 = cluster1.get_last_blob();
+    mcell1 = cluster1->get_last_blob();
     p1 = mcell1->center_pos();
 
     while(mcell1!=prev_mcell1 || mcell2!=prev_mcell2){
@@ -558,11 +580,11 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
       prev_mcell2 = mcell2;
       
       // find the closest point and merged cell in cluster2
-      auto temp_results = cluster2.get_closest_point_mcell(p1);
+      auto temp_results = cluster2->get_closest_point_mcell(p1);
       p2 = temp_results.first;
       mcell2 = temp_results.second;
       // find the closest point and merged cell in cluster1
-      temp_results = cluster1.get_closest_point_mcell(p2);
+      temp_results = cluster1->get_closest_point_mcell(p2);
       p1 = temp_results.first;
       mcell1 = temp_results.second;
     }
@@ -576,68 +598,66 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
     }
     
     
-  }else{
+  // }else{
+  //   mcell2 = cluster2.get_first_blob();
+  //   p2 = mcell2->center_pos();
 
-
-    mcell2 = cluster2.get_first_blob();
-    p2 = mcell2->center_pos();
-
-    while(mcell1!=prev_mcell1 || mcell2!=prev_mcell2){
-      prev_mcell1 = mcell1;
-      prev_mcell2 = mcell2;
+  //   while(mcell1!=prev_mcell1 || mcell2!=prev_mcell2){
+  //     prev_mcell1 = mcell1;
+  //     prev_mcell2 = mcell2;
       
-      // find the closest point and merged cell in cluster2
-      auto temp_results = cluster1.get_closest_point_mcell(p2);
-      p1 = temp_results.first;
-      mcell1 = temp_results.second;
+  //     auto temp_results = cluster1.get_closest_point_mcell(p2);
+  //     p1 = temp_results.first;
+  //     mcell1 = temp_results.second;
       
-      // find the closest point and merged cell in cluster1
-      temp_results = cluster2.get_closest_point_mcell(p1);
-      p2 = temp_results.first;
-      mcell2 = temp_results.second;
-    }
-    geo_point_t diff = p1 - p2;
-    dis = diff.magnitude();
+  //     temp_results = cluster2.get_closest_point_mcell(p1);
+  //     p2 = temp_results.first;
+  //     mcell2 = temp_results.second;
+  //   }
+  //   geo_point_t diff = p1 - p2;
+  //   dis = diff.magnitude();
 
-    if (dis < dis_save){
-      dis_save = dis;
-      p1_save = p1;
-      p2_save = p2;
-    }
+  //   if (dis < dis_save){
+  //     dis_save = dis;
+  //     p1_save = p1;
+  //     p2_save = p2;
+  //   }
 
-    
-    prev_mcell1 = 0;
-    prev_mcell2 = 0;
-    
+  //   prev_mcell1 = 0;
+  //   prev_mcell2 = 0;
 
-    mcell2 = cluster2.get_last_blob();
-    p2 = mcell2->center_pos();
+  //   mcell2 = cluster2.get_last_blob();
+  //   p2 = mcell2->center_pos();
 
-    while(mcell1!=prev_mcell1 || mcell2!=prev_mcell2){
-      prev_mcell1 = mcell1;
-      prev_mcell2 = mcell2;
+  //   while(mcell1!=prev_mcell1 || mcell2!=prev_mcell2){
+  //     prev_mcell1 = mcell1;
+  //     prev_mcell2 = mcell2;
       
-      // find the closest point and merged cell in cluster2
-      auto temp_results = cluster1.get_closest_point_mcell(p2);
-      p1 = temp_results.first;
-      mcell1 = temp_results.second;
-      // find the closest point and merged cell in cluster1
-      temp_results = cluster2.get_closest_point_mcell(p1);
-      p2 = temp_results.first;
-      mcell2 = temp_results.second;
-    }
-    diff = p1 - p2;
-    dis = diff.magnitude();
+  //     // find the closest point and merged cell in cluster2
+  //     auto temp_results = cluster1.get_closest_point_mcell(p2);
+  //     p1 = temp_results.first;
+  //     mcell1 = temp_results.second;
+  //     // find the closest point and merged cell in cluster1
+  //     temp_results = cluster2.get_closest_point_mcell(p1);
+  //     p2 = temp_results.first;
+  //     mcell2 = temp_results.second;
+  //   }
+  //   diff = p1 - p2;
+  //   dis = diff.magnitude();
 
-    if (dis < dis_save){
-      dis_save = dis;
-      p1_save = p1;
-      p2_save = p2;
-    }
+  //   if (dis < dis_save){
+  //     dis_save = dis;
+  //     p1_save = p1;
+  //     p2_save = p2;
+  //   }
 
 
     
-  }
+  // }
+
+    if (swapped) {
+        std::swap(p1_save, p2_save);
+    }
 
   return dis_save;
   

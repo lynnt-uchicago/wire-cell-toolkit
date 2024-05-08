@@ -139,14 +139,14 @@ namespace WireCell::PointCloud::Tree {
 
         // Receive notification from n-ary tree to update existing
         // NFKDs if node is in any existing scope.
-        virtual bool on_insert(const node_path_t& path);
+        virtual bool on_insert(const std::vector<node_type*>& path);
 
         // This is a brutal response to a removed node.  Any scope
         // containing the removed node will be removed from the cached
         // scoped data sets and k-d trees.  This will invalidate any
         // references and iterators from these objects that the caller
         // may be holding.
-        virtual bool on_remove(const node_path_t& path);
+        virtual bool on_remove(const std::vector<node_type*>& path);
 
       private:
 

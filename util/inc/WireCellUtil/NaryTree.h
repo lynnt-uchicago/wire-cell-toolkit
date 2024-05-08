@@ -36,6 +36,8 @@
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/utility/enable_if.hpp>
 
+// #include <iostream>             // debug
+
 namespace WireCell::NaryTree {
 
     template<typename Iter>
@@ -52,9 +54,14 @@ namespace WireCell::NaryTree {
     /** Depth first traverse, parent then children, as range */
     template<typename Value> class depth_range;
 
-    // Notify a value of some action on the node if value has a method like
-    // notify(node,action).
-    enum Action { constructed, inserted, removing };
+    // Notify this node's VALUE that a tree action took place on a NODE.  To
+    // catch an action a node value must implement a method with signature:
+    // notify(NODE,ACTION).
+    enum Action {
+        constructed,            // NODE = this
+        inserted,               // NODE = child
+        removing,               // NODE = child
+    };
 
 
     /** A tree node.
@@ -106,45 +113,45 @@ namespace WireCell::NaryTree {
         }
 
         // Insert a child node of default value
-        Node* insert() {
+        Node* insert(bool notify_value=true) {
             owned_ptr nptr = std::make_unique<self_type>();
-            return insert(std::move(nptr));
+            return insert(std::move(nptr), notify_value);
         }
 
         // Insert a child by its value copy.
-        Node* insert(const value_type& val) {
+        Node* insert(const value_type& val, bool notify_value=true) {
             owned_ptr nptr = std::make_unique<self_type>(val);
-            return insert(std::move(nptr));
+            return insert(std::move(nptr), notify_value);
         }
 
         // Insert a child by its value move.
-        Node* insert(value_type&& val) {
+        Node* insert(value_type&& val, bool notify_value=true) {
             owned_ptr nptr = std::make_unique<self_type>(std::move(val));
-            return insert(std::move(nptr));
+            return insert(std::move(nptr), notify_value);
         }
 
         // Insert, reparent and take ownership of a bare node pointer.  The
         // Node* MUST be on the heap.  A lent pointer is returned.
-        Node* insert(Node* node) {
+        Node* insert(Node* node, bool notify_value=true) {
             owned_ptr nptr;
             if (node->parent) {
-                nptr = node->parent->remove(node);
+                nptr = node->parent->remove(node, notify_value);
             }
             else {
                 nptr.reset(node);
             }
-            return insert(std::move(nptr));
+            return insert(std::move(nptr), notify_value);
         }
 
         // Insert, reparent and take ownership of a unique node pointer.  A lent
         // pointer is returned.
-        Node* insert(owned_ptr node) {
+        Node* insert(owned_ptr node, bool notify_value=true) {
             if (!node or !node.get()) {
                 throw std::runtime_error("NaryTree::Node insert on null node");
             }
 
             if (node->parent) {
-                node = node->parent->remove(node.get());
+                node = node->parent->remove(node.get(), notify_value);
             }
             node->parent = this;
             nursery_.push_back(std::move(node));
@@ -153,7 +160,9 @@ namespace WireCell::NaryTree {
             if (!child) {
                 throw std::runtime_error("NaryTree::Node insert on null child node");
             }
-            notify<Value>(Action::inserted, child);
+            if (notify_value) {
+                notify<Value>(Action::inserted, child);
+            }
             return child;
         }
 
@@ -172,11 +181,11 @@ namespace WireCell::NaryTree {
         }
         
         // Remove and return child node.
-        owned_ptr remove(sibling_iter sib, bool notify_child=true) {
+        owned_ptr remove(sibling_iter sib, bool notify_value=true) {
             if (sib == nursery_.end()) return nullptr;
 
             Node* child = (*sib).get();
-            if (notify_child) {
+            if (notify_value) {
                 notify<Value>(Action::removing, child);
             }
 
@@ -190,34 +199,37 @@ namespace WireCell::NaryTree {
 
         // Remove child node.  Searches children.  Return child node
         // in owned pointer if found else nullptr.
-        owned_ptr remove(const Node* node, bool notify_child=true) {
+        owned_ptr remove(const Node* node, bool notify_value=true) {
             auto it = find(node);
-            return remove(it, notify_child);
+            return remove(it, notify_value);
         }
 
         // Return a nursery of all children, leaving the one in this node empty.
         // If notify_child is true, notify the children of their removal.
-        nursery_type remove_children(bool notify_child=true) {
+        nursery_type remove_children(bool notify_value=true) {
+            // std::cerr << "NaryTree::Node::remove_children() removing " << nursery_.size() << "\n";
             nursery_type ret;
             while (nursery_.begin() != nursery_.end()) {
-                auto orphan = remove(nursery_.begin(), notify_child);
+                auto orphan = remove(nursery_.begin(), notify_value);
                 ret.emplace_back(std::move(orphan));
             }
             return ret;         // this is a move.
         }            
 
         // Insert children in given nursery, depleting it.
-        void adopt_children(nursery_type& kids) {
+        void adopt_children(nursery_type& kids, bool notify_value=true) {
+            // std::cerr << "NaryTree::Node::adopt_children() adopting " << kids.size() << "\n";
             for (auto it = kids.begin(); it != kids.end(); ++it) {
-                insert(std::move(*it));
+                insert(std::move(*it), notify_value);
             }
             kids.clear();
         }
 
         // Transfer children from other to self.
-        void take_children(self_type& other, bool notify_child = true) {
-            auto kids = other.remove_children(notify_child);
-            adopt_children(kids);
+        void take_children(self_type& other, bool notify_value = true) {
+            // std::cerr << "NaryTree::Node::take_children() taking " << other.nchildren() << "\n";
+            auto kids = other.remove_children(notify_value);
+            adopt_children(kids, notify_value);
         }
 
         // Iterator locating self in list of siblings.  If parent is
@@ -351,13 +363,13 @@ namespace WireCell::NaryTree {
         using has_notify = is_detected<notify_type, T, Node*, Action>;
 
         template <class T, std::enable_if_t<has_notify<T>::value>* = nullptr>
-        void notify(Action action, Node* node) const {
+        void notify(Action action, Node* node) {
             // std::cerr << "sending action: "<<action<<" \n";
-            node->value.notify(node, action);
+            this->value.notify(node, action);
         }
 
         template <class T, std::enable_if_t<!has_notify<T>::value>* = nullptr>
-        void notify(Action action, Node* node) const {
+        void notify(Action action, Node* node) {
             // std::cerr << "missing action: "<<action<<" \n";
             return; // no-op
         }

@@ -36,8 +36,22 @@ namespace {
 }
 #endif
 
-void Blob::notify_new_node_base()
+std::ostream& Facade::operator<<(std::ostream& os, const Facade::Blob& blob)
 {
+    os << "<Blob ["<<(void*)&blob<<"]: nptr="
+       << blob.num_points() << " r=" << blob.center_pos()
+       << " t=[" << blob.slice_index_min << "," << blob.slice_index_max << "]"
+       << " u=[" << blob.u_wire_index_min << "," << blob.u_wire_index_max << "]"
+       << " v=[" << blob.v_wire_index_min << "," << blob.v_wire_index_max << "]"
+       << " w=[" << blob.w_wire_index_min << "," << blob.w_wire_index_max << "]"
+       << ">";
+    return os;
+}
+
+void Blob::on_construct(node_type* node)
+{
+    this->NaryTree::Facade<points_t>::on_construct(node);
+
     const auto& lpcs = m_node->value.local_pcs();
     const auto& pc_scalar = lpcs.at("scalar");
 
@@ -86,12 +100,38 @@ int_t Blob::num_points() const{
 }
 
 
-void Cluster::notify_new_node_parent()
+std::ostream& Facade::operator<<(std::ostream& os, const Facade::Cluster& cluster)
 {
-    m_length = 0;               // invalidate
+    os << "<Cluster ["<<(void*)&cluster<<"]:"
+       << " npts=" << cluster.get_num_points()
+       << " nblobs=" << cluster.nchildren() << ">";
+    return os;
+}
+
+void Cluster::on_construct(node_type* node)
+{
+    this->NaryTree::FacadeParent<Blob, points_t>::on_construct(node);
     for (auto* blob : children()) {
         m_time_blob_map.insert({blob->slice_index_min, blob});
     }
+    // std::cerr << "Cluster["<<(void*)this<<"]::on_construct(" << (void*)node << ") with "
+    //           << nchildren() << " initial children "
+    //           << m_time_blob_map.size() << " time blob map size\n";
+}
+
+bool Cluster::on_insert(const std::vector<node_type*>& path)
+{
+    if (!this->NaryTree::FacadeParent<Blob, points_t>::on_insert(path)) {
+        return false;
+    }
+
+    auto* node = path.back();
+    Blob* blob = node->value.facade<Blob>();
+    m_time_blob_map.insert({blob->slice_index_min, blob});
+    // std::cerr << "Cluster["<<(void*)this<<"]::on_insert(" << (void*)node << ") with "
+    //           << nchildren() << " children\n";
+    
+    return true;
 }
 
 
@@ -115,9 +155,18 @@ std::vector<const Blob*> Cluster::is_connected(const Cluster& c, const int offse
 }
 
 const Blob* Cluster::get_first_blob() const{
+    if (m_time_blob_map.empty()) {
+        std::cerr << "Cluster["<<(void*)this<<"]::get_first_blob() time blob map is empty\n";        
+        return nullptr;
+    }
+
     return m_time_blob_map.begin()->second;
 }
 const Blob* Cluster::get_last_blob() const{
+    if (m_time_blob_map.empty()) {
+        std::cerr << "Cluster["<<(void*)this<<"]::get_last_blob() time blob map is empty\n";        
+        return nullptr;
+    }
     return m_time_blob_map.rbegin()->second;
 }
 
@@ -508,6 +557,51 @@ std::pair<geo_point_t, geo_point_t> Cluster::get_earliest_latest_points() const
 {
     auto backwards = get_highest_lowest_points(0);
     return std::make_pair(backwards.second, backwards.first);
+}
+
+
+std::ostream& Facade::operator<<(std::ostream& os, const Facade::Grouping& grouping)
+{
+    os << "<Grouping ["<<(void*)&grouping<<"]:"
+       << " nclusters=" << grouping.nchildren() << ">";
+    return os;
+}
+
+
+std::ostream& Facade::dump_clusters(std::ostream& os, const Facade::Grouping& grouping)
+{
+    os << grouping << "\n";
+    size_t nc = 0;
+    for (const auto* cluster : grouping.children()) {
+        os << nc++ << "\t" << *cluster << "\n";
+    }
+    return os;
+}
+std::string Facade::dump_clusters(const Facade::Grouping& grouping)
+{
+    std::stringstream ss;
+    dump_clusters(ss, grouping);
+    return ss.str();
+}
+
+std::ostream& Facade::dump_blobs(std::ostream& os, const Facade::Grouping& grouping)
+{
+    os << grouping << "\n";
+    size_t nc=0;
+    for (const auto* cluster : grouping.children()) {
+        os << nc++ << "\t" << *cluster << "\n";
+        size_t nb = 0;
+        for (const auto* blob : cluster->children()) {
+            os << nb++ << "\t\t" << *blob << "\n";
+        }
+    }
+    return os;
+}
+std::string Facade::dump_blobs(const Facade::Grouping& grouping)
+{
+    std::stringstream ss;
+    dump_blobs(ss, grouping);
+    return ss.str();
 }
 
 

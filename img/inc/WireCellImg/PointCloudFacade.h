@@ -65,8 +65,12 @@ namespace WireCell::PointCloud::Facade {
         int_t w_wire_index_max {0};
 
     protected:
-        virtual void notify_new_node_base();
+
+        // Receive notification when this facade is created on a node.
+        virtual void on_construct(node_type* node);
+
     };
+    std::ostream& operator<<(std::ostream& os, const Blob& blob);
 
     // Give a node "Cluster" semantics.  A cluster node's children are blob nodes.
     class Cluster : public NaryTree::FacadeParent<Blob, points_t> {
@@ -166,7 +170,11 @@ namespace WireCell::PointCloud::Facade {
 	const Blob* get_last_blob() const;
 	
     protected:
-        virtual void notify_new_node_parent();
+
+        // Receive notification of a new child
+        virtual void on_construct(node_type* node);
+        virtual bool on_insert(const std::vector<node_type*>& path);
+
 
     private:
         // start slice index (tick number) to blob facade pointer can be
@@ -183,6 +191,7 @@ namespace WireCell::PointCloud::Facade {
         // "range".
         std::tuple<int, int, int, int> get_uvwt_range() const;
     };
+    std::ostream& operator<<(std::ostream& os, const Cluster& cluster);
 
 
     // Give a node "Grouping" semantics.  A grouping node's children are cluster
@@ -191,7 +200,12 @@ namespace WireCell::PointCloud::Facade {
     public:
 
     };
-
+    std::ostream& operator<<(std::ostream& os, const Grouping& grouping);
+    std::ostream& dump_clusters(std::ostream& os, const Grouping& grouping);
+    std::string dump_clusters(const Grouping& grouping);
+    std::ostream& dump_blobs(std::ostream& os, const Grouping& grouping);
+    std::string dump_blobs(const Grouping& grouping);
+    
 
     // fixme: why do we inline these?
     inline double cal_proj_angle_diff(const geo_vector_t& dir1, const geo_vector_t& dir2, double plane_angle) {

@@ -320,7 +320,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
             dumpe_deadarea(*root_dead.get(), String::format("%s/%d-channel-deadarea.json", sub_dir, ident));
         }
     }
-    log->debug(em("dump live+dead to bee"));
+    log->debug(em("dump img to bee"));
 
     if (flag_print) std::cout << em("Finish PC/Facade Conversion ") << std::endl;
     
@@ -332,8 +332,8 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     // initialize clusters ...
     root_live->value.set_facade(std::make_unique<Grouping>());
     Grouping& live_grouping = *root_live->value.facade<Grouping>();
+    log->debug(dump_clusters(live_grouping));
     log->debug(em("make live clusters"));
-
 
     {  // ATTENTION, this block is just for debugging.
         // This is here just to trigger k-d tree building so that we can separate
@@ -423,6 +423,8 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
       log->debug(em("clustering_extend dead"));
       if (flag_print) std::cout << em("extend dead") << std::endl;
     }
+    log->debug(dump_clusters(live_grouping));
+    log->debug(em("finish clustering"));
         
     // BEE debug dead-live
     if (!m_bee_dir.empty()) {
