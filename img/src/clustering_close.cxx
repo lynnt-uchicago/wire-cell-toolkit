@@ -99,8 +99,9 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round(
     return true;
   }
 
-  if (dis < 1.0*units::cm && length_2 < 12*units::cm && length_1 <12*units::cm)
+  if (dis < 1.0*units::cm && length_2 < 12*units::cm && length_1 <12*units::cm) {
     return true;
+  }
 
   if (dis < 2.0*units::cm && (length_2 >=12*units::cm || length_1 >=12*units::cm)){
     dir1 = cluster1.vhough_transform(p1,50*units::cm); // cluster 1 direction based on hough
@@ -108,13 +109,13 @@ bool WireCell::PointCloud::Facade::Clustering_3rd_round(
 
     if (flag_print) std::cout << em("Hough Transform") << std::endl;
     
-    std::pair<int,int> num_ps_1 = cluster1.get_num_points(p1,dir1);
-    std::pair<int,int> num_ps_2 = cluster2.get_num_points(p2,dir2);
+    std::pair<int,int> num_ps_1 = cluster1.ndipole(p1,dir1);
+    std::pair<int,int> num_ps_2 = cluster2.ndipole(p2,dir2);
 
-    num_p1 = cluster1.get_num_points(p1, 10*units::cm);
-    num_p2 = cluster2.get_num_points(p2, 10*units::cm);
-    num_tp1 = cluster1.get_num_points();
-    num_tp2 = cluster2.get_num_points();
+    num_p1 = cluster1.nnearby(p1, 10*units::cm);
+    num_p2 = cluster2.nnearby(p2, 10*units::cm);
+    num_tp1 = cluster1.npoints();
+    num_tp2 = cluster2.npoints();
 
     if (flag_print) std::cout << em("Get Number Points") << std::endl;
     

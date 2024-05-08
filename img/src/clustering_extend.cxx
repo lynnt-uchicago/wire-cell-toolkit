@@ -366,14 +366,14 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
     geo_point_t cluster2_ave_pos = cluster_2.calc_ave_pos(p2,5*units::cm);
     geo_point_t dir1;
     
-    if (cluster_1.get_num_points(cluster1_ave_pos, 30*units::cm)>50 && length_1 < 120*units::cm){
+    if (cluster_1.nnearby(cluster1_ave_pos, 30*units::cm)>50 && length_1 < 120*units::cm){
       dir1 = cluster_1.vhough_transform(cluster1_ave_pos,30*units::cm);
     }else{
       dir1 = cluster_1.vhough_transform(cluster1_ave_pos,80*units::cm);
     }
 
     geo_point_t dir3;
-    if (cluster_2.get_num_points(cluster2_ave_pos, 30*units::cm)>50&&length_2 < 120*units::cm){
+    if (cluster_2.nnearby(cluster2_ave_pos, 30*units::cm)>50&&length_2 < 120*units::cm){
       dir3 = cluster_2.vhough_transform(cluster2_ave_pos,30*units::cm);
     }else{
       dir3 = cluster_2.vhough_transform(cluster2_ave_pos,80*units::cm);
@@ -462,14 +462,14 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
     if (flag_para || flag_prol || flag_reg){
 
       geo_point_t dir1;
-      if (cluster_1.get_num_points(p1, 15*units::cm)>30 && (flag_prol ||flag_reg) ){
+      if (cluster_1.nnearby(p1, 15*units::cm)>30 && (flag_prol ||flag_reg) ){
 	dir1 = cluster_1.vhough_transform(p1,15*units::cm);
       }else{
 	dir1 = cluster_1.vhough_transform(p1,60*units::cm);
       }
 
       geo_point_t dir3;
-      if (cluster_2.get_num_points(p2, 15*units::cm)>30 && (flag_prol || flag_reg)){
+      if (cluster_2.nnearby(p2, 15*units::cm)>30 && (flag_prol || flag_reg)){
 	dir3 = cluster_2.vhough_transform(p2,15*units::cm);
       }else{
 	dir3 = cluster_2.vhough_transform(p2,60*units::cm);

@@ -123,23 +123,23 @@ namespace WireCell::PointCloud::Facade {
             double dis_step, double angle_cut, double dis_cut) const;
 
         // Return the number of points in the k-d tree
-	int get_num_points() const;
+	int npoints() const;
 
         // Return the number of points within radius of the point.  Note, radius
         // is a LINEAR distance through the L2 metric is used internally.
-	int get_num_points(const geo_point_t& point, double radius) const;
+	int nnearby(const geo_point_t& point, double radius) const;
 
         // Return the number of points in the k-d tree partitioned into pair
         // (#forward,#backward) based on given direction of view from the given
         // point.
-	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir) const;
+	std::pair<int, int> ndipole(const geo_point_t& point, const geo_point_t& dir) const;
 
         // Return the number of points with in the radius of the given point in
         // the k-d tree partitioned into pair (#forward,#backward) based on
         // given direction of view from the given point.
         //
         // Note: the radius is a LINEAR distance measure.
-	std::pair<int, int> get_num_points(const geo_point_t& point, const geo_point_t& dir, double radius) const;
+	// std::pair<int, int> nprojection(const geo_point_t& point, const geo_point_t& dir, double radius) const;
 
         // Return the points at the extremes of the X-axis.
         //
@@ -200,6 +200,8 @@ namespace WireCell::PointCloud::Facade {
         // Cached and lazily calculated in get_length().
         // Getting a new node invalidates by setting to 0.
         mutable double m_length{0};
+        // Cached and lazily calculated in npoints()
+        mutable int m_npoints{0};
 
         // Return the number of unique wires or ticks.  FIXME: is this really
         // what is wanted?  It does not return what is normally considered a

@@ -213,6 +213,6 @@ TEST_CASE("test PointCloudFacade")
     debug("length: {}", length);
     const auto [earliest, latest] = pcc.get_earliest_latest_points();
     debug("earliest_latest_points: {} {} | expecting (0 0 0) (1.9 0 0)", earliest, latest);
-    const auto [num1, num2] = pcc.get_num_points({0.5,0,0}, {1,0,0});
+    const auto [num1, num2] = pcc.ndipole({0.5,0,0}, {1,0,0});
     debug("num_points: {} {} | expecting 15, 5", num1, num2);
 }

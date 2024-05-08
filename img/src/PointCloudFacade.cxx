@@ -96,7 +96,7 @@ geo_point_t Blob::center_pos() const {
 std::ostream& Facade::operator<<(std::ostream& os, const Facade::Cluster& cluster)
 {
     os << "<Cluster ["<<(void*)&cluster<<"]:"
-       << " npts=" << cluster.get_num_points()
+       << " npts=" << cluster.npoints()
        << " nblobs=" << cluster.nchildren() << ">";
     return os;
 }
@@ -189,14 +189,17 @@ Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir,
 }
 
 
-int Cluster::get_num_points() const
+int Cluster::npoints() const
 {
-    const auto& sv = m_node->value.scoped_view(scope);
-    return sv.npoints();
+    if (!m_npoints) {
+        const auto& sv = m_node->value.scoped_view(scope);
+        m_npoints = sv.npoints();
+    }
+    return m_npoints;
 }
 
 
-int Cluster::get_num_points(const geo_point_t& point, double dis) const
+int Cluster::nnearby(const geo_point_t& point, double dis) const
 {
     const auto& sv = m_node->value.scoped_view(scope);
     const auto& skd = sv.kd();
@@ -206,7 +209,7 @@ int Cluster::get_num_points(const geo_point_t& point, double dis) const
 }
 
 
-std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir) const
+std::pair<int, int> Cluster::ndipole(const geo_point_t& point, const geo_point_t& dir) const
 {
     const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     const auto& skd = sv.kd();
@@ -231,33 +234,33 @@ std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_
     return std::make_pair(num_p1, num_p2);
 }
 
-std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_point_t& dir, double dis) const
-{
-    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
+// std::pair<int, int> Cluster::nprojection(const geo_point_t& point, const geo_point_t& dir, double dis) const
+// {
+//     const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
+//     const auto& skd = sv.kd();
+//     const auto& points = skd.points();
 
-    int num_p1 = 0;
-    int num_p2 = 0;
+//     int num_p1 = 0;
+//     int num_p2 = 0;
 
-    auto rad = skd.radius(dis*dis, point);
-    for (const auto& [index,_] : rad) {
+//     auto rad = skd.radius(dis*dis, point);
+//     for (const auto& [index,_] : rad) {
       
-        geo_point_t dir1(points[0][index] - point.x(),
-                         points[1][index] - point.y(),
-                         points[2][index] - point.z());
+//         geo_point_t dir1(points[0][index] - point.x(),
+//                          points[1][index] - point.y(),
+//                          points[2][index] - point.z());
 
-        if (dir1.dot(dir) >= 0) {
-            ++num_p1;
-        }
-        else{
-            ++num_p2;
-        }
+//         if (dir1.dot(dir) >= 0) {
+//             ++num_p1;
+//         }
+//         else{
+//             ++num_p2;
+//         }
 
-    }
+//     }
 
-    return std::make_pair(num_p1, num_p2);
-}
+//     return std::make_pair(num_p1, num_p2);
+// }
 
 
 

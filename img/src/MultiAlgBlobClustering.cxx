@@ -341,7 +341,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         size_t npts=0;
         for (const auto& cl : live_grouping.children()) {
             cl->get_closest_point_blob(geo_point_t(0,0,0));
-            npts += cl->get_num_points();
+            npts += cl->npoints();
         }
         log->debug("made {} live clusters with {} points", live_grouping.nchildren(), npts);
         log->debug(em("make live k-d tree"));
@@ -355,7 +355,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         size_t npts=0;
         for (const auto& cl : dead_grouping.children()) {
             cl->get_closest_point_blob(geo_point_t(0,0,0));
-            npts += cl->get_num_points();
+            npts += cl->npoints();
         }
         log->debug("made {} dead clusters with {} points", dead_grouping.nchildren(), npts);
         log->debug(em("make dead k-d tree"));
