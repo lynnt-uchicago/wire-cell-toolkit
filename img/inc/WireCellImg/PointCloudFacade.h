@@ -107,7 +107,7 @@ namespace WireCell::PointCloud::Facade {
 
         // Return blob containing the returned point that is closest to the given point.
         using point_blob_map_t = std::map<geo_point_t, const Blob*>;
-	std::pair<geo_point_t, const Blob*> get_closest_point_mcell(const geo_point_t& point) const;
+	std::pair<geo_point_t, const Blob*> get_closest_point_blob(const geo_point_t& point) const;
 
         // Return set of blobs each with a corresponding point.  The set
         // includes blobs with at least one point within the given radius of the
@@ -116,7 +116,7 @@ namespace WireCell::PointCloud::Facade {
         //
         // Note: radius must provide a LINEAR distance measure.
         using const_blob_point_map_t = std::map<const Blob*, geo_point_t>;
-	const_blob_point_map_t get_closest_mcell(const geo_point_t& point, double radius) const;
+	const_blob_point_map_t get_closest_blob(const geo_point_t& point, double radius) const;
 
 	std::pair<geo_point_t, double> get_closest_point_along_vec(
             geo_point_t& p_test, geo_point_t dir, double test_dis,

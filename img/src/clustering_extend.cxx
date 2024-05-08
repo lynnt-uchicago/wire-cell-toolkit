@@ -264,7 +264,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_prol(
     double length_cut)
 {
 
-  auto temp_results = cluster_2.get_closest_point_mcell(earliest_p);
+  auto temp_results = cluster_2.get_closest_point_blob(earliest_p);
   geo_point_t p2 = temp_results.first;
   geo_point_t diff = earliest_p - p2;
   double dis = diff.magnitude();
@@ -300,7 +300,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_para(
     double length_cut)
 {
 
-  auto temp_results = cluster_2.get_closest_point_mcell(earliest_p);
+  auto temp_results = cluster_2.get_closest_point_blob(earliest_p);
   geo_point_t p2 = temp_results.first;
   
   geo_point_t diff = p2 - earliest_p;
@@ -314,7 +314,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_para(
      for (int i=-5;i!=10;i++){ 
        test_point.set(earliest_p.x() - dir_earlp.x() * (dis +i*2*units::cm), earliest_p.y() - dir_earlp.y() * (dis +i*2*units::cm), earliest_p.z() - dir_earlp.z() * (dis +i*2*units::cm)); 
 	
-       auto temp_results = cluster_2.get_closest_point_mcell(test_point); 
+       auto temp_results = cluster_2.get_closest_point_blob(test_point); 
  	//reuse this 
        geo_point_t test_point1 = temp_results.first;
 
@@ -341,14 +341,14 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
     geo_point_t p1, double length_cut)
 {
     
-  auto temp_results = cluster_2.get_closest_point_mcell(p1);
+  auto temp_results = cluster_2.get_closest_point_blob(p1);
   geo_point_t p2 = temp_results.first;
   geo_point_t diff = p1 - p2;
   double dis1 = diff.magnitude();
   
-  temp_results = cluster_1.get_closest_point_mcell(p2);
+  temp_results = cluster_1.get_closest_point_blob(p2);
   p1 = temp_results.first;
-  /* temp_results = cluster_2.get_closest_point_mcell(p1); */
+  /* temp_results = cluster_2.get_closest_point_blob(p1); */
   /* p2 = temp_results.second; */
 
   diff = p1 - p2;
@@ -393,7 +393,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
       for (int i=-5;i!=10;i++){
 	test_point.set(cluster1_ave_pos.x() - dir1.x() * (ave_dis +i*2*units::cm), cluster1_ave_pos.y() - dir1.y() * (ave_dis +i*2*units::cm), cluster1_ave_pos.z() - dir1.z() * (ave_dis +i*2*units::cm));
 	
-	auto temp_results = cluster_2.get_closest_point_mcell(test_point);
+	auto temp_results = cluster_2.get_closest_point_blob(test_point);
 	//reuse this
 	geo_point_t test_point1 = temp_results.first;
 	if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){
@@ -416,7 +416,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_reg(
       for (int i=-5;i!=10;i++){
 	test_point.set(cluster2_ave_pos.x() - dir3.x() * (ave_dis +i*2*units::cm), cluster2_ave_pos.y() - dir3.y() * (ave_dis +i*2*units::cm), cluster2_ave_pos.z() - dir3.z() * (ave_dis +i*2*units::cm));
 	
-	auto temp_results = cluster_1.get_closest_point_mcell(test_point);
+	auto temp_results = cluster_1.get_closest_point_blob(test_point);
 	//reuse this
 	geo_point_t test_point1 = temp_results.first;
 	if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){
@@ -547,11 +547,11 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
     prev_mcell1 = mcell1;
     prev_mcell2 = mcell2;
 
-    auto temp_results = cluster2->get_closest_point_mcell(p1);
+    auto temp_results = cluster2->get_closest_point_blob(p1);
     p2 = temp_results.first;
     mcell2 = temp_results.second;
 
-    temp_results = cluster1->get_closest_point_mcell(p2);
+    temp_results = cluster1->get_closest_point_blob(p2);
     p1 = temp_results.first;
     mcell1 = temp_results.second;
   }
@@ -575,11 +575,11 @@ double WireCell::PointCloud::Facade::Find_Closest_Points(
     prev_mcell2 = mcell2;
       
     // find the closest point and merged cell in cluster2
-    auto temp_results = cluster2->get_closest_point_mcell(p1);
+    auto temp_results = cluster2->get_closest_point_blob(p1);
     p2 = temp_results.first;
     mcell2 = temp_results.second;
     // find the closest point and merged cell in cluster1
-    temp_results = cluster1->get_closest_point_mcell(p2);
+    temp_results = cluster1->get_closest_point_blob(p2);
     p1 = temp_results.first;
     mcell1 = temp_results.second;
   }
@@ -749,7 +749,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_dead(
 	    for (int k=-5;k!=10;k++){
 	      test_point.set(cluster1_ave_pos.x() - dir1.x() * (ave_dis +k*2*units::cm), cluster1_ave_pos.y() - dir1.y() * (ave_dis +k*2*units::cm), cluster1_ave_pos.z() - dir1.z() * (ave_dis +k*2*units::cm));
 	      
-	      auto temp_results = cluster_2.get_closest_point_mcell(test_point);
+	      auto temp_results = cluster_2.get_closest_point_blob(test_point);
 	      //reuse this
 	      geo_point_t test_point1 = temp_results.first;
 	      if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){
@@ -765,7 +765,7 @@ bool WireCell::PointCloud::Facade::Clustering_4th_dead(
 	    for (int k=-5;k!=10;k++){
 	      test_point.set(cluster2_ave_pos.x() - dir3.x() * (ave_dis +k*2*units::cm), cluster2_ave_pos.y() - dir3.y() * (ave_dis +k*2*units::cm),  cluster2_ave_pos.z() - dir3.z() * (ave_dis +k*2*units::cm));
 	      
-	      auto temp_results = cluster_1.get_closest_point_mcell(test_point);
+	      auto temp_results = cluster_1.get_closest_point_blob(test_point);
 	      //reuse this
 	      geo_point_t test_point1 = temp_results.first;
 	      if (sqrt(pow(test_point1.x()-test_point.x(),2)+pow(test_point1.y()-test_point.y(),2)+pow(test_point1.z()-test_point.z(),2))<1.5*units::cm){

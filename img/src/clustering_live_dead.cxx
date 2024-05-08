@@ -109,7 +109,7 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                         const Blob* mcell2 = 0;
 
                         geo_point_t p1 = mcell1->center_pos();
-                        std::tie(p1, mcell1) = cluster_1->get_closest_point_mcell(p1);
+                        std::tie(p1, mcell1) = cluster_1->get_closest_point_blob(p1);
                         //	      p1 = temp_pair.first;
                         //	      mcell1 = temp_pair.second;
                         geo_point_t p2(0, 0, 0);
@@ -117,8 +117,8 @@ void WireCell::PointCloud::Facade::clustering_live_dead(
                             prev_mcell1 = mcell1;
                             prev_mcell2 = mcell2;
 
-                            std::tie(p2, mcell2) = cluster_2->get_closest_point_mcell(p1);
-                            std::tie(p1, mcell1) = cluster_1->get_closest_point_mcell(p2);
+                            std::tie(p2, mcell2) = cluster_2->get_closest_point_blob(p1);
+                            std::tie(p1, mcell1) = cluster_1->get_closest_point_blob(p2);
                         }
                         geo_point_t diff = p1 - p2;
                         double dis = diff.magnitude();

@@ -165,7 +165,7 @@ Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir,
                    dir.y() * i * dis_step, p_test1.z() +
                    dir.z() * i * dis_step);
     
-        auto pts = get_closest_point_mcell(p_test);
+        auto pts = get_closest_point_blob(p_test);
     
         double dis = sqrt(pow(p_test.x() - pts.first.x(),2) +
                           pow(p_test.y() - pts.first.y(),2) +
@@ -261,7 +261,7 @@ std::pair<int, int> Cluster::get_num_points(const geo_point_t& point, const geo_
 
 
 
-std::map<const Blob*, geo_point_t> Cluster::get_closest_mcell(const geo_point_t& point, double radius) const
+std::map<const Blob*, geo_point_t> Cluster::get_closest_blob(const geo_point_t& point, double radius) const
 {
     const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     const auto& skd = sv.kd();
@@ -303,7 +303,7 @@ std::map<const Blob*, geo_point_t> Cluster::get_closest_mcell(const geo_point_t&
     return mcell_point_map;
 }
 
-std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_mcell(const geo_point_t& point) const
+std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_blob(const geo_point_t& point) const
 {
     const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     const auto& skd = sv.kd();
@@ -332,7 +332,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, c
     geo_point_t pt(0,0,0);
     double charge = 0;
 
-    for (auto [blob, pt] : get_closest_mcell(origin, dis)) {
+    for (auto [blob, pt] : get_closest_blob(origin, dis)) {
         double q = blob->charge();
         if (q==0) q=1;
         pt += q*blob->center_pos();

@@ -340,7 +340,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         // that out its time/memory from those of the first algorithm
         size_t npts=0;
         for (const auto& cl : live_grouping.children()) {
-            cl->get_closest_point_mcell(geo_point_t(0,0,0));
+            cl->get_closest_point_blob(geo_point_t(0,0,0));
             npts += cl->get_num_points();
         }
         log->debug("made {} live clusters with {} points", live_grouping.nchildren(), npts);
@@ -354,7 +354,7 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     {                           // trigger k-d tree building early for perf testing
         size_t npts=0;
         for (const auto& cl : dead_grouping.children()) {
-            cl->get_closest_point_mcell(geo_point_t(0,0,0));
+            cl->get_closest_point_blob(geo_point_t(0,0,0));
             npts += cl->get_num_points();
         }
         log->debug("made {} dead clusters with {} points", dead_grouping.nchildren(), npts);
