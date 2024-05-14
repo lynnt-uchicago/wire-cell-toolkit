@@ -509,7 +509,7 @@ std::pair<geo_point_t, geo_point_t> Cluster::get_highest_lowest_points(size_t ax
     const auto& sv = m_node->value.scoped_view(scope);
     const auto& skd = sv.kd();
     const auto& points = skd.points();
-    const size_t npoints = points.size();
+    const size_t npoints = points[0].size();
 
     geo_point_t lowest_point, highest_point;
 
