@@ -207,8 +207,8 @@ TEST_CASE("test PointCloudFacade")
     debug("vdir_alg0: {}", vdir_alg0);
     const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, Cluster::HoughParamSpace::theta_phi);
     debug("vdir_alg1: {}", vdir_alg1);
-    // sqrt(3*3*2*2 + 3*3*2*2 + 3*3*2*2 + 3.2*3.2*1*1) = 10.8738217753
-    debug("expecting 10.8738217753");
+    // sqrt(2./3.*(3*3*2*2*3)+(0.5*1.101)^2) = 8.503
+    debug("expecting 8.503");
     const auto length = pcc.get_length({});
     debug("length: {}", length);
     const auto [earliest, latest] = pcc.get_earliest_latest_points();
