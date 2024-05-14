@@ -332,21 +332,21 @@ std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_blob(const geo_p
 geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, const int alg) const
 {
     // average position
-    geo_point_t pt(0,0,0);
+    geo_point_t out(0,0,0);
     double charge = 0;
 
     for (auto [blob, pt] : get_closest_blob(origin, dis)) {
         double q = blob->charge();
         if (q==0) q=1;
-        pt += q*blob->center_pos();
+        out += q*blob->center_pos();
         charge += q;
     }
     
     if (charge != 0) {
-        pt = pt / charge;
+        out = out / charge;
     }
 
-    return pt;
+    return out;
 }
 
 #include <boost/histogram.hpp>
@@ -462,6 +462,51 @@ geo_point_t Cluster::vhough_transform(const geo_point_t& origin, const double di
     return {sth*cos(phi), sth*sin(phi), cth};
 }
 
+
+std::tuple<int, int, int, int> Cluster::get_uvwt_min() const
+{
+    std::tuple<int, int, int, int> ret;
+    bool first = true;
+    
+    for (const auto* blob : children()) {
+        const int u = blob->u_wire_index_min();
+        const int v = blob->v_wire_index_min();
+        const int w = blob->w_wire_index_min();
+        const int t = blob->slice_index_min();
+
+        if (first) {
+            ret = {u,v,w,t};
+            continue;
+        }
+        get<0>(ret) = std::min(get<0>(ret), u);
+        get<1>(ret) = std::min(get<1>(ret), v);
+        get<2>(ret) = std::min(get<2>(ret), w);
+        get<3>(ret) = std::min(get<3>(ret), t);
+    }
+    return ret;
+}
+std::tuple<int, int, int, int> Cluster::get_uvwt_max() const
+{
+    std::tuple<int, int, int, int> ret;
+    bool first = true;
+    
+    for (const auto* blob : children()) {
+        const int u = blob->u_wire_index_max();
+        const int v = blob->v_wire_index_max();
+        const int w = blob->w_wire_index_max();
+        const int t = blob->slice_index_max();
+
+        if (first) {
+            ret = {u,v,w,t};
+            continue;
+        }
+        get<0>(ret) = std::max(get<0>(ret), u);
+        get<1>(ret) = std::max(get<1>(ret), v);
+        get<2>(ret) = std::max(get<2>(ret), w);
+        get<3>(ret) = std::max(get<3>(ret), t);
+    }
+    return ret;
+}
 
 // FIXME: Is this actually correct?  It does not return "ranges" but rather the
 // number of unique wires/ticks in the cluster.  A sparse but large cluster will

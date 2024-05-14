@@ -276,6 +276,18 @@ namespace {
     }
 }  // namespace
 
+static void dump_new(Log::logptr_t log, const std::string& ctx, const Grouping& grouping)
+{
+    auto children = grouping.children();
+    sort_clusters(children);
+    const size_t nclusters = children.size();
+    size_t count=0;
+    for(const auto* blob : children) {
+        log->debug("NEW {} cluster {} of {} nblobs={}", ctx, count++, nclusters, blob->nchildren());
+    }
+    
+}
+
 bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointer& outts)
 {
     outts = nullptr;
@@ -300,9 +312,8 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
         log->error("Failed to get point cloud tree from \"{}\"", inpath);
         return false;
     }
-    log->debug("Got live pctree with {} children", root_live->nchildren());
-    log->debug(em("got live pctree"));
-
+    // log->debug("Got live pctree with {} children", root_live->nchildren());
+    // log->debug(em("got live pctree"));
     auto root_dead = as_pctree(intens, inpath + "/dead");
     if (!root_dead) {
         log->error("Failed to get point cloud tree from \"{}\"", inpath + "/dead");
@@ -332,45 +343,28 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
     // initialize clusters ...
     root_live->value.set_facade(std::make_unique<Grouping>());
     Grouping& live_grouping = *root_live->value.facade<Grouping>();
-    log->debug(dump(live_grouping));
-    log->debug(em("make live clusters"));
-
-    {  // ATTENTION, this block is just for debugging.
-        // This is here just to trigger k-d tree building so that we can separate
-        // that out its time/memory from those of the first algorithm
-        size_t npts=0;
-        for (const auto& cl : live_grouping.children()) {
-            cl->get_closest_point_blob(geo_point_t(0,0,0));
-            npts += cl->npoints();
-        }
-        log->debug("made {} live clusters with {} points", live_grouping.nchildren(), npts);
-        log->debug(em("make live k-d tree"));
-    }
+    dump_new(log, "input", live_grouping);
+    // log->debug(dump(live_grouping));
+    // log->debug(em("make live clusters"));
 
     root_dead->value.set_facade(std::make_unique<Grouping>());
     Grouping& dead_grouping = *root_dead->value.facade<Grouping>();
     log->debug(em("make dead clusters"));
 
-    {                           // trigger k-d tree building early for perf testing
-        size_t npts=0;
-        for (const auto& cl : dead_grouping.children()) {
-            cl->get_closest_point_blob(geo_point_t(0,0,0));
-            npts += cl->npoints();
-        }
-        log->debug("made {} dead clusters with {} points", dead_grouping.nchildren(), npts);
-        log->debug(em("make dead k-d tree"));
-    }
+    dump_new(log, "indead", dead_grouping);
 
     // dead_live
     clustering_live_dead(live_grouping, dead_grouping, cluster_connected_dead, tp,
                          m_dead_live_overlap_offset);
     log->debug(em("clustering_live_dead"));
+    dump_new(log, "livedead", live_grouping);
 
     if (flag_print) std::cout << em("live_dead") << std::endl;
     // second function ...
     clustering_extend(live_grouping, cluster_connected_dead, tp, 4,60*units::cm,0,15*units::cm,1 );
-    log->debug(em("clustering_extend"));
-    if (flag_print) std::cout << em("first extend") << std::endl;
+    dump_new(log, "extend", live_grouping);
+    // log->debug(em("clustering_extend"));
+    // if (flag_print) std::cout << em("first extend") << std::endl;
     
     // first round clustering
     clustering_regular(live_grouping, cluster_connected_dead,tp, 60*units::cm, false);
@@ -423,9 +417,12 @@ bool MultiAlgBlobClustering::operator()(const input_pointer& ints, output_pointe
       log->debug(em("clustering_extend dead"));
       if (flag_print) std::cout << em("extend dead") << std::endl;
     }
-    log->debug(dump(live_grouping));
-    log->debug(em("finish clustering"));
+    // log->debug(dump(live_grouping));
+    // log->debug(em("finish clustering"));
         
+    dump_new(log, "output", live_grouping);
+
+
     // BEE debug dead-live
     if (!m_bee_dir.empty()) {
         std::string sub_dir = String::format("%s/%d", m_bee_dir, ident);

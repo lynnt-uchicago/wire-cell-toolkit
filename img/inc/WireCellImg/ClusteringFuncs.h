@@ -22,6 +22,14 @@ namespace WireCell::PointCloud::Facade {
 
     using cluster_vector_t = std::vector<Cluster*>;
 
+    // Return true if a is less than b.  May be used as 3rd arg in std::sort to
+    // get ascending order.  For descending, pass to sort() rbegin()/rend()
+    // instead of begin()/end()..
+    bool cluster_less(const Cluster* a, const Cluster* b);
+    // Apply standard sort to put clusters in descending order.
+    void sort_clusters(std::vector<const Cluster*>& clusters);
+    void sort_clusters(std::vector<Cluster*>& clusters);
+
     // clustering_util.cxx
     // merging clustering function
     void merge_clusters(cluster_connectivity_graph_t& g, // 

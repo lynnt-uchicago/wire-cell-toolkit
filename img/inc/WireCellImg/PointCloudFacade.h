@@ -203,10 +203,11 @@ namespace WireCell::PointCloud::Facade {
         // Cached and lazily calculated in npoints()
         mutable int m_npoints{0};
 
-        // Return the number of unique wires or ticks.  FIXME: is this really
-        // what is wanted?  It does not return what is normally considered a
-        // "range".
+    public:                     // public for debugging
+        // Return the number of unique wires or ticks.
         std::tuple<int, int, int, int> get_uvwt_range() const;
+        std::tuple<int, int, int, int> get_uvwt_min() const;
+        std::tuple<int, int, int, int> get_uvwt_max() const;
     };
     std::ostream& operator<<(std::ostream& os, const Cluster& cluster);
 

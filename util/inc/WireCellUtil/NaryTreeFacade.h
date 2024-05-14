@@ -159,6 +159,7 @@ namespace WireCell::NaryTree {
                     }
                     m_children.push_back(child);
                 }
+                std::sort(m_children.begin(), m_children.end());
             }
             return m_children;
         }
