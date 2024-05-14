@@ -214,7 +214,7 @@ std::pair<int, int> Cluster::ndipole(const geo_point_t& point, const geo_point_t
     const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
     const auto& skd = sv.kd();
     const auto& points = skd.points();
-    const size_t npoints = points.size();
+    const size_t npoints = points[0].size();
 
     int num_p1 = 0;
     int num_p2 = 0;
