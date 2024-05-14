@@ -197,22 +197,35 @@ TEST_CASE("test PointCloudFacade")
     Cluster& pcc = *root->value.facade<Cluster>();
 
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
-    debug("expecting 1.1666666666666665");
-    auto ave_pos_alg0 = pcc.calc_ave_pos({1,0,0}, 1, 0);
-    debug("ave_pos_alg0: {}", ave_pos_alg0);
-    auto ave_pos_alg1 = pcc.calc_ave_pos({1,0,0}, 1, 1);
-    debug("ave_pos_alg1: {}", ave_pos_alg1);
-    debug("expecting around {1, 0, 0}");
+    auto ave_pos = pcc.calc_ave_pos({1,0,0}, 1);
+    debug("ave_pos: {} | expecting (1.1666666666666665 0 0)", ave_pos);
+    auto l1 = fabs(ave_pos[0] - 1.1666666666666665) + fabs(ave_pos[1]) + fabs(ave_pos[2]);
+    CHECK(l1 < 1e-3);
+
     const auto vdir_alg0 = pcc.vhough_transform({1,0,0}, 1, Cluster::HoughParamSpace::costh_phi);
-    debug("vdir_alg0: {}", vdir_alg0);
+    debug("vdir_alg0: {} | expecting around {{1, 0, 0}}", vdir_alg0);
+    l1 = fabs(vdir_alg0[0] - 1) + fabs(vdir_alg0[1]) + fabs(vdir_alg0[2]);
+    CHECK(l1 < 1e-1);
     const auto vdir_alg1 = pcc.vhough_transform({1,0,0}, 1, Cluster::HoughParamSpace::theta_phi);
-    debug("vdir_alg1: {}", vdir_alg1);
-    // sqrt(2./3.*(3*3*2*2*3)+(0.5*1.101)^2) = 8.503
-    debug("expecting 8.503");
+    debug("vdir_alg1: {} | expecting around {{1, 0, 0}}", vdir_alg1);
+    l1 = fabs(vdir_alg1[0] - 1) + fabs(vdir_alg1[1]) + fabs(vdir_alg1[2]);
+    CHECK(l1 < 1e-1);
+
+    // sqrt(2./3.*(3*3*2*2*3)+(0.5*1.101)^2) = 8.50312003032
     const auto length = pcc.get_length({});
-    debug("length: {}", length);
+    debug("length: {} | expecting 8.50312003032", length);
+    l1 = fabs(length - 8.50312003032);
+    CHECK(l1 < 1e-3);
+
     const auto [earliest, latest] = pcc.get_earliest_latest_points();
     debug("earliest_latest_points: {} {} | expecting (0 0 0) (1.9 0 0)", earliest, latest);
+    l1 = fabs(earliest[0]) + fabs(earliest[1]) + fabs(earliest[2]);
+    CHECK(l1 < 1e-3);
+    l1 = fabs(latest[0] - 1.9) + fabs(latest[1]) + fabs(latest[2]);
+    CHECK(l1 < 1e-3);
+
     const auto [num1, num2] = pcc.ndipole({0.5,0,0}, {1,0,0});
     debug("num_points: {} {} | expecting 15, 5", num1, num2);
+    CHECK(num1 == 15);
+    CHECK(num2 == 5);
 }
