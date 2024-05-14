@@ -332,21 +332,21 @@ std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_blob(const geo_p
 geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, const int alg) const
 {
     // average position
-    geo_point_t pt(0,0,0);
+    geo_point_t ret(0,0,0);
     double charge = 0;
 
     for (auto [blob, pt] : get_closest_blob(origin, dis)) {
         double q = blob->charge();
         if (q==0) q=1;
-        pt += q*blob->center_pos();
+        ret += q*blob->center_pos();
         charge += q;
     }
     
     if (charge != 0) {
-        pt = pt / charge;
+        ret = ret / charge;
     }
 
-    return pt;
+    return ret;
 }
 
 #include <boost/histogram.hpp>
