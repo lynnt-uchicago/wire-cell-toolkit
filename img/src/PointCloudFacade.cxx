@@ -1,4 +1,5 @@
 #include "WireCellImg/PointCloudFacade.h"
+#include <boost/container_hash/hash.hpp>
 
 using namespace WireCell;
 using namespace WireCell::PointCloud;
@@ -38,8 +39,10 @@ namespace {
 
 std::ostream& Facade::operator<<(std::ostream& os, const Facade::Blob& blob)
 {
-    os << "<Blob ["<<(void*)&blob<<"]: nptr="
-       << blob.npoints() << " r=" << blob.center_pos()
+    os << "<Blob [" << (void*)blob.hash() << "]:"
+       << " npts=" << blob.npoints()
+       << " r=" << blob.center_pos()
+       << " q=" << blob.charge()
        << " t=[" << blob.slice_index_min() << "," << blob.slice_index_max() << "]"
        << " u=[" << blob.u_wire_index_min() << "," << blob.u_wire_index_max() << "]"
        << " v=[" << blob.v_wire_index_min() << "," << blob.v_wire_index_max() << "]"
@@ -47,6 +50,35 @@ std::ostream& Facade::operator<<(std::ostream& os, const Facade::Blob& blob)
        << ">";
     return os;
 }
+
+Cluster* Blob::cluster()
+{
+    return this->m_node->parent->value.template facade<Cluster>();
+}
+const Cluster* Blob::cluster() const
+{
+    return this->m_node->parent->value.template facade<Cluster>();
+}
+
+size_t Blob::hash() const
+{
+    std::size_t h = 0;
+    boost::hash_combine(h, npoints());
+    // boost::hash_combine(h, charge());
+    boost::hash_combine(h, center_x());
+    boost::hash_combine(h, center_y());
+    boost::hash_combine(h, center_z());
+    boost::hash_combine(h, slice_index_min());
+    boost::hash_combine(h, slice_index_max());
+    boost::hash_combine(h, u_wire_index_min());
+    boost::hash_combine(h, u_wire_index_max());
+    boost::hash_combine(h, v_wire_index_min());
+    boost::hash_combine(h, v_wire_index_max());
+    boost::hash_combine(h, w_wire_index_min());
+    boost::hash_combine(h, w_wire_index_max());
+    return h;
+}
+
 
 void Blob::on_construct(node_type* node)
 {
@@ -93,13 +125,56 @@ geo_point_t Blob::center_pos() const {
     return {center_x_, center_y_, center_z_};
 }
 
+
+size_t Blob::nbpoints() const
+{
+    const auto& pc = m_node->value.local_pcs()["3d"];
+    return pc.size_major();
+}
+
+bool Blob::sanity(Log::logptr_t log) const
+{
+    if (nbpoints() == (size_t)npoints()) return true;
+    log->debug("blob sanity: blob points mismatch: {}", *this);
+    return false;
+}
+
+
+std::vector<geo_point_t> Blob::points() const
+{
+    const auto& pc = m_node->value.local_pcs()["3d"];
+    auto sel = pc.selection({"x","y","z"});
+    const size_t npts = sel[0]->size_major();
+
+    std::vector<geo_point_t> ret(npts);
+    for (int dim=0; dim<3; ++dim) {
+        auto coord = sel[dim]->elements<double>();
+        for (size_t ind=0; ind<npts; ++ind) {
+            ret[ind][dim] = coord[ind];
+        }
+    }
+    return ret;
+}
+
+
 std::ostream& Facade::operator<<(std::ostream& os, const Facade::Cluster& cluster)
 {
-    os << "<Cluster ["<<(void*)&cluster<<"]:"
+    os << "<Cluster [" << (void*)cluster.hash() << "]:"
        << " npts=" << cluster.npoints()
        << " nblobs=" << cluster.nchildren() << ">";
     return os;
 }
+
+Grouping* Cluster::grouping()
+{
+    return this->m_node->parent->value.template facade<Grouping>();
+}
+const Grouping* Cluster::grouping() const
+{
+    return this->m_node->parent->value.template facade<Grouping>();
+}
+
+
 
 const Cluster::time_blob_map_t& Cluster::time_blob_map() const
 {
@@ -189,31 +264,52 @@ Cluster::get_closest_point_along_vec(geo_point_t& p_test1, geo_point_t dir,
 }
 
 
+const Cluster::sv3d_t& Cluster::sv3d() const
+{
+    return m_node->value.scoped_view(scope);
+}
+
+const Cluster::kd3d_t& Cluster::kd3d() const
+{
+    const auto& sv = m_node->value.scoped_view(scope);
+    return sv.kd();
+}
+geo_point_t Cluster::point3d(size_t point_index) const
+{
+    return kd3d().point3d(point_index);
+}
+const Cluster::points_type& Cluster::points() const
+{
+    return kd3d().points();
+}
 int Cluster::npoints() const
 {
     if (!m_npoints) {
-        const auto& sv = m_node->value.scoped_view(scope);
+        const auto& sv = sv3d();
         m_npoints = sv.npoints();
     }
     return m_npoints;
 }
-
-
-int Cluster::nnearby(const geo_point_t& point, double dis) const
+size_t Cluster::nbpoints() const
 {
-    const auto& sv = m_node->value.scoped_view(scope);
-    const auto& skd = sv.kd();
+    size_t ret=0;
+    for (const auto* blob : children()) {
+        ret += blob->nbpoints();
+    }
+    return ret;
+}
 
-    auto rad = skd.radius(dis*dis, point);
-    return rad.size();
+
+int Cluster::nnearby(const geo_point_t& point, double radius) const
+{
+    auto res = kd_radius(radius, point);
+    return res.size();
 }
 
 
 std::pair<int, int> Cluster::ndipole(const geo_point_t& point, const geo_point_t& dir) const
 {
-    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
+    const auto& points = this->points();
     const size_t npoints = points[0].size();
 
     int num_p1 = 0;
@@ -263,82 +359,150 @@ std::pair<int, int> Cluster::ndipole(const geo_point_t& point, const geo_point_t
 // }
 
 
+Cluster::kd_results_t Cluster::kd_knn(int nn, const geo_point_t& query_point) const
+{
+    const auto& skd = kd3d();
+    return skd.knn(nn, query_point);
+}
+
+Cluster::kd_results_t Cluster::kd_radius(double radius, const geo_point_t& query_point) const
+{
+    const auto& skd = kd3d();
+    return skd.radius(radius*radius, query_point);
+}
+
+std::vector<geo_point_t> Cluster::kd_points(const Cluster::kd_results_t& res)
+{
+    return const_cast<const Cluster*>(this)->kd_points(res);
+}
+std::vector<geo_point_t> Cluster::kd_points(const Cluster::kd_results_t& res) const
+{
+    std::vector<geo_point_t> ret;
+    const auto& points = this->points();
+    for (const auto& [point_index, _] : res) {
+        ret.emplace_back(
+            points[0][point_index],
+            points[1][point_index],
+            points[2][point_index]);
+    }
+    return ret;
+}
+
+
+// can't const_cast a vector.
+template<typename T>
+std::vector<T*> mutify(const std::vector<const T*>& c)
+{
+    size_t n = c.size();
+    std::vector<T*> ret(n);
+    for (size_t ind=0; ind<n; ++ind) {
+        ret[ind] = const_cast<T*>(c[ind]);
+    }
+    return ret;
+}
+
+std::vector<Blob*> Cluster::kd_blobs()
+{
+    return mutify(const_cast<const Cluster*>(this)->kd_blobs());
+}
+std::vector<const Blob*> Cluster::kd_blobs() const
+{
+    std::vector<const Blob*> ret;
+    const auto& sv = sv3d();
+    for (const auto* node : sv.nodes()) {
+        ret.push_back( node->value.facade<Blob>() );
+    }
+    return ret;        
+}
+
+Blob* Cluster::blob_with_point(size_t point_index)
+{
+    return const_cast<Blob*>(
+        const_cast<const Cluster*>(this)->blob_with_point(point_index));
+}
+
+const Blob* Cluster::blob_with_point(size_t point_index) const
+{
+    const auto& sv = sv3d();
+    const auto& skd = sv.kd();
+    const size_t mai = skd.major_index(point_index);
+    const auto* node = sv.node_with_point(mai);
+    return node->value.facade<Blob>();
+}
+
+std::vector<Blob*> Cluster::blobs_with_points(const kd_results_t& res)
+{
+    return mutify(const_cast<const Cluster*>(this)->blobs_with_points(res));
+}
+std::vector<const Blob*> Cluster::blobs_with_points(const kd_results_t& res) const
+{
+    const size_t npts = res.size();
+    std::vector<const Blob*> ret(npts);
+    const auto& sv = sv3d();
+    const auto& skd = sv.kd();
+
+    for (size_t ind=0; ind<npts; ++ind) {
+        const size_t mai = skd.major_index(res[ind].first);
+        const auto* node = sv.node_with_point(mai);
+        ret[ind] = node->value.facade<Blob>();
+    }
+    return ret;
+}
+
 
 std::map<const Blob*, geo_point_t> Cluster::get_closest_blob(const geo_point_t& point, double radius) const
 {
-    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
-
-    // This returns L2 - [distance] squared.
-    auto results = skd.radius(radius*radius, point);
-
-    std::map<const Blob*, geo_point_t> mcell_point_map; // return
-    std::map<const Blob*, double> mcell_dis2_map;       // temp
+    std::map<const Blob*, geo_point_t> blob_points; // return
+    std::map<const Blob*, double> blob_metrics;       // temp
   
+    auto results = kd_radius(radius, point);
+    const auto& blobs = blobs_with_points(results);
 
-    const auto& blobs = children();
+    const size_t npts = results.size();
+    for (size_t ind=0; ind<npts; ++ind) {
+        const auto& [point_index, metric] = results[ind];
 
-    // fixme: we could reduce the number of calls to map lookups if this loop
-    // ends up being a hot spot.
-    for (const auto& [index, dist2] : results) {
+        const geo_point_t p1 = point3d(point_index);
+        const Blob* blob = blobs[ind];
 
-        geo_point_t p1(points[0][index],
-                       points[1][index],
-                       points[2][index]);
-
-        const auto blob_index = skd.major_index(index);
-        const Blob* blob = blobs[blob_index];
-
-        auto it = mcell_dis2_map.find(blob);
-        if (it == mcell_dis2_map.end()) { // first time
-            mcell_dis2_map[blob] = dist2;
-            mcell_point_map[blob] = p1;
+        auto it = blob_metrics.find(blob);
+        if (it == blob_metrics.end()) { // first time
+            blob_metrics[blob] = metric;
+            blob_points[blob] = p1;
         }
         else {
-            if (dist2 < it->second) { // check for yet closer
-                it->second = dist2;
-                mcell_point_map[blob] = p1;
+            if (metric < it->second) { // check for yet closer
+                it->second = metric;
+                blob_points[blob] = p1;
             }
         }
     }
   
-    return mcell_point_map;
+    return blob_points;
 }
 
 std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_blob(const geo_point_t& point) const
 {
-    const auto& sv = m_node->value.scoped_view(scope);       // get the kdtree
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
-
-    auto results = skd.knn(1, point);
+    auto results = kd_knn(1, point);
     if (results.size() == 0) {
         return std::make_pair(geo_point_t(), nullptr);
     }
 
-    const auto& [index, dist2] = results[0];
-
-    const auto blob_index = skd.major_index(index);
-    const Blob* blob = children()[blob_index];
-
-    geo_point_t closest(points[0][index],
-                        points[1][index],
-                        points[2][index]);
-
-    return std::make_pair(closest, blob);
+    const auto& [point_index, _] = results[0];
+    return std::make_pair(point3d(point_index), blob_with_point(point_index));
 }
 
-geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis, const int alg) const
+geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis) const
 {
     // average position
     geo_point_t ret(0,0,0);
     double charge = 0;
 
-    for (auto [blob, pt] : get_closest_blob(origin, dis)) {
+    auto blob_pts = get_closest_blob(origin, dis);
+    for (auto [blob, pt] : blob_pts) {
         double q = blob->charge();
         if (q==0) q=1;
-        ret += q*blob->center_pos();
+        ret += blob->center_pos()*q;
         charge += q;
     }
     
@@ -381,17 +545,10 @@ std::pair<double, double>
 Cluster::hough_transform(const geo_point_t& origin, const double dis,
                          HoughParamSpace param_space) const
 {
+    // auto results = skd.radius(dis*dis, origin);
+    auto results = kd_radius(dis, origin);
 
-    // Scope scope = { "3d", {"x","y","z"} };
-    const auto& sv = m_node->value.scoped_view(scope);
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
-
-    auto results = skd.radius(dis*dis, origin);
-    /// FIXME: what if results is empty?
     if(results.size() == 0) {
-        // raise<ValueError>("empty point cloud");
-        // (bv) why not raise?  we do below.
         return {0,0};
     }
     constexpr double pi = 3.141592653589793;
@@ -418,24 +575,20 @@ Cluster::hough_transform(const geo_point_t& origin, const double dis,
     auto hist = bh::make_histogram(bh::axis::regular<>( nbins1, min1, max1 ),
                                    bh::axis::regular<>( nbins2, min2, max2 ) );
 
-    const auto& blobs = children();
+    const auto& blobs = blobs_with_points(results);
+    const auto pts = kd_points(results);
 
-    for (const auto& [index, _] : results) {
-
-        const auto blob_index = skd.major_index(index);
-        const auto* blob = blobs[blob_index];
+    for (size_t ind=0; ind<blobs.size(); ++ind) {
+        const auto* blob = blobs[ind];
         auto charge = blob->charge();
         // protection against the charge=0 case ...
         if (charge == 0) charge = 1;
         if (charge <= 0) continue;
             
         const auto npoints = blob->npoints();
+        const auto& pt = pts[ind];
 
-        geo_point_t pt(points[0][index],
-                       points[1][index],
-                       points[2][index]);
-
-        Vector dir = (pt-origin).norm();
+        const Vector dir = (pt-origin).norm();
 
         const double p1 = theta_param(dir);
         const double p2 = phi_param(dir);
@@ -535,9 +688,11 @@ std::tuple<int, int, int, int> Cluster::get_uvwt_range() const
 }
 
 
-double Cluster::get_length(const TPCParams& tp) const
+double Cluster::get_length() const
 {
     if (m_length == 0) {        // invalidates when a new node is set
+        const auto& tp = grouping()->get_params();
+
         const auto [u, v, w, t] = get_uvwt_range();
         const double pu = u*tp.pitch_u;
         const double pv = v*tp.pitch_v;
@@ -551,9 +706,7 @@ double Cluster::get_length(const TPCParams& tp) const
 
 std::pair<geo_point_t, geo_point_t> Cluster::get_highest_lowest_points(size_t axis) const
 {
-    const auto& sv = m_node->value.scoped_view(scope);
-    const auto& skd = sv.kd();
-    const auto& points = skd.points();
+    const auto& points = this->points();
     const size_t npoints = points[0].size();
 
     geo_point_t lowest_point, highest_point;
@@ -615,6 +768,266 @@ std::string Facade::dump(const Facade::Grouping& grouping, int level)
     }
     return ss.str();
 }
+
+
+
+
+bool Cluster::sanity(Log::logptr_t log) const
+{
+    {
+        const auto* svptr = m_node->value.get_scoped(scope);
+        if (!svptr) {
+            log->debug("cluster sanity: note, not yet a scoped view {}", scope);
+        }
+    }
+    if (!nchildren()) {
+        log->debug("cluster sanity: no children blobs");
+        return false;
+    }
+
+    const auto& sv = m_node->value.scoped_view(scope);
+    const auto& snodes = sv.nodes();
+    if (snodes.empty()) {
+        log->debug("cluster sanity: no scoped nodes");
+        return false;
+    }
+    if (sv.npoints() == 0) {    // triggers a scoped view cache fill
+        log->debug("cluster sanity: no scoped points");
+        return false;
+    }
+    // sv.force_invalid();
+    const auto& skd = sv.kd();
+
+    const auto& fblobs = children();
+
+    for (const Blob* blob : fblobs) {
+        if (!blob->sanity(log)) return false;
+    }
+
+    if (skd.nblocks() != snodes.size()) {
+        log->debug("cluster sanity: k-d blocks={} scoped nodes={}", skd.nblocks(), fblobs.size());
+        return false;
+    }
+
+
+    /// Note, we do not expect k-d blocks order to be sync'ed to the Cluster
+    /// facade children blob order, but they should have equal number.
+    if (skd.nblocks() != fblobs.size()) {
+        log->debug("cluster sanity: k-d blocks={} cluster blobs={}", skd.nblocks(), fblobs.size());
+        return false;
+    }
+
+    const auto& majs = skd.major_indices();
+    const auto& mins = skd.minor_indices();
+    const size_t npts = skd.npoints();
+
+    const Blob* sblob = nullptr;
+    std::vector<geo_point_t> spoints;
+
+    for (size_t ind=0; ind<npts; ++ind) {
+        auto kdpt = skd.point3d(ind);
+
+        const size_t majind = majs[ind];
+        const size_t minind = mins[ind];
+        
+        // scoped consistency
+        const node_t* tnode = sv.node_with_point(ind);
+        if (!tnode) {
+            log->debug("cluster sanity: scoped node facade not a Blob at majind={}", majind);
+            return false;
+        }
+        const auto* tblob = tnode->value.facade<Blob>();
+        if (tblob != sblob) {
+            sblob = tblob;
+            spoints = sblob->points();
+        }
+
+        if (minind >= spoints.size()) {
+            log->debug("cluster sanity: minind={} is beyond scoped blob npts={} majind={}, blob is: {}",
+                       minind, spoints.size(), majind, *sblob);
+            return false;
+        }
+        auto spt = spoints[minind];
+        if (spt != kdpt) {
+            log->debug("cluster sanity: scoped point mismatch at minind={} majind={} spt={} kdpt={}, blob is: {}",
+                       minind, majind, spt, kdpt, *sblob);
+            return false;
+        }
+    }
+    return true;
+}
+
+
+
+size_t Cluster::hash() const
+{
+    std::size_t h = 0;
+    boost::hash_combine(h, (size_t)(get_length()/units::mm));
+    auto blobs = children();    // copy vector
+    sort_blobs(blobs);
+    for (const Blob* blob : blobs) {
+        boost::hash_combine(h, blob->hash());
+    }
+    return h;
+}
+
+size_t Grouping::hash() const
+{
+    std::size_t h = 0;
+    boost::hash_combine(h,m_tp.pitch_u);
+    boost::hash_combine(h,m_tp.pitch_v);
+    boost::hash_combine(h,m_tp.pitch_w);
+    boost::hash_combine(h,m_tp.angle_u);
+    boost::hash_combine(h,m_tp.angle_v);
+    boost::hash_combine(h,m_tp.angle_w);
+    boost::hash_combine(h,m_tp.tick_drift);
+    auto clusters = children(); // copy vector
+    sort_clusters(clusters);
+    for (const Cluster* cluster : clusters) {
+        boost::hash_combine(h, cluster->hash());
+    }
+    return h;
+}
+
+bool Facade::blob_less(const Facade::Blob* a, const Facade::Blob* b)
+{
+    if (a==b) return false;
+    {
+        const auto na = a->npoints();
+        const auto nb = b->npoints();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->charge();
+        const auto nb = b->charge();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+
+    {
+        const auto na = a->slice_index_min();
+        const auto nb = b->slice_index_min();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->slice_index_max();
+        const auto nb = b->slice_index_max();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->u_wire_index_min();
+        const auto nb = b->u_wire_index_min();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->v_wire_index_min();
+        const auto nb = b->v_wire_index_min();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->w_wire_index_min();
+        const auto nb = b->w_wire_index_min();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->u_wire_index_max();
+        const auto nb = b->u_wire_index_max();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->v_wire_index_max();
+        const auto nb = b->v_wire_index_max();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const auto na = a->w_wire_index_max();
+        const auto nb = b->w_wire_index_max();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    return a<b;
+}
+void Facade::sort_blobs(std::vector<const Blob*>& blobs)
+{
+    std::sort(blobs.rbegin(), blobs.rend(), blob_less);
+}
+void Facade::sort_blobs(std::vector<Blob*>& blobs)
+{
+    std::sort(blobs.rbegin(), blobs.rend(), blob_less);
+}
+
+
+bool Facade::cluster_less(const Cluster* a, const Cluster* b)
+{
+    if (a==b) return false;
+    /// Keep this off for now to match the hacked March 24'th version
+    // {
+    //     const double la = a->get_length();
+    //     const double lb = b->get_length();
+    //     if (la < lb) return true;
+    //     if (lb < la) return false;
+    // }
+    {
+        const int na = a->nchildren();
+        const int nb = b->nchildren();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        const int na = a->npoints();
+        const int nb = b->npoints();
+        if (na < nb) return true;
+        if (nb < na) return false;
+    }
+    {
+        auto ar = a->get_uvwt_min();
+        auto br = b->get_uvwt_min();
+        if (get<0>(ar) < get<0>(br)) return true;
+        if (get<0>(br) < get<0>(ar)) return false;
+        if (get<1>(ar) < get<1>(br)) return true;
+        if (get<1>(br) < get<1>(ar)) return false;
+        if (get<2>(ar) < get<2>(br)) return true;
+        if (get<2>(br) < get<2>(ar)) return false;
+        if (get<3>(ar) < get<3>(br)) return true;
+        if (get<3>(br) < get<3>(ar)) return false;
+    }
+    {
+        auto ar = a->get_uvwt_max();
+        auto br = b->get_uvwt_max();
+        if (get<0>(ar) < get<0>(br)) return true;
+        if (get<0>(br) < get<0>(ar)) return false;
+        if (get<1>(ar) < get<1>(br)) return true;
+        if (get<1>(br) < get<1>(ar)) return false;
+        if (get<2>(ar) < get<2>(br)) return true;
+        if (get<2>(br) < get<2>(ar)) return false;
+        if (get<3>(ar) < get<3>(br)) return true;
+        if (get<3>(br) < get<3>(ar)) return false;
+    }
+
+    // The two are very similar.  What is left to check?  Only pointer?.  This
+    // will cause "randomness"!
+    return a < b;           
+}
+void Facade::sort_clusters(std::vector<const Cluster*>& clusters)
+{
+    std::sort(clusters.rbegin(), clusters.rend(), cluster_less);
+}
+void Facade::sort_clusters(std::vector<Cluster*>& clusters)
+{
+    std::sort(clusters.rbegin(), clusters.rend(), cluster_less);
+}
+
+
+
+
 
 
 // Local Variables:

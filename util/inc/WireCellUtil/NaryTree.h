@@ -54,13 +54,14 @@ namespace WireCell::NaryTree {
     /** Depth first traverse, parent then children, as range */
     template<typename Value> class depth_range;
 
-    // Notify this node's VALUE that a tree action took place on a NODE.  To
-    // catch an action a node value must implement a method with signature:
-    // notify(NODE,ACTION).
+    // Notify this node's VALUE that a tree action took place on the NODE.  To
+    // catch an action, a node value must implement a method with signature:
+    // notify(NODE,ACTION).  See NaryTree::Notified for an interstitial base
+    // class that manages notifications.
     enum Action {
-        constructed,            // NODE = this
-        inserted,               // NODE = child
-        removing,               // NODE = child
+        constructed,            // the node is constructed
+        inserted,               // the node has been inserted into a parent's children list
+        removing,               // the node has been removed from a parent's children list
     };
 
 
@@ -349,6 +350,10 @@ namespace WireCell::NaryTree {
                 
         // Iterable range for depth first traversal, parent then children.
         // Iterators yield a reference to the node.
+        // Level=0 will traverse to the leaves.
+        // Level=1 will only visit the current node.
+        // Level=2 will visit current node and children nodes
+        // Level=3 etc
         range depth(size_t level=0) { return range(this, level); }
         const_range depth(size_t level=0) const { return const_range(this, level); }
 
@@ -365,7 +370,7 @@ namespace WireCell::NaryTree {
         template <class T, std::enable_if_t<has_notify<T>::value>* = nullptr>
         void notify(Action action, Node* node) {
             // std::cerr << "sending action: "<<action<<" \n";
-            this->value.notify(node, action);
+            node->value.notify(node, action);
         }
 
         template <class T, std::enable_if_t<!has_notify<T>::value>* = nullptr>

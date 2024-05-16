@@ -43,6 +43,12 @@ namespace WireCell::Img {
          */
         std::string m_outpath{""};
 
+        /** Config: "perf"
+         *
+         * If true, emit time/memory performance measures.  Default is false.
+         */
+        bool m_perf{false};
+
         // configurable parameters for dead-live clustering
         int m_dead_live_overlap_offset{2};
     };

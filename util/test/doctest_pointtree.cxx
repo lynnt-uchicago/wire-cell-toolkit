@@ -73,14 +73,14 @@ Points::node_ptr make_simple_pctree()
 
     // Insert a child with a set of named points clouds with one point
     // cloud from a track.
-    debug("node 1 inset");
+    debug("node 1 insert");
     auto* n1 = root->insert(Points({ {"3d", make_janky_track()} }));
 
     debug("node 1 get 3d");
     const Dataset& pc1 = n1->value.local_pcs().at("3d");
 
     // Ibid from a different track
-    debug("node 2 inset");
+    debug("node 2 insert");
     auto* n2 = root->insert(Points({ {"3d", make_janky_track(
                         Ray(Point(-1, 2, 3), Point(1, -2, -3)))} }));
 
@@ -122,26 +122,39 @@ TEST_CASE("point tree with points")
             CHECK(pc3d.has("y"));
             CHECK(pc3d.has("z"));
             CHECK(pc3d.has("q"));
+            auto sel = pc3d.selection({"x","y","z","q"});
+            for (size_t ind=0; ind< pc3d.size_major(); ++ind) {
+                debug("\t{} pt=({},{},{}) q={}", ind,
+                      sel[0]->element<double>(ind),
+                      sel[1]->element<double>(ind),
+                      sel[2]->element<double>(ind),
+                      sel[3]->element<double>(ind));
+            }
         }
     }
 
     Scope scope{ "3d", {"x","y","z"}};
 
     debug("request scoped PC at scope = {}", scope);
-    auto& pc3d = rval.scoped_view(scope).pcs();
+    ScopedView<double>& sview1 = rval.scoped_view(scope);
+    auto& pc3d = sview1.pcs();
     debug("got scoped PC at scope = {} at {} with {} PCs",
           scope, (void*)&pc3d, pc3d.size());
     CHECK(pc3d.size() == 2);
+    CHECK(sview1.nodes().size() == 2);
+    CHECK(sview1.npoints() > 100);
 
+    // reget sview to also check if that causes any monkey business 
     debug("request k-d tree at scope = {}", scope);
     ScopedView<double>& sview = rval.scoped_view(scope);
-    ScopedView<double>::nfkd_t& kd = sview.kd();
+    const auto& kd = sview.kd();
     debug("got scoped k-d tree at scope = {} at {} with {} points and {} dimensions",
           scope, (void*)&kd, kd.npoints(), kd.ndim());
 
     CHECK(kd.ndim() == 3);      // 
     CHECK(kd.nblocks() == 2);   // 2 blocks of ~75 points
     CHECK(kd.npoints() > 100);  // 
+    CHECK(kd.npoints() == sview1.npoints());
 
     const auto& pts = kd.points();
     {

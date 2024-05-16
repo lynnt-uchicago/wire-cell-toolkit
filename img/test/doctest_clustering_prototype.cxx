@@ -110,7 +110,8 @@ Points::node_ptr make_simple_pctree()
 
 TEST_CASE("test PointTree API")
 {
-    auto root = make_simple_pctree();
+    // this test does not touch the facades so needs to Grouping root
+    auto root = make_simple_pctree(); //  a cluster node.
     CHECK(root.get());
 
     // from WireCell::NaryTree::Node to WireCell::PointCloud::Tree::Points
@@ -191,10 +192,14 @@ TEST_CASE("test PointTree API")
 
 TEST_CASE("test PointCloudFacade")
 {
-    auto root = make_simple_pctree();
-    REQUIRE(root);
-    root->value.set_facade(std::make_unique<Cluster>());
-    Cluster& pcc = *root->value.facade<Cluster>();
+    Points::node_t root_node;
+    Grouping* grouping = root_node.value.facade<Grouping>();
+    REQUIRE(grouping != nullptr);
+    root_node.insert(make_simple_pctree());
+    Cluster* pccptr = grouping->children()[0];
+    REQUIRE(pccptr != nullptr);
+    REQUIRE(pccptr->grouping() == grouping);
+    Cluster& pcc = *pccptr;
 
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
     auto ave_pos = pcc.calc_ave_pos({1,0,0}, 1);
@@ -212,7 +217,7 @@ TEST_CASE("test PointCloudFacade")
     CHECK(l1 < 1e-1);
 
     // sqrt(2./3.*(3*3*2*2*3)+(0.5*1.101)^2) = 8.50312003032
-    const auto length = pcc.get_length({});
+    const auto length = pcc.get_length();
     debug("length: {} | expecting 8.50312003032", length);
     l1 = fabs(length - 8.50312003032);
     CHECK(l1 < 1e-3);

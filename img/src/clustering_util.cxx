@@ -4,58 +4,6 @@
 
 using namespace WireCell::PointCloud::Facade;
 
-bool WireCell::PointCloud::Facade::cluster_less(const Cluster* a, const Cluster* b)
-{
-    if (a==b) return false;
-    {
-        const int na = a->nchildren();
-        const int nb = b->nchildren();
-        if (na < nb) return true;
-        if (nb < na) return false;
-    }
-    {
-        const int na = a->npoints();
-        const int nb = b->npoints();
-        if (na < nb) return true;
-        if (nb < na) return false;
-    }
-    {
-        auto ar = a->get_uvwt_min();
-        auto br = b->get_uvwt_min();
-        if (get<0>(ar) < get<0>(br)) return true;
-        if (get<0>(br) < get<0>(ar)) return false;
-        if (get<1>(ar) < get<1>(br)) return true;
-        if (get<1>(br) < get<1>(ar)) return false;
-        if (get<2>(ar) < get<2>(br)) return true;
-        if (get<2>(br) < get<2>(ar)) return false;
-        if (get<3>(ar) < get<3>(br)) return true;
-        if (get<3>(br) < get<3>(ar)) return false;
-    }
-    {
-        auto ar = a->get_uvwt_max();
-        auto br = b->get_uvwt_max();
-        if (get<0>(ar) < get<0>(br)) return true;
-        if (get<0>(br) < get<0>(ar)) return false;
-        if (get<1>(ar) < get<1>(br)) return true;
-        if (get<1>(br) < get<1>(ar)) return false;
-        if (get<2>(ar) < get<2>(br)) return true;
-        if (get<2>(br) < get<2>(ar)) return false;
-        if (get<3>(ar) < get<3>(br)) return true;
-        if (get<3>(br) < get<3>(ar)) return false;
-    }
-
-    // The two are very similar.  What is left to check?  Only pointer?.  This
-    // will cause "randomness"!
-    return a < b;           
-}
-void WireCell::PointCloud::Facade::sort_clusters(std::vector<const Cluster*>& clusters)
-{
-    std::sort(clusters.rbegin(), clusters.rend(), cluster_less);
-}
-void WireCell::PointCloud::Facade::sort_clusters(std::vector<Cluster*>& clusters)
-{
-    std::sort(clusters.rbegin(), clusters.rend(), cluster_less);
-}
 
 void WireCell::PointCloud::Facade::merge_clusters(
     cluster_connectivity_graph_t& g,

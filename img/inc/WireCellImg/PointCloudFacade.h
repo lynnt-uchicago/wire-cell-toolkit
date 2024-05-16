@@ -23,6 +23,8 @@ namespace WireCell::PointCloud::Facade {
     using float_t = double;
     using int_t = int;
 
+    class Cluster;
+
     /// Give a node "Blob" semantics
     class Blob : public NaryTree::Facade<points_t> {
     public:
@@ -30,6 +32,10 @@ namespace WireCell::PointCloud::Facade {
         Blob() = default;
         virtual ~Blob() {}
             
+
+        // Return the cluster to which this blob is a child.  May be nullptr.
+        Cluster* cluster();
+        const Cluster* cluster() const;
 
         geo_point_t center_pos() const;
 
@@ -52,6 +58,16 @@ namespace WireCell::PointCloud::Facade {
         int_t w_wire_index_min () const { return  w_wire_index_min_; }
         int_t w_wire_index_max () const { return  w_wire_index_max_; }
 
+
+        // Return a value representing the content of this blob.
+        size_t hash() const;
+
+        // Return the scope points. 
+        std::vector<geo_point_t> points() const;
+        size_t nbpoints() const;
+
+        // Check facade consistency 
+        bool sanity(Log::logptr_t log) const;
 
     private:
 
@@ -91,19 +107,67 @@ namespace WireCell::PointCloud::Facade {
     };
 
 
+    class Grouping;
+
     // Give a node "Cluster" semantics.  A cluster node's children are blob nodes.
     class Cluster : public NaryTree::FacadeParent<Blob, points_t> {
 
         // The expected scope.
-        const WireCell::PointCloud::Tree::Scope scope = { "3d", {"x","y","z"} };
+        const Tree::Scope scope = { "3d", {"x","y","z"} };
 
     public:
 
         Cluster() = default;
         virtual ~Cluster() {}
 
+        // Return the grouping to which this cluster is a child.  May be nullptr.
+        Grouping* grouping();
+        const Grouping* grouping() const;
+
+        // Get the scoped view for the "3d" point cloud (x,y,z)
+        using sv3d_t = Tree::ScopedView<double>;
+        const sv3d_t& sv3d() const;
+
+        // Access the k-d tree for "3d" point cloud (x,y,z).
+        // Note, this may trigger the underlying k-d build.
+        using kd3d_t = sv3d_t::nfkd_t;
+        const kd3d_t& kd3d() const;
+
+        using kd_results_t = kd3d_t::results_type;
+        // Perform a k-d tree radius query.  This radius is linear distance
+        kd_results_t kd_radius(double radius_not_squared, const geo_point_t& query_point) const;
+        // Perform a k-d tree NN query.
+        kd_results_t kd_knn(int nnearest, const geo_point_t& query_point) const;
+
+        std::vector<geo_point_t> kd_points(const kd_results_t& res);
+        std::vector<geo_point_t> kd_points(const kd_results_t& res) const;
+
+        // Get all blobs in k-d tree order.  This is different than children()
+        // order and different that sort_blobs() order.
+        std::vector<Blob*> kd_blobs();
+        std::vector<const Blob*> kd_blobs() const;
+
+
+        // Return the blob with the point at the given k-d tree point index.
+        Blob* blob_with_point(size_t point_index);
+        const Blob* blob_with_point(size_t point_index) const;
+
+        // Return blobs from k-d tree result set.
+        std::vector<Blob*> blobs_with_points(const kd_results_t& res);
+        std::vector<const Blob*> blobs_with_points(const kd_results_t& res) const;
+
+        // Return the 3D point at the k-d tree point index.  Calling this in a
+        // tight loop should probably be avoided.  Instead get the full points() array.
+        geo_point_t point3d(size_t point_index) const;
+
+        // Return vector is size 3 holding vectors of size npoints providing k-d tree coordinate points.
+        using points_type = kd3d_t::points_type;
+        const points_type& points() const;
+
         // Return charge-weighted average position of points of blobs withing distance of point.
-        geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis, const int alg = 0) const;
+        geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis) const;
+
+
 
         // Return blob containing the returned point that is closest to the given point.
         using point_blob_map_t = std::map<geo_point_t, const Blob*>;
@@ -124,6 +188,9 @@ namespace WireCell::PointCloud::Facade {
 
         // Return the number of points in the k-d tree
 	int npoints() const;
+
+        // Number of points according to sum of Blob::nbpoints()
+        size_t nbpoints() const;
 
         // Return the number of points within radius of the point.  Note, radius
         // is a LINEAR distance through the L2 metric is used internally.
@@ -180,7 +247,7 @@ namespace WireCell::PointCloud::Facade {
 
         // Return a quasi geometric size of the cluster based on its transverse
         // extents in each view and in time.
-        double get_length(const TPCParams& tp) const;
+        double get_length() const;
 
 	// Return blob at the front of the time blob map.  Raises ValueError if cluster is empty.
 	const Blob* get_first_blob() const;
@@ -188,6 +255,12 @@ namespace WireCell::PointCloud::Facade {
 	// Return blob at the back of the time blob map.  Raises ValueError if cluster is empty.
 	const Blob* get_last_blob() const;
 	
+        // Return a value representing the content of this cluster.
+        size_t hash() const;
+
+        // Check facade consistency between blob view and k-d tree view.
+        bool sanity(Log::logptr_t log) const;
+
     private:
         // start slice index (tick number) to blob facade pointer can be
         // duplicated, example usage:
@@ -203,7 +276,8 @@ namespace WireCell::PointCloud::Facade {
         // Cached and lazily calculated in npoints()
         mutable int m_npoints{0};
 
-    public:                     // public for debugging
+
+    public:                     // made public only for debugging
         // Return the number of unique wires or ticks.
         std::tuple<int, int, int, int> get_uvwt_range() const;
         std::tuple<int, int, int, int> get_uvwt_min() const;
@@ -217,8 +291,41 @@ namespace WireCell::PointCloud::Facade {
     class Grouping : public NaryTree::FacadeParent<Cluster, points_t> {
     public:
 
+        // MUST call this sometimes after construction if non-default value needed.
+        void set_params(const TPCParams& tp) {
+            m_tp = tp;
+        }            
+        const TPCParams& get_params() const {
+            return m_tp;
+        }
+        std::tuple<double,double,double> wire_angles() const {
+            return {m_tp.angle_u, m_tp.angle_v, m_tp.angle_w};
+        }
+
+        TPCParams m_tp{};       // use default value by default.
+
+        // Return a value representing the content of this grouping.
+        size_t hash() const;
+
     };
     std::ostream& operator<<(std::ostream& os, const Grouping& grouping);
+
+    // Return true if a is less than b.  May be used as 3rd arg in std::sort to
+    // get ascending order.  For descending, pass to sort() rbegin()/rend()
+    // instead of begin()/end()..
+    bool blob_less(const Blob* a, const Blob* b);
+    // Apply standard sort to put blobs in descending order.
+    void sort_blobs(std::vector<const Blob*>& blobs);
+    void sort_blobs(std::vector<Blob*>& blobs);
+
+    // Return true if a is less than b.  May be used as 3rd arg in std::sort to
+    // get ascending order.  For descending, pass to sort() rbegin()/rend()
+    // instead of begin()/end()..
+    bool cluster_less(const Cluster* a, const Cluster* b);
+    // Apply standard sort to put clusters in descending order.
+    void sort_clusters(std::vector<const Cluster*>& clusters);
+    void sort_clusters(std::vector<Cluster*>& clusters);
+
 
     // Dump the grouping to a string eg for debugging.  Level 0 dumps info about
     // just the grouping, 1 includes info about the clusters and 2 includes info
@@ -258,6 +365,6 @@ namespace WireCell::PointCloud::Facade {
         return false;
     }
 
-}  // namespace WireCell::PointCloud
+}  // namespace WireCell::PointCloud::Facade
 
 #endif

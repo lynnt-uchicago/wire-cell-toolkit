@@ -22,13 +22,6 @@ namespace WireCell::PointCloud::Facade {
 
     using cluster_vector_t = std::vector<Cluster*>;
 
-    // Return true if a is less than b.  May be used as 3rd arg in std::sort to
-    // get ascending order.  For descending, pass to sort() rbegin()/rend()
-    // instead of begin()/end()..
-    bool cluster_less(const Cluster* a, const Cluster* b);
-    // Apply standard sort to put clusters in descending order.
-    void sort_clusters(std::vector<const Cluster*>& clusters);
-    void sort_clusters(std::vector<Cluster*>& clusters);
 
     // clustering_util.cxx
     // merging clustering function
@@ -42,7 +35,6 @@ namespace WireCell::PointCloud::Facade {
     void clustering_live_dead(Grouping& live_clusters,
 			      const Grouping& dead_clusters,
                               cluster_set_t& cluster_connected_dead, // in/out
-                              const TPCParams& tp, // common params
                               const int dead_live_overlap_offset // specific params
     );
 
@@ -62,7 +54,6 @@ namespace WireCell::PointCloud::Facade {
     // second function ...
     void clustering_extend(Grouping& live_clusters,
                            cluster_set_t& cluster_connected_dead,            // in/out
-                           const TPCParams& tp,                                           // common params
                            const int flag,                                                //
                            const double length_cut = 150*units::cm,                       //
                            const int num_try = 0,                                         //
@@ -72,7 +63,6 @@ namespace WireCell::PointCloud::Facade {
 
     bool Clustering_4th_prol(const Cluster& cluster1,
 			     const Cluster& cluster2,
-			     const TPCParams& tp,                                           // common params
 			     double length_2,
 			     geo_point_t& earliest_p,
 			     geo_point_t& dir_earlp,
@@ -80,7 +70,6 @@ namespace WireCell::PointCloud::Facade {
     
     bool Clustering_4th_para(const Cluster& cluster1,
 			     const Cluster& cluster2,
-			     const TPCParams& tp,                                           // common params
 			     double length_1, double length_2,
 			     geo_point_t& earliest_p,
 			     geo_point_t& dir_earlp,
@@ -88,13 +77,11 @@ namespace WireCell::PointCloud::Facade {
 
     bool Clustering_4th_reg(const Cluster& cluster1,
 			    const Cluster& cluster2,
-			    const TPCParams& tp,                                           // common params
 			    double length_1, double length_2,
 			    geo_point_t p1, double length_cut);
 
     bool Clustering_4th_dead(const Cluster& cluster1,
 			     const Cluster& cluster2,
-			     const TPCParams& tp,                                           // common params
 			     double length_1, double length_2, double length_cut, int num_dead_try=3);
       
 
@@ -102,14 +89,12 @@ namespace WireCell::PointCloud::Facade {
     // third function 
     void clustering_regular(Grouping& live_clusters,
                             cluster_set_t& cluster_connected_dead,            // in/out
-                            const TPCParams& tp,                                           // common params
                             const double length_cut = 45*units::cm,                                       //
                             bool flag_enable_extend = true                                       //
     );
 
     bool Clustering_1st_round(const Cluster& cluster1,
 			      const Cluster& cluster2,
-			      const TPCParams& tp, // common params
 			      double length_1,
 			      double length_2,
 			      double length_cut = 45*units::cm,
@@ -118,13 +103,11 @@ namespace WireCell::PointCloud::Facade {
     // clustering_parallel_prolong.cxx:
     void clustering_parallel_prolong(Grouping& live_clusters,
                                      cluster_set_t& cluster_connected_dead, // in/out
-                                     const TPCParams& tp, // common params
                                      const double length_cut = 35*units::cm
     );
 
     bool Clustering_2nd_round(const Cluster& cluster1,
 			      const Cluster& cluster2,
-			      const TPCParams& tp, // common params
 			      double length_1,
 			      double length_2,
 			      double length_cut = 35*units::cm);
@@ -132,7 +115,6 @@ namespace WireCell::PointCloud::Facade {
     // clustering_close.cxx
     void clustering_close(Grouping& live_clusters,           // 
                           cluster_set_t& cluster_connected_dead, // in/out
-                          const TPCParams& tp,                  // common params
                           const double length_cut = 1*units::cm //
     );
 

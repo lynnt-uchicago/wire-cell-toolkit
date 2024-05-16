@@ -71,15 +71,6 @@ namespace WireCell::NaryTree {
 
         virtual ~Faced() {}
 
-        /// Set the polymorphic facade base.  Caller may pass nullptr to remove
-        /// the facade.  This takes ownership of the facade instance.
-        void set_facade(facade_ptr fac) {
-            m_facade = std::move(fac);
-            if (this->m_node) {
-                m_facade->notify(this->m_node, Action::constructed);
-            }
-        }
-
         /// Access the facade as type.  May return nullptr.  Ownership is
         /// retained.
         template<typename FACADE>
@@ -110,6 +101,19 @@ namespace WireCell::NaryTree {
         }
         facade_type* facade() {
             return m_facade.get();
+        }
+
+        /// Set the polymorphic facade base with a specific instance.  Caller
+        /// may pass nullptr to remove the facade.  This takes ownership of the
+        /// facade instance.  
+        ///
+        /// See facade<T>() which provides create-on-access pattern if the
+        /// facade type has a default constructor.
+        void set_facade(facade_ptr fac) {
+            m_facade = std::move(fac);
+            if (this->m_node) {
+                m_facade->notify(this->m_node, Action::constructed);
+            }
         }
 
         // Intercept notices from the node in order to forward to the held

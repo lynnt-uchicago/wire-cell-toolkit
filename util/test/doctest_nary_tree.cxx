@@ -277,14 +277,15 @@ TEST_CASE("nary tree notify")
     auto root = make_simple_tree();
     {
         auto& nactions = root->value.nactions;
-        CHECK(nactions.size() == 1);
+        CHECK(nactions.find("constructed") != nactions.end());
         CHECK(nactions["constructed"] == 1);
     }
     {
         Introspective::node_type* doomed = root->children().front();
         auto& nactions = doomed->value.nactions;
         debug("doomed: {}", doomed->value.name);
-        CHECK(nactions.size() == 2);
+        CHECK(nactions.find("constructed") != nactions.end());
+        CHECK(nactions.find("inserted") != nactions.end());
         CHECK(nactions["constructed"] == 1);
         CHECK(nactions["inserted"] == 1);
         auto dead = root->remove(doomed);
@@ -392,3 +393,11 @@ TEST_CASE("nary tree take children")
         CHECK(child != nullptr);
     }
 }
+
+// TEST_CASE("nary tree order")
+// {
+//     auto root = make_layered_tree({2,4,8});
+//     for (const auto& n : root->depth()) {
+
+//     }
+// }

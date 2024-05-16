@@ -12,7 +12,6 @@ using namespace WireCell::PointCloud::Tree;
 void WireCell::PointCloud::Facade::clustering_regular(
     Grouping& live_grouping,
     cluster_set_t& cluster_connected_dead,            // in/out
-    const TPCParams& tp,                                           // common params
     const double length_cut,                                       //
     bool flag_enable_extend                                        //
 )
@@ -39,12 +38,12 @@ void WireCell::PointCloud::Facade::clustering_regular(
 
   for (size_t i=0;i!=live_clusters.size();i++){
     auto cluster_1 = live_clusters.at(i);
-    if (cluster_1->get_length(tp) < internal_length_cut) continue;
+    if (cluster_1->get_length() < internal_length_cut) continue;
     for (size_t j=i+1;j<live_clusters.size();j++){
       auto cluster_2 = live_clusters.at(j);
-      if (cluster_2->get_length(tp) < internal_length_cut) continue;
+      if (cluster_2->get_length() < internal_length_cut) continue;
 
-      if (Clustering_1st_round(*cluster_1,*cluster_2, tp, cluster_1->get_length(tp), cluster_2->get_length(tp), length_cut, flag_enable_extend)){
+      if (Clustering_1st_round(*cluster_1,*cluster_2, cluster_1->get_length(), cluster_2->get_length(), length_cut, flag_enable_extend)){
 	//	to_be_merged_pairs.insert(std::make_pair(cluster_1,cluster_2));
 	boost::add_edge(ilive2desc[map_cluster_index[cluster_1]],
 			ilive2desc[map_cluster_index[cluster_2]], g);
@@ -61,12 +60,13 @@ void WireCell::PointCloud::Facade::clustering_regular(
 bool WireCell::PointCloud::Facade::Clustering_1st_round(
     const Cluster& cluster1,
     const Cluster& cluster2,
-    const TPCParams& tp,        // common params
     double length_1,
     double length_2,
     double length_cut,
     bool flag_enable_extend)
 {
+  const auto [angle_u,angle_v,angle_w] = cluster1.grouping()->wire_angles();
+
   geo_point_t p1;
   geo_point_t p2;
 
@@ -87,9 +87,6 @@ bool WireCell::PointCloud::Facade::Clustering_1st_round(
 
 
     geo_point_t drift_dir(1, 0, 0);  // assuming the drift direction is along X ...
-    double angle_u = tp.angle_u;
-    double angle_v = tp.angle_v;
-    double angle_w = tp.angle_w;
     
     // pronlonged case for U 3 and V 4 ...
     geo_point_t U_dir(0,cos(angle_u),sin(angle_u));
