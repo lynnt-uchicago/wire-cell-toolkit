@@ -13,39 +13,39 @@ using namespace WireCell;
 using spdlog::debug;
 
 
-TEST_CASE("point zero is zero")
+TEST_CASE("point3d zero is zero")
 {
     Point ppz;
-    CHECK(ppz);
     CHECK(ppz.x() == 0);
     CHECK(ppz.y() == 0);
     CHECK(ppz.z() == 0);
 }
-TEST_CASE("point invalid is invalid")
-{
-    Point pp1;
-    pp1.invalidate();
-    CHECK(!pp1);
-    Point pp2 = pp1;
-    CHECK(!pp2);
-}
-TEST_CASE("point can be in vector")
+//// this "feature" is removed 
+// TEST_CASE("point invalid is invalid")
+// {
+//     Point pp1;
+//     pp1.invalidate();
+//     CHECK(!pp1);
+//     Point pp2 = pp1;
+//     CHECK(!pp2);
+// }
+TEST_CASE("point3d can be in vector")
 {
     std::vector<Point> pts(3);
-    CHECK(pts[2]);
+    CHECK(pts[2].size() == 3);
     CHECK(pts[2].x() == 0);
     CHECK(pts[2].y() == 0);
     CHECK(pts[2].z() == 0);
     
     std::vector<Point> pts2;
     pts2 = pts;
-    CHECK(pts2[2]);
+    CHECK(pts2[2].size() == 3);
     CHECK(pts2[2].x() == 0);
     CHECK(pts2[2].y() == 0);
     CHECK(pts2[2].z() == 0);
 }
 
-TEST_CASE("point point set")
+TEST_CASE("point3d point set")
 {
     Point pp1(1, -500, -495);
     Point pp2(1, 500, -495);
@@ -55,7 +55,7 @@ TEST_CASE("point point set")
     CHECK(2 == results.size());
 }
 
-TEST_CASE("point dot product")
+TEST_CASE("point3d dot product")
 {
     Point origin(0, 0, 0);
     Vector zdir(0, 0, 1);
@@ -65,7 +65,7 @@ TEST_CASE("point dot product")
           origin / units::mm, zdir, pt / units::mm, dot / units::mm);
 }
 
-TEST_CASE("point rays")
+TEST_CASE("point3d rays")
 {
     Point p1(1, 2, 3);
     CHECK(p1.x() == 1);
@@ -116,12 +116,3 @@ TEST_CASE("point rays")
     debug("r1={} r2={} rp={}", r1, r2, c12);
 }
 
-TEST_CASE("point setting point")
-{
-    Point p(1, 2, 3);
-    CHECK(p);
-    p.invalidate();
-    CHECK(!p);
-    p.set();
-    CHECK(p);
-}

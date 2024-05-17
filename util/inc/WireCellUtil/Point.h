@@ -116,8 +116,6 @@ namespace WireCell {
 
 }  // namespace WireCell
 
-// for spdlog/fmt
-
 // inline
 // WireCell::Ray operator*(WireCell::Ray ray, const double& scale) {
 //     return WireCell::Ray(ray.first*scale, ray.second*scale);
@@ -126,12 +124,6 @@ namespace WireCell {
 // WireCell::Ray operator*(double scale, const WireCell::Ray& ray) {
 //     return WireCell::Ray(ray.first*scale, ray.second*scale);
 // }
-
-
-
-#include "WireCellUtil/Logging.h"
-template <> struct fmt::formatter<WireCell::Point> : ostream_formatter {};
-template <> struct fmt::formatter<WireCell::Ray> : ostream_formatter {};
 
 
 #endif
