@@ -345,6 +345,9 @@ TEST_CASE("nary tree depth limits")
         }
         CHECK(count == want[ind]);
     }
+    for (const auto* child : root->children()[0]->children()[0]->children()) {
+        debug("gggc: {}", child->value.name);
+    }
 
 }
 

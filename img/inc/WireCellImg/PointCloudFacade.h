@@ -67,7 +67,7 @@ namespace WireCell::PointCloud::Facade {
         size_t nbpoints() const;
 
         // Check facade consistency 
-        bool sanity(Log::logptr_t log) const;
+        bool sanity(Log::logptr_t log = nullptr) const;
 
     private:
 
@@ -164,7 +164,7 @@ namespace WireCell::PointCloud::Facade {
         using points_type = kd3d_t::points_type;
         const points_type& points() const;
 
-        // Return charge-weighted average position of points of blobs withing distance of point.
+        // Return charge-weighted average position of points of blobs within distance of point.
         geo_point_t calc_ave_pos(const geo_point_t& origin, const double dis) const;
 
 
@@ -259,7 +259,7 @@ namespace WireCell::PointCloud::Facade {
         size_t hash() const;
 
         // Check facade consistency between blob view and k-d tree view.
-        bool sanity(Log::logptr_t log) const;
+        bool sanity(Log::logptr_t log = nullptr) const;
 
     private:
         // start slice index (tick number) to blob facade pointer can be

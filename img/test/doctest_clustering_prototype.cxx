@@ -108,7 +108,7 @@ Points::node_ptr make_simple_pctree()
     return root;
 }
 
-TEST_CASE("test PointTree API")
+TEST_CASE("clustering point tree")
 {
     // this test does not touch the facades so needs to Grouping root
     auto root = make_simple_pctree(); //  a cluster node.
@@ -186,11 +186,10 @@ TEST_CASE("test PointTree API")
               points[0][index], points[1][index], points[2][index], metric);
     }
     CHECK(rad.size() == 2);
-
 }
 
 
-TEST_CASE("test PointCloudFacade")
+TEST_CASE("clustering facade")
 {
     Points::node_t root_node;
     Grouping* grouping = root_node.value.facade<Grouping>();
@@ -201,7 +200,18 @@ TEST_CASE("test PointCloudFacade")
     REQUIRE(pccptr->grouping() == grouping);
     Cluster& pcc = *pccptr;
 
+    CHECK(pcc.sanity());
+
+    auto& blobs = pcc.children();
+
     // (0.5 * 1 + 1.5 * 2) / 3 = 1.1666666666666665
+    debug("blob 0: q={}, r={}", blobs[0]->charge(), blobs[0]->center_x());
+    debug("blob 1: q={}, r={}", blobs[1]->charge(), blobs[1]->center_x());
+    double expect = 0;
+    expect += blobs[0]->charge() * blobs[0]->center_x();
+    expect += blobs[1]->charge() * blobs[1]->center_x();
+    expect /= blobs[0]->charge() + blobs[1]->charge();
+    debug("expect average pos {}", expect);
     auto ave_pos = pcc.calc_ave_pos({1,0,0}, 1);
     debug("ave_pos: {} | expecting (1.1666666666666665 0 0)", ave_pos);
     auto l1 = fabs(ave_pos[0] - 1.1666666666666665) + fabs(ave_pos[1]) + fabs(ave_pos[2]);

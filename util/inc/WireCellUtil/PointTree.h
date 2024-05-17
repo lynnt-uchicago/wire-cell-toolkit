@@ -171,20 +171,6 @@ namespace WireCell::PointCloud::Tree {
     {
         return const_cast<const ScopedView<ElementType>&>(
             const_cast<self_t*>(this)->scoped_view(scope));
-
-        // using SV = ScopedView<ElementType>;
-        // auto const* sbptr = get_scoped(scope);
-        // if (sbptr) {
-        //     auto const* svptr = dynamic_cast<const SV*>(sbptr);
-        //     if (svptr) {
-        //         return *svptr;
-        //     }
-        // }
-        // auto uptr = std::make_unique<SV>(scope);
-        // auto& sv = *uptr;
-        // m_scoped[scope] = std::move(uptr);
-        // init(scope);
-        // return sv;
     }
     template<typename ElementType>
     ScopedView<ElementType>& Points::scoped_view(const Scope& scope) 

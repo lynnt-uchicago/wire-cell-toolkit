@@ -135,7 +135,7 @@ size_t Blob::nbpoints() const
 bool Blob::sanity(Log::logptr_t log) const
 {
     if (nbpoints() == (size_t)npoints()) return true;
-    log->debug("blob sanity: blob points mismatch: {}", *this);
+    if (log) log->debug("blob sanity: blob points mismatch: {}", *this);
     return false;
 }
 
@@ -424,9 +424,7 @@ Blob* Cluster::blob_with_point(size_t point_index)
 const Blob* Cluster::blob_with_point(size_t point_index) const
 {
     const auto& sv = sv3d();
-    const auto& skd = sv.kd();
-    const size_t mai = skd.major_index(point_index);
-    const auto* node = sv.node_with_point(mai);
+    const auto* node = sv.node_with_point(point_index);
     return node->value.facade<Blob>();
 }
 
@@ -439,11 +437,10 @@ std::vector<const Blob*> Cluster::blobs_with_points(const kd_results_t& res) con
     const size_t npts = res.size();
     std::vector<const Blob*> ret(npts);
     const auto& sv = sv3d();
-    const auto& skd = sv.kd();
 
     for (size_t ind=0; ind<npts; ++ind) {
-        const size_t mai = skd.major_index(res[ind].first);
-        const auto* node = sv.node_with_point(mai);
+        const size_t point_index = res[ind].first;
+        const auto* node = sv.node_with_point(point_index);
         ret[ind] = node->value.facade<Blob>();
     }
     return ret;
@@ -452,33 +449,28 @@ std::vector<const Blob*> Cluster::blobs_with_points(const kd_results_t& res) con
 
 std::map<const Blob*, geo_point_t> Cluster::get_closest_blob(const geo_point_t& point, double radius) const
 {
-    std::map<const Blob*, geo_point_t> blob_points; // return
-    std::map<const Blob*, double> blob_metrics;       // temp
-  
-    auto results = kd_radius(radius, point);
-    const auto& blobs = blobs_with_points(results);
+    struct Best { size_t point_index; double metric; };
+    std::unordered_map<size_t, Best> best_blob_point;
 
-    const size_t npts = results.size();
-    for (size_t ind=0; ind<npts; ++ind) {
-        const auto& [point_index, metric] = results[ind];
-
-        const geo_point_t p1 = point3d(point_index);
-        const Blob* blob = blobs[ind];
-
-        auto it = blob_metrics.find(blob);
-        if (it == blob_metrics.end()) { // first time
-            blob_metrics[blob] = metric;
-            blob_points[blob] = p1;
+    const auto& kd = kd3d();
+    auto results = kd.radius(radius*radius, point);
+    for (const auto& [point_index, metric] : results) {
+        const size_t major_index = kd.major_index(point_index);
+        auto it = best_blob_point.find(major_index);
+        if (it == best_blob_point.end()) { // first time seen
+            best_blob_point[major_index] = {point_index, metric};
+            continue;
         }
-        else {
-            if (metric < it->second) { // check for yet closer
-                it->second = metric;
-                blob_points[blob] = p1;
-            }
+        if (metric < it->second.metric) {
+            it->second.point_index = point_index;
+            it->second.metric = metric;
         }
     }
-  
-    return blob_points;
+    std::map<const Blob*, geo_point_t> ret;
+    for (const auto& [mi, bb] : best_blob_point) {
+        ret[blob_with_point(bb.point_index)] = point3d(bb.point_index);
+    }
+    return ret;
 }
 
 std::pair<geo_point_t, const Blob* > Cluster::get_closest_point_blob(const geo_point_t& point) const
@@ -499,7 +491,7 @@ geo_point_t Cluster::calc_ave_pos(const geo_point_t& origin, const double dis) c
     double charge = 0;
 
     auto blob_pts = get_closest_blob(origin, dis);
-    for (auto [blob, pt] : blob_pts) {
+    for (auto [blob, _] : blob_pts) {
         double q = blob->charge();
         if (q==0) q=1;
         ret += blob->center_pos()*q;
@@ -770,29 +762,27 @@ std::string Facade::dump(const Facade::Grouping& grouping, int level)
 }
 
 
-
-
 bool Cluster::sanity(Log::logptr_t log) const
 {
     {
         const auto* svptr = m_node->value.get_scoped(scope);
         if (!svptr) {
-            log->debug("cluster sanity: note, not yet a scoped view {}", scope);
+            if (log) log->debug("cluster sanity: note, not yet a scoped view {}", scope);
         }
     }
     if (!nchildren()) {
-        log->debug("cluster sanity: no children blobs");
+        if (log) log->debug("cluster sanity: no children blobs");
         return false;
     }
 
     const auto& sv = m_node->value.scoped_view(scope);
     const auto& snodes = sv.nodes();
     if (snodes.empty()) {
-        log->debug("cluster sanity: no scoped nodes");
+        if (log) log->debug("cluster sanity: no scoped nodes");
         return false;
     }
     if (sv.npoints() == 0) {    // triggers a scoped view cache fill
-        log->debug("cluster sanity: no scoped points");
+        if (log) log->debug("cluster sanity: no scoped points");
         return false;
     }
     // sv.force_invalid();
@@ -805,16 +795,33 @@ bool Cluster::sanity(Log::logptr_t log) const
     }
 
     if (skd.nblocks() != snodes.size()) {
-        log->debug("cluster sanity: k-d blocks={} scoped nodes={}", skd.nblocks(), fblobs.size());
+        if (log) log->debug("cluster sanity: k-d blocks={} scoped nodes={}", skd.nblocks(), fblobs.size());
         return false;
     }
 
-
-    /// Note, we do not expect k-d blocks order to be sync'ed to the Cluster
-    /// facade children blob order, but they should have equal number.
     if (skd.nblocks() != fblobs.size()) {
-        log->debug("cluster sanity: k-d blocks={} cluster blobs={}", skd.nblocks(), fblobs.size());
+        if (log) log->debug("cluster sanity: k-d blocks={} cluster blobs={}", skd.nblocks(), fblobs.size());
         return false;
+    }
+
+    for (size_t ind=0; ind<snodes.size(); ++ind) {
+        /// In general, the depth-first order of scoped view nodes is always the
+        /// same as k-d tree blocks but is not (again in general) expected to be
+        /// the same order as the children blobs of a parent cluster.  After
+        /// all, a scoped view may span multiple essentially any subset of tree
+        /// nodes.  However, in the special case of the "3d" SV and how the PC
+        /// tree is constructed, the depth-first and children blobs ordering
+        /// should be "accidentally" the same.
+        const auto* fblob = fblobs[ind];
+        const auto* sblob = snodes[ind]->value.facade<Blob>();
+        if (fblob != sblob) {
+            if (log) {
+                log->debug("cluster sanity: scoped node facade Blob differs from cluster child at {}", ind);
+                log->debug("cluster sanity: \tscoped blob: {}", *fblob);
+                log->debug("cluster sanity: \tfacade blob: {}", *sblob);                
+            }
+            // return false;
+        }
     }
 
     const auto& majs = skd.major_indices();
@@ -833,7 +840,7 @@ bool Cluster::sanity(Log::logptr_t log) const
         // scoped consistency
         const node_t* tnode = sv.node_with_point(ind);
         if (!tnode) {
-            log->debug("cluster sanity: scoped node facade not a Blob at majind={}", majind);
+            if (log) log->debug("cluster sanity: scoped node facade not a Blob at majind={}", majind);
             return false;
         }
         const auto* tblob = tnode->value.facade<Blob>();
@@ -843,16 +850,17 @@ bool Cluster::sanity(Log::logptr_t log) const
         }
 
         if (minind >= spoints.size()) {
-            log->debug("cluster sanity: minind={} is beyond scoped blob npts={} majind={}, blob is: {}",
-                       minind, spoints.size(), majind, *sblob);
+            if (log) log->debug("cluster sanity: minind={} is beyond scoped blob npts={} majind={}, blob is: {}",
+                                minind, spoints.size(), majind, *sblob);
             return false;
         }
         auto spt = spoints[minind];
         if (spt != kdpt) {
-            log->debug("cluster sanity: scoped point mismatch at minind={} majind={} spt={} kdpt={}, blob is: {}",
-                       minind, majind, spt, kdpt, *sblob);
+            if (log) log->debug("cluster sanity: scoped point mismatch at minind={} majind={} spt={} kdpt={}, blob is: {}",
+                                minind, majind, spt, kdpt, *sblob);
             return false;
         }
+
     }
     return true;
 }
@@ -968,13 +976,13 @@ void Facade::sort_blobs(std::vector<Blob*>& blobs)
 bool Facade::cluster_less(const Cluster* a, const Cluster* b)
 {
     if (a==b) return false;
-    /// Keep this off for now to match the hacked March 24'th version
-    // {
-    //     const double la = a->get_length();
-    //     const double lb = b->get_length();
-    //     if (la < lb) return true;
-    //     if (lb < la) return false;
-    // }
+
+    {
+        const double la = a->get_length();
+        const double lb = b->get_length();
+        if (la < lb) return true;
+        if (lb < la) return false;
+    }
     {
         const int na = a->nchildren();
         const int nb = b->nchildren();
