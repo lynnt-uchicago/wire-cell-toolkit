@@ -1,0 +1,81 @@
+#+title: WCT Logging
+#+include: ../../docs/include-topic.org
+
+* Introduction
+
+In WCT code we must "never" use ~std::cout~ or ~std::cerr~ and certainly never for "logging".  Instead, emit log messages using WCT's support for the [[https://github.com/gabime/spdlog][spdlog]].  That package is directly exposed so see its good documentation for details.  Here we give a brief usage guidelines and some WCT specifics.
+
+* Usage Guidelines
+
+- Do not use ~std::cout~ nor ~std::cerr~.
+
+- Use ~spdlog::<level>()~ function the macros: ~SPDLOG_LOGGER_<LEVEL>()~ or ~SPDLOG_<LEVEL>()~ macros.
+
+- Never place any code that is required in general inside these macros.
+
+- Make messages informative of program state and avoid purely static strings.
+
+- Consider log analysis when defining a message format, (eg use consistent ~var=<val>~ pattern).
+
+- Consider creating a [[https://github.com/WireCell/wire-cell-toolkit/issues][github issue]] for any message with a level above "info" so users encountering the message may find guidance and understanding.
+
+- Follow the level guidelines listed below.
+
+An important and communal responsibility is to select a proper log "level" for any given message content.  The most important considerations in selecting a level are the frequency at which the message would be emitted and the expected response from a human seeing the message.  The following table provides guidelines on these two considerations and states the default compilation for use of the CPP macros.
+
+
+| level    | verbosity | intention                                                                      | default |
+|----------+-----------+--------------------------------------------------------------------------------+---------|
+| trace    | very      | Produced and consumed by developers to understand some code aspect.            | off     |
+| debug    | somewhat  | Produced by users with a special build to help developers debug an issue.      | off     |
+| info     | low       | Notify user of non-problematic progress and state of the program.              | on      |
+| warn     | rare      | Notify user of assumption made to correct incorrect user input (data/config).  | on      |
+| error    | rare      | Notify user that a context raised an error that is likely corrected by caller. | on      |
+| critical | rare      | Notify user that a context raised and error that is likely not correctable.    | on      |
+|----------+-----------+--------------------------------------------------------------------------------+---------|
+
+
+* WCT specifics
+
+** Building
+
+The default SPDLOG "active level" is set at build configuration time to be "info" level.  This will deactivate any code inside ~SPDLOG_DEBUG()~ and ~SPDLOG_TRACE()~ macros.  To change this level, for example to "trace":
+
+#+begin_example
+  ./wcb configure --with-spdlog-active-level=trace [...]
+  ./wcb
+#+end_example
+
+** Running
+
+The ~wire-cell~ command line program allows changing the SPDLOG level on a per logger basis.
+
+#+begin_example
+  wire-cell --help
+  ...
+  -l [ --logsink ] arg  set log sink as <filename> or 'stdout' or 'stderr', a 
+                        log level for the sink may be given by appending 
+                        ':<level>'
+  -L [ --loglevel ] arg set lowest log level for a log in form 'name:level' or 
+                        just give 'level' value for all (level one of: 
+                        critical,error,warn,info,debug,trace)
+  ...
+#+end_example
+
+The emission of log messages from SPDLOG macros is still subject to the build time configuration. 
+
+** Executing
+
+When WCT is executed as a toolkit the calling code may use SPDLOG directly to control log levels.  In addition the user may set the environment variable, eg:
+
+#+begin_example
+  SPDLOG_LEVEL=debug
+#+end_example
+
+The emission of log messages from SPDLOG macros is still subject to the build time configuration. 
+
+
+** Developing
+
+Developers may create a specific SPDLOG logger object or may use the "main" object.  Log object construction may be  simplified when constructing a WCT component that inherits from ~WireCell::Aux::Logger~.  See ~util/test/doctest_logging.cxx~ and existing use in WCT source for some examples.
+

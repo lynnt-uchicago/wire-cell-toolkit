@@ -46,6 +46,23 @@ Dataset::Dataset(Dataset&& other)
    debug(this, "move constructor");
 }
 
+Dataset Dataset::slice(size_t position, size_t count) const
+{
+    Dataset dslc;
+    for (const auto& name : keys()) {
+        dslc.add(name, get(name)->slice(position, count));
+    }
+    return dslc;
+}
+Dataset Dataset::slice(size_t position, size_t count, bool share)
+{
+    Dataset dslc;
+    for (const auto& name : keys()) {
+        dslc.add(name, get(name)->slice(position, count, share));
+    }
+    return dslc;
+}
+
 Dataset& Dataset::operator=(const Dataset& other)
 {
     m_store = other.m_store;
@@ -91,9 +108,21 @@ void Dataset::add(const std::string& name, Array&& arr)
     raise<ValueError>("array named \"%s\" already exists", name);
 }
 
-Dataset::selection_t Dataset::selection(const name_list_t& names) const
+Dataset::selection_t Dataset::selection(const name_list_t& names) 
 {
     selection_t ret;
+    for (const auto& name : names) {
+        auto it = m_store.find(name);
+        if (it == m_store.end()) {
+            return selection_t();
+        }
+        ret.push_back(it->second);
+    }
+    return ret;
+}
+Dataset::const_selection_t Dataset::selection(const name_list_t& names) const
+{
+    const_selection_t ret;
     for (const auto& name : names) {
         auto it = m_store.find(name);
         if (it == m_store.end()) {

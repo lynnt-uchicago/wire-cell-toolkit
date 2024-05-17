@@ -5,6 +5,8 @@
 
 #include "WireCellUtil/NamedFactory.h"
 
+#include <iostream>             // debug
+
 WIRECELL_FACTORY(BlobSampler, WireCell::Img::BlobSampler,
                  WireCell::INamed,
                  WireCell::IBlobSampler,
@@ -127,7 +129,8 @@ struct BlobSampler::Sampler : public Aux::Logger
         : Aux::Logger("BlobSampler", "img")
         , cc(cfg2cpp(cfg)), my_ident(ident)
     {
-        this->configure(cfg);
+        // this->configure(cfg); can not call virtual methods from ctro!  Outer
+        // context must call our configure() after we have been constructed.
     }
 
     virtual ~Sampler() {}
@@ -160,14 +163,19 @@ struct BlobSampler::Sampler : public Aux::Logger
     {
         return anodeface->planes()[plane_index]->pimpos();
     }
+    double plane_x(int plane_index=2) const
+    {
+        return anodeface->planes()[plane_index]->wires().front()->center().x();
+    }
 
     // Convert a signal time to its location along global drift
     // coordinates.
     double time2drift(double time) const
     {
         const Pimpos* colpimpos = pimpos(2);
-        const double drift = (time + cc.time_offset)/cc.drift_speed;
-        double xorig = colpimpos->origin()[0];
+        const double drift = (time + cc.time_offset)*cc.drift_speed;
+        double xorig = plane_x(2); // colpimpos->origin()[0];
+        /// TODO: how to determine xsign?
         double xsign = colpimpos->axis(0)[0];
         return xorig + xsign*drift;
     }
@@ -345,9 +353,9 @@ struct BlobSampler::Sampler : public Aux::Logger
         const double dt = islice->span();
 
         const Binning bins(cc.tbinning.nbins(),
-                           cc.tbinning.min() * t0,
-                           cc.tbinning.max() * (t0 + dt));
-
+                           cc.tbinning.min()*dt + t0,
+                           cc.tbinning.max()*dt + t0);
+        // log->debug("t0 {} dt {} bins {}", t0, dt, bins);
         const size_t npts = points.size();
         for (int tbin : irange(bins.nbins())) {
             const double time = bins.edge(tbin);
@@ -670,6 +678,7 @@ struct Stepped : public BlobSampler::Sampler
     using BlobSampler::Sampler::Sampler;
     Stepped(const Stepped&) = default;
     Stepped& operator=(const Stepped&) = default;
+    virtual ~Stepped() {}
 
     // The minimium number of wires over which a step will be made.
     double min_step_size{3};
@@ -677,10 +686,16 @@ struct Stepped : public BlobSampler::Sampler
     // non-positive, then all steps are min_step_size.
     double max_step_fraction{1.0/12.0};
 
+    // Distance along each ray from a crossing to place a point.  Value is in
+    // units of pitch.  Default value of 0.5 picks points at the wire crossing
+    // point instead of the ray crossing point.
+    double offset{0.5};
+
     virtual void configure(const Configuration& cfg)
     {
         min_step_size = get(cfg, "min_step_size", min_step_size);
         max_step_fraction = get(cfg, "max_step_fraction", max_step_fraction);
+        offset = get(cfg, "offset", offset);
     }
 
 
@@ -704,6 +719,12 @@ struct Stepped : public BlobSampler::Sampler
 
         std::vector<Point> points;
 
+        const Vector adjust = offset * (
+            coords.ray_crossing({smin.layer, 0}, {smax.layer, 0}) -
+            coords.ray_crossing({smin.layer, 1}, {smax.layer, 1}));
+
+        // log->debug("offset={} adjust={},{},{}", offset, adjust.x(), adjust.y(), adjust.z());
+
         for (auto gmin=smin.bounds.first; gmin < smin.bounds.second; gmin += nmin) {
             coordinate_t cmin{smin.layer, gmin};
             for (auto gmax=smax.bounds.first; gmax < smax.bounds.second; gmax += nmax) {
@@ -712,8 +733,8 @@ struct Stepped : public BlobSampler::Sampler
                 const double pitch = coords.pitch_location(cmin, cmax, smid.layer);
                 auto gmid = coords.pitch_index(pitch, smid.layer);
                 if (smid.in(gmid)) {
-                    auto pt = coords.ray_crossing(cmin, cmax);
-                    points.push_back(pt);
+                    const auto pt = coords.ray_crossing(cmin, cmax);
+                    points.push_back(pt + adjust);
                 }
             }
         }
@@ -758,26 +779,32 @@ void BlobSampler::add_strategy(Configuration strategy)
     // accepted.
     if (startswith(name, "center")) {
         m_samplers.push_back(std::make_unique<Center>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
     if (startswith(name, "corner")) {
         m_samplers.push_back(std::make_unique<Corner>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
     if (startswith(name, "edge")) {
         m_samplers.push_back(std::make_unique<Edge>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
     if (startswith(name, "grid")) {
         m_samplers.push_back(std::make_unique<Grid>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
     if (startswith(name, "bound")) {
         m_samplers.push_back(std::make_unique<Bounds>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
     if (startswith(name, "stepped")) {
         m_samplers.push_back(std::make_unique<Stepped>(full, m_samplers.size()));
+        m_samplers.back()->configure(full);
         return;
     }
 

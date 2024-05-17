@@ -5,19 +5,19 @@
 
 * Overview
 
-  A *point tree* refers to an [[https://en.wikipedia.org/wiki/M-ary_tree][n-ary tree]] with *nodes* that hold a set of "local" *point clouds*.  The caller may ask any node for a local point cloud by a given *name* (~pcname~).  The caller may also ask for a *view* on a subset of these local point clouds in a given *scope*.  A *scope* defines a subset of tree nodes and view collects nodes and point clouds in the scope and offers a *k-d tree* spanning the point clouds.  A variety of *iterators* are available to navigate the tree, the collection of point clouds in a scope and to represent the results of k-d tree queries
+A *point tree* refers to an [[https://en.wikipedia.org/wiki/M-ary_tree][n-ary tree]] with *nodes* that hold a set of "local" *point clouds*.  A subset of the tree called a "scoped view" can be constructed.  The view is limited to certain nodes, a point cloud local to the nodes and a subset of arrays within those local point clouds.  On the points in the view a k-d tree may be constructed.  Each point in a set returned by a k-d tree query can be associated back to the node that provided it.
 
 * Meta
 
-This document is meant to be read linearly but one may also jump around to find specific examples.  It describes the following data structures: point clouds, selections, point trees and k-d trees and related types.  Also provided are several C++ code examples in the form of doctest test cases.  
-
-  The source for this document is in org markup.  You may read that form directly or you may use Emacs to /export/ the org content to HTML with ~C-c C-e h h~ or to PDF with ~C-c C-e l p~.  The org content may also be /tangled/ to produce the ~doctest_pointtree_example.cxx~ source file with ~C-c C-v t~.  Depending on where you are reading this document you may find these links provide it in the different formats: [[file:doctest-pointtree-example.html][HTML]], [[file:doctest-pointtree-example.pdf][PDF]], [[file:doctest-pointtree-example.cxx][C++]].
+The examples given in this document have been extracted to source code files.  These are then compiled and run as part of WCT testing to assure correctness.  To remake the source files (tangle), open this original org file with Emacs and type ~C-c C-v t~.  To export this document HTML type ~C-c C-e h h~ or to PDF type ~C-c C-e l p~.  Depending on where you are reading this document the following links may take you to different formats: [[file:doctest-pointtree-example.html][HTML]], [[file:doctest-pointtree-example.pdf][PDF]], [[file:doctest-pointtree-example.cxx][C++]].
 
 * Preamble
 
-  The main entry point is the API in ~PointTree.h~.  Additional headers are for the doctest framework.
+The main entry point is the API in ~PointTree.h~.  Additional headers are for the doctest framework.
 
 #+begin_src c++ :tangle doctest-pointtree-example.cxx
+// Caution: this file is generated.  See the .org file of the same name.
+
 #include "WireCellUtil/PointTree.h"
 
 #include "WireCellUtil/PointTesting.h"
@@ -31,7 +31,7 @@ using namespace WireCell::PointTesting;     // make_janky_track()
 using namespace spdlog;                     // for debug() etc.
 #+end_src  
 
-* COMMENT What is a point cloud
+* What is a point cloud
 
 A point cloud (here) is implemented by the class ~PointCloud::Dataset~.  In this context one may use the term "point cloud" and ~Dataset~ equivalently (and we introduce "selection" below which is also like a point cloud).
 
@@ -81,61 +81,29 @@ A ~Dataset~ can also yield a subset of its arrays in the form of a vector of sha
 
 In general, if not in this example, a selection is a subset of the ~Dataset~ arrays that are to be considered *coordinate points*.  A selection of coordinate points is essentially a point cloud with its arrays accessed by a dimension number instead of an array name and with some specific interpretations.  It represents points on coordinates axis that span some space (eg, 3D Cartesian space in this example) and which have the same numeric type (eg ~double~ or ~int~ but not a mix).  Below we will see how a selection is used to build a *k-d tree*.
 
-We can better express these conventions in C++ using a special wrapper that holds the numeric type and wraps the selection.
+A selection is still "row major" in that one must get the array for a dimension and then index to get the scalar element value.  A transpose can be effected by viewing a selection through a *coordinate array*.
 
 #+begin_src c++ :tangle doctest-pointtree-example.cxx
-     using point_type = coordinate_point<double>;
+      // Defaults to point elements of type double
+      coordinate_array ca(sel);
+      CHECK( ca.ndims() == sel.size() );
   
-     // Create a coordinate point on the selection
-     // and at a given point index.
-     point_type cpt(&sel, 0);
-  
-     // The index in the point cloud can be retrieved.
-     CHECK( cpt.index() == 0 );
-  
-     // The point looks like a vector of size 3.
-     CHECK( cpt.size() == 3);
-  
-     // And we can access the "column" at the current index
-     // by a dimension number.
-     CHECK( cpt[0] == 1.0 );           // x
-     CHECK( cpt[1] == 2.0 );           // y
-     CHECK( cpt[2] == 1.0 );           // z
-  
-     // If the coordinate point is not const, it can be set.
-     cpt.index() = 1;
-     CHECK( cpt.index() == 1 );
-  
-     // We may also access the dimensions of the point with bounds checking on
-     // both index and dimension.
-     CHECK( cpt.at(0) == 1.0 );        // x
-     CHECK( cpt.at(1) == 1.0 );        // y
-     CHECK( cpt.at(2) == 4.0 );        // z
-#+end_src
-
-As shown, allowing the caller to set the ~index~ makes the ~coordinate_point~ able to traverse the different points (columns) in a selection.  The caller must be careful to set the ~index~ to be in bounds of the underlying ~Array~ instances in the selection.  Using the ~at(dim)~ method will check bounds and throw an exception if either the ~dim~ *or* the ~index~ are out of bounds.
-
-But, explicitly setting ~index()~ is error prone and not convenient.  A safer and more convenient way to traverse the selection is provided by a *coordinate range* and its *iterators*.
-
-#+begin_src c++ :tangle doctest-pointtree-example.cxx
-    using coords_type = coordinate_range<point_type>;
-
-    // Make a coordinate range on the selection.
-    coords_type cr(sel);
-
-    // Iterate over the selection, point by point.
-    for (const auto& cpt : cr) {
-        // Each cpt is a "column" down the rows of selected arrays.
-        CHECK( cpt.size() == sel.size() );
-    }
-}
+      // Iterate over the selection, point by point.
+      size_t count = 0;
+      for (const auto& cpt : ca) {
+          // Each cpt is a "column" down the rows of selected arrays.
+          CHECK( cpt.size() == sel.size() );
+          CHECK( cpt[0] == sel[0]->element(count) );
+          ++count;
+      }
+  }
 #+end_src
 
 * What is a (n-ary) tree
 
-  The above are all things that the point tree can provide.  But, what is meant by a "tree" here.  Specifically what is an *n-ary tree*?  Most generally speaking an n-ary tree is a directed acyclic graph that allows for n-way splits but joins are not allowed.  This means  that there is a unique *path* from the singular *root node* to each of the other nodes in the graph (tree).
+  What is meant by a "tree" here.  Specifically what is an *n-ary tree*?  Most generally speaking an n-ary tree is a directed acyclic graph that allows for n-way splits but joins are not allowed.  This means  that there is a unique *path* from the singular *root node* to each of the other nodes in the graph (tree).
 
-  In the implementation described here, there is no actual "tree" object per se.  Rather, we work only with nodes.  A node may have a *parent* node a node may have zero or more *children* nodes.  A node with no parent is called the *root* node and this node may be considered as being a representative of a *tree*. 
+  In the implementation described here, there is no actual "tree" object per se.  Rather, we work only with nodes.  A node may have a *parent* node and a node may have zero or more *children* nodes.  A node with no parent is called the *root* node.  A root node may be considered the *representative* of its *tree*.  It is possible to navigate from any node to the root node and vice versa. 
 
   Children nodes are owned by a parent node in an ordered list of nodes.  Ownership is expressed by holding a child node in a ~std::unique_ptr~.  Since the ~unique_ptr<>~ is important, lets define a type for it.  The template argument will be described below.
 
@@ -145,12 +113,14 @@ using node_ptr = std::unique_ptr<Points::node_t>;
 
   Children in this list are called *sibling* nodes.  By default, the order of siblings in this list is determined by the order in which the child node was inserted to the list.  The ordering implies that a child may have a *left sibling* (an "older child") and may have a *right sibling* (a "younger child").  This ordering is reflected in the order that nodes are seen in a depth-first descent of the tree.
 
-  A child may be inserted to or removed from a parent.  When removed, the caller is given ownership though the ~std::unique_ptr~.  If the caller drops the removed child, it and any of its children will be destructed.  In either case (insertion or removal) the parent node, its parent, etc up to the root node, can receive notification of the change.  The ordering of any of the child list may be changed by the user but this will not (currently) trigger notification.
+  A child may be inserted to or removed from a parent.  When removed, the caller is given ownership by accepting a ~node_ptr~ as the return value from the node's ~remove()~ method.  If the caller drops this ~node_ptr~ the child node and any descendant nodes it may hod are destructed.  In either case (insertion or removal) the parent node, its parent, etc up to the root node, can receive notification of the change.  The ordering of any of the child list may be changed by the user but this will not (currently) trigger such notification.
+
+  A user of a tree need not worry about ~node_ptr~ except when ~remove()~ is invoked.  Most of the time the user will deal in bare pointers ~Points::node_t*~.  For example, accessing the children via ~children()~ returns a vector of bare pointers.  These are *lent pointers* and do not transfer ownership.  Ownership resides with the parent.  Transfer of owner ship from the tree to the caller is always done via the unique pointer ~node_ptr~.  OTOH, using ~insert()~ on either bare or unique pointer types transfers ownership to the tree.  In the case of ~insert()~ of a bare pointer, the pointer must be to heap and not stack memory.
 
 
 * What is a node
 
-  Generically a node here is of type ~WireCell::NaryTree::Node<ValueType>~.  The two types are closely integrated.  The "node" knows about its "value" and vice versa.  This allows generic tree algorithms to operate on the "node side" while application-specific functionality can be provided by the "value side".
+  Generically a node here is of type ~WireCell::NaryTree::Node<ValueType>~.  The two types (node and value) are closely integrated.  The "node" knows about its "value" and vice versa.  This allows generic tree algorithms to operate on the "node side" while application-specific functionality can be provided by the "value side".
 
   For a *point tree*, the value type is the class ~WireCell::PointCloud::Tree::Points~.  This class provides the following application-specific features:
 
@@ -183,7 +153,7 @@ These features are described more below.
 
 * Interlude, running a test
 
-  After tangling, the above test can be run with these commands:
+  The above test and others generated from this document can be run with these commands:
 
   #+begin_example
     $ waf --target=wcdoctest-util
@@ -206,7 +176,7 @@ These features are described more below.
   
 * A value with a node
 
-  We can extend the previous example to put the value into a node, and thus make our first if somewhat boring tree.  Since the value knows the node type (and vice versa) and since we can construct the node with a value, this extension is simple and similar to the above example.
+  We can extend the previous example to put the value into a node, and thus make our first, if somewhat boring, tree.  Since the value knows the node type (and vice versa) and since we can construct the node with a value, this extension is simple and similar to the above example.
 
 #+begin_src c++ :tangle doctest-pointtree-example.cxx
   TEST_CASE("point tree example single node")
@@ -267,7 +237,7 @@ With this simple tree we may show off some of the functionality.
 static void dump_children(const node_ptr& node)
 {
     // Loop over children node "Points" values 
-    for (auto& cval : node->child_values()) {
+    for (const auto& cval : node->child_values()) {
         // The named point clouds held by this node value.
         const auto& pcs = cval.local_pcs();
 
@@ -288,19 +258,19 @@ TEST_CASE("point tree example simple tree operations")
     dump_children(root);
 
     // Find iterator to first child in child list
-    CHECK( root->children().size() == 2 );
-    auto cit = root->children().begin();
+    CHECK( root->nchildren() == 2 );
+    auto cptr = root->children().front();
 
     // Remove it as a child and we get ownership as unique_ptr.
-    auto cuptr = root->remove(cit);
-    CHECK( root->children().size() == 1 );
+    auto cuptr = root->remove(cptr);
+    CHECK( root->nchildren() == 1 );
 
     // We can add that orphaned child back.  This transfers ownership.
-    auto* cptr = root->insert(std::move(cuptr));
-    CHECK( root->children().size() == 2 );
+    auto* cptr2 = root->insert(std::move(cuptr));
+    CHECK( root->nchildren() == 2 );
 
     // But, we caught the return and now have a loaned bare pointer
-    CHECK( cptr );
+    CHECK( cptr2 );
 
     // We should now see the reverse order as above dump.
     dump_children(root);
@@ -471,7 +441,7 @@ Let's now make a scoped point cloud using the same simple tree introduced above.
 
 * Interlude: disjoint range
 
-A scoped point cloud is a vector of (references to) individual node-local point clouds.  We have some contradictory requirements in how we wish to use a scoped point cloud.  On the one hand, we wish to keep the individual node-local point clouds distinct as each node represents something (eg a "blob").  On the other hand, we wish to avoid making copies as point clouds can be rather large.  On the [[https://en.wikipedia.org/wiki/The_Gripping_Hand][gripping hand]], we wish to use a scoped point cloud as if it were contiguous.
+A scoped point cloud is a collection of individual node-local point clouds.  We have some contradictory requirements in how we wish to use a scoped point cloud.  On the one hand, we wish to keep the individual node-local point clouds distinct as each node represents something (eg a "blob").  On the other hand, we wish to avoid making copies as point clouds can be rather large.  On the [[https://en.wikipedia.org/wiki/The_Gripping_Hand][gripping hand]], we wish to use a scoped point cloud as if it were contiguous.
 
 The scoped point cloud structure satisfies the first two.  To provide a contigous view of a scoped point cloud we combine the already introduced coordinate range with a *disjoint range* that we introduce here.
 
@@ -497,25 +467,32 @@ A disjoint range allows for a "vector of vectors of elements" to look like a fla
           sels.push_back(pc.selection({"x","y","z"}));
       }
       // Then we wrap them as coordinate points.
-      using point_type = coordinate_point<double>;
-      using point_range = coordinate_range<point_type>;
-      std::vector<point_range> prs;
+      using point_array = coordinate_array<double>;
+      std::vector<point_array> pas;
       for (auto& sel : sels) {
-          prs.push_back(point_range(sel));
+          pas.emplace_back(sel);
       }
       // Finally we join them together as a disjoint range
-      using points_t = disjoint_range<point_range>;
+      using points_t = disjoint_range<point_array>;
+      using point_type = points_t::value_type;
+  
       points_t points;
-      for (auto& pr : prs) {
-          points.append(pr.begin(), pr.end());
+      for (auto& pa : pas) {
+          points.append(pa);
       }
   
       // Finally, we can perform a simple iteration
       // as if we had a single contiguous selection.
       CHECK( points.size() == npoints );
   
-      for (auto& pt : points) {
+      for (points_t::iterator pit = points.begin();
+          pit != points.end(); ++pit) {
+          point_type& pt = *pit;
           CHECK( pt.size() == 3);
+          for (size_t dim=0; dim<3; ++dim) {
+              debug("pt[{}][{}]={}", std::distance(points.begin(), pit),
+                    dim, pt.at(dim));
+          }
       }
   
       // We know the scoped PC has two local PCs.
@@ -528,16 +505,33 @@ A disjoint range allows for a "vector of vectors of elements" to look like a fla
   
       // Iterators to points inside the flat disjoint_range.  
       // Eg, as we will see returned later from a k-d tree query.
-      points_t::iterator mit0 = beg + in0;
-      points_t::iterator mit1 = beg + in1;
+      points_t::iterator pit0 = beg + in0;
+      CHECK( pit0 == beg + in0 );
+      points_t::iterator pit1 = beg + in1;
+      CHECK( pit0 != pit1 );
+  
+      for (size_t dim=0; dim<3; ++dim) {
+          debug("dim={}: {} {}", dim, pit0->at(dim), pit1->at(dim));
+      }
   
       // Full circle, find that these points are provided 
       // by the first and second major range.
-      size_t maj0 = points.major_index(mit0);
-      size_t maj1 = points.major_index(mit1);
+      const auto djind0 = pit0.index();
+      const auto djind1 = pit1.index();
   
-      CHECK( 0 == maj0 );
-      CHECK( 1 == maj1 );
+      CHECK( 0 == djind0.first );
+      CHECK( 1 == djind1.first );
+  
+      // Can also use major/minor indices to get elements
+      // with checked and unchecked lookups.
+      {
+          auto& qt0 = points.at(djind0);
+          auto& qt1 = points.at(djind1);
+          for (size_t dim=0; dim<3; ++dim) {
+              CHECK( pit0->at(dim) == qt0.at(dim) );
+              CHECK( pit1->at(dim) == qt1.at(dim) );
+          }
+      }
   }
 #+end_src
 
@@ -545,12 +539,13 @@ The central part of this example is rather verbose as we have to implement a few
 
 A note on performance.  One can iterate though a disjoint range at linear cost.  However, take care that while ~disjoint_range~ provides a random-access API its cost is not $\mathcal{O}(1)$.  True random access requires an ordered walk of a ~std::map~ to find the local point cloud followed by $\mathcal{O}(1)$ access of elements of its arrays.  To mitigate the cost of finding the local point cloud the ~disjoint_range~ will cache its last location.  This allows the walk to the next index to be shorter on average than if it were to start at the beginning of the map each time.  When the caller must perform many random accesses it is advised to do so with pre-ordered indices so that the relative walk of the map is minimized.  The absolute speed of this "random" access is greatly improved when compiling with ~-O2~.
 
+And alternative element access mechanism is available for disjoint ranges.  It is true random access but exposes the disjoint nature.  This is shown by the use of the ~djind~ variable which is a pair of *major* and *minor* indices.  The major index selects an element of the "outer range" (eg, selects information from one node in scope) and the minor index selects an element of the "inner range" (eg, one point in the node-local point cloud).
 
 * Scoped k-d tree
 
-The scoped view also provides a "k-d tree" formed on the scoped point cloud (specifically its selection).  The k-d tree "knows" about the disjoint nature of the scoped point cloud and it can grow as nodes are added in scope.
+The scoped view also provides a *k-d tree* formed on the scoped point cloud.  Specifically, and for performance reasons, it concatenates the selected coordinate arrays into flattened copies.
 
-A k-nearest-neighbor (knn) and radius search is implemented by the k-d tree interface.  Results of either query are in the form of a vector of a pair consisting of a disjoint iterator (see ~disjoint_range~ above) and the distance from the point referenced by the iterator and the query point.  The iterator yields a vector-like point as well as a *major index* and a *minor index*.  The major index counts into the vectors provided by the scoped view and the minor index counts to the point within the local point cloud at that index.  These two indices allow the caller to navigate from each point in a k-d tree query result to the node that provided the point or to get point attributes in the point cloud that provided the point other than those that were used for k-d tree coordinates.
+A k-nearest-neighbor (knn) and radius search is implemented by the k-d tree interface.  Results of either query are in the form of a vector of a pair consisting of a point index and a distance.  *Attention* the distance is in the metric used.  In particularly, it is common to use an L2 metric and thus the "distance" is a measure of the *square* of a Cartesian distance.  Each point index may be used to recover a "major" and "minos" index.  The major index indicates from which node in the scoped view the point was provided and the minor index locates that point inside the node's local point cloud.
 
 We will see some of this navigation below but lets first just exercise a k-d tree query.
 
@@ -563,104 +558,80 @@ We will see some of this navigation below but lets first just exercise a k-d tre
       Scope scope = { "3d", {"x","y","z"} };
       const auto& sv = root->value.scoped_view(scope);
       const auto& skd = sv.kd();
-  
+      const auto& points = skd.points();
+
       // Some query point.
       const std::vector<double> origin = {0,0,0};
   
       // Find three nearest neighbors.
-      auto knn = skd.knn(3, origin);
-      CHECK( knn.size() == 3 );
+      const size_t nnn = 10;    
+      REQUIRE(points[0].size() >= nnn);
+
+      auto knn = skd.knn(nnn, origin);
+      CHECK( knn.size() == nnn );
   
-      // Get the underlying scoped PC.
-      const auto& spc = sv.pcs();
+      // Get the underlying scoped PC if you want to go back to the full dataset.
+      // const auto& spc = sv.pcs();
   
       // Loop over results and refrence back to original 
       // scoped PC at both major and minor range level.
-      for (size_t pt_ind = 0; pt_ind<knn.size(); ++pt_ind) {
-          auto& [pit,dist] = knn[pt_ind];
-  
-          const size_t maj_ind = skd.major_index(pit);
-          const size_t min_ind = skd.minor_index(pit);
-          debug("knn point {} at distance {} from query is in local point cloud {} at index {}",
-                pt_ind, dist, maj_ind, min_ind);
-          const Dataset& pc = spc[maj_ind];
-          for (const auto& name : scope.coords) {
-              debug("\t{} = {}", name, pc.get(name)->element<double>(min_ind));
+      for (const auto& [point_index, metric] : knn) {
+          const auto node_index = skd.major_index(point_index);
+          // point-in-node
+          const auto pin_index = skd.minor_index(point_index);
+          /// if you want to get back to the full dataset
+          // const Dataset& pc = spc[node_index];
+          const size_t ndim = scope.coords.size();
+          // Iterate over the point's dimensions and compare 
+          // what is in the PC and what is in the iterator.
+          for (size_t dim=0; dim<ndim; ++dim) {
+              std::string const& name = scope.coords[dim];
+              debug("\tdim={} is named {} and holds value {} at point_index {} from node {} local point {}",
+                    dim, name, points[dim][point_index], point_index, node_index, pin_index);
           }
       }
   }
 #+end_src  
-Some of the logging output from this test would be like:
 
-#+begin_example
-knn point 0 at distance 0 from query is in local point cloud 1 at index 37
-	x = 0
-	y = 0
-	z = 0
-knn point 1 at distance 0 from query is in local point cloud 0 at index 37
-	x = 0
-	y = 0
-	z = 0
-knn point 2 at distance 0 from query is in local point cloud 0 at index 36
-	x = 0
-	y = 0
-	z = 0
-#+end_example
+* Helper functions
 
-This example shows a k-nn query over a scope for the three points nearest the given query point (~origin~).  It ends in a loop over the results.  Each result provides an iterator and a distance (from point to query point).  The iterator is over the ~disjoint_range~ that the k-d tree uses to hold a ~coordinate_range~ representation of each local point cloud.  We convert the iterator to a corresponding major and minor index.  We use the major index to locate the point cloud that provided the point.  The minor index is used to index arrays in the point cloud.  In this example, we merely access the same attributes that supplied the coordinates ("x", "y" and "z").  Had the point cloud provided additional arrays we could off course access their attributes with the minor index as well.
+A family of functions are provided to perform common calculations and operations on the data types described above.
 
-* From k-d tree to n-ary tree 
+** Coordinate means
 
-Very similarly, we may navigate from the k-d tree result iterator via the major index to get the node that provided the point cloud that provided the point.
+Weighted and unweighted means can be produced.
 
 #+begin_src c++ :tangle doctest-pointtree-example.cxx
-  // a little helper
-  static const Dataset& get_local_pc(const Points& pval, const std::string& pcname)
+  #include "WireCellUtil/Point.h"
+  TEST_CASE("point tree example point means")
   {
-      const auto& pcs = pval.local_pcs();
-      auto pcit = pcs.find(pcname);
-      if (pcit == pcs.end()) {
-          raise<KeyError>("no pc named " + pcname);
-      }
-      return pcit->second;
-  }
-  
-  TEST_CASE("point tree example scoped k-d tree to n-ary nodes")
-  {
-      auto root = make_simple_pctree();
-  
-      // Form a k-d tree query over a scoped point cloud.
-      Scope scope = { "3d", {"x","y","z"} };
-  
-  
-      // Get the scoped view parts
-      const auto& sv = root->value.scoped_view(scope);
-      const auto& skd = sv.kd();
-      const auto& snodes = sv.nodes();
-  
-      // Some query point.
-      const std::vector<double> origin = {0,0,0};
-  
-      // Find three nearest neighbors.
-      auto knn = skd.knn(3, origin);
-      CHECK( knn.size() == 3 );
-  
-      for (size_t pt_ind = 0; pt_ind<knn.size(); ++pt_ind) {
-          auto& [pit,dist] = knn[pt_ind];
-  
-          // This time use major index to get node.
-          const size_t maj_ind = skd.major_index(pit);
-          const auto* node = snodes[maj_ind];
-  
-          debug("knn point {} at distance {} from query at node {} with {} children",
-                pt_ind, dist, maj_ind, node->children().size());
-      }
+      Dataset pc({
+          {"q", Array({1.0, 2.0, 5.0})},
+          {"x", Array({1.0, 1.0, 1.0})},
+          {"y", Array({2.0, 1.0, 3.0})},
+          {"z", Array({1.0, 4.0, 1.0})}});
+      
+      auto xyz = pc.selection({"x","y","z"});
+      coordinate_range coords(xyz);
+
+      // Find the mean point as a Point type
+      Point mu;
+      mean_point(mu, coords);
+      debug("mean point: ({},{},{})", mu.x(), mu.y(), mu.z());
+      CHECK(mu.x() == 1.0);
+      CHECK(mu.y() == 2.0);
+      CHECK(mu.z() == 2.0);
+
+      // Find the weighted mean point as a std::vector type.  We must pre-size
+      // it.
+      std::vector<double> wmu(3);
+      mean_point(wmu, coords, pc.get("q")->elements());
+      debug("weighted mean point: ({},{},{})", wmu[0], wmu[1], wmu[2]);
+      CHECK(wmu[0] == 1.0);
+      CHECK(wmu[1] == 2.375);
+      CHECK(wmu[2] == 1.75);
   }
 #+end_src  
-
-Notes:
-- scope is more restrictive than ~depth()~.  Misalignment between ~major_index~ and depth iterator will occur if the ~scope.pcname~ limits which point clouds are in scope
-
 
 * File local variables                                     :noexport:
 

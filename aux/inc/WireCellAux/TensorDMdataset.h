@@ -5,6 +5,7 @@
 #define WIRECELLAUX_TENSORDMDATASET
 
 #include "WireCellUtil/PointCloudDataset.h"
+#include "WireCellAux/TensorDMcommon.h"
 #include "WireCellIface/ITensorSet.h"
 
 #include <unordered_map>
@@ -44,6 +45,12 @@ namespace WireCell::Aux::TensorDM {
     /// ValueError is thrown if tensors are badly formed.
     PointCloud::Dataset as_dataset(const ITensor::vector& tensors,
                                    const std::string& datapath="",
+                                   bool share=false);
+    PointCloud::Dataset as_dataset(const TensorIndex& tensors,
+                                   const std::string& datapath="",
+                                   bool share=false);
+    PointCloud::Dataset as_dataset(const TensorIndex& tensors,
+                                   ITensor::pointer top,
                                    bool share=false);
 
     /// Convenience function calling above using the tensors from the

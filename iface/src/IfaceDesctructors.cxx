@@ -24,6 +24,7 @@
 #include "WireCellIface/IChannelSpectrum.h"
 #include "WireCellIface/IChannelStatus.h"
 #include "WireCellIface/IClusterFanin.h"
+#include "WireCellIface/IClusterFaninTensorSet.h"
 #include "WireCellIface/IClusterFanout.h"
 #include "WireCellIface/IClusterFilter.h"
 #include "WireCellIface/IClusterFramer.h"
@@ -94,6 +95,7 @@
 #include "WireCellIface/IStripeSet.h"
 #include "WireCellIface/ITensorForward.h"
 #include "WireCellIface/ITensorPacker.h"
+#include "WireCellIface/ITensorSetFanin.h"
 #include "WireCellIface/ITensorSetFilter.h"
 #include "WireCellIface/ITensorSetUnpacker.h"
 #include "WireCellIface/ITerminal.h"
@@ -128,6 +130,7 @@ IChannelResponse::~IChannelResponse() {}
 IChannelSpectrum::~IChannelSpectrum() {}
 IChannelStatus::~IChannelStatus() {}
 IClusterFanin::~IClusterFanin() {}
+IClusterFaninTensorSet::~IClusterFaninTensorSet() {}
 IClusterFanout::~IClusterFanout() {}
 IClusterFilter::~IClusterFilter() {}
 IClusterFramer::~IClusterFramer() {}
@@ -197,6 +200,7 @@ IStripe::~IStripe() {}
 IStripeSet::~IStripeSet() {}
 ITensorForward::~ITensorForward() {}
 ITensorPacker::~ITensorPacker() {}
+ITensorSetFanin::~ITensorSetFanin() {}
 ITensorSetFilter::~ITensorSetFilter() {}
 ITensorSetUnpacker::~ITensorSetUnpacker() {}
 ITerminal::~ITerminal() {}

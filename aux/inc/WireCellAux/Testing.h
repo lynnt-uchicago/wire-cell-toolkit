@@ -21,10 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace WireCell::Aux::Testing {
-
-    // Load plugins.  If empty, load "core" plugins.
-    void load_plugins(std::vector<std::string> list = {});
+namespace WireCell::Testing {
 
     // Return default-configured configurable interface.
     template<typename IFACE>
@@ -43,14 +40,8 @@ namespace WireCell::Aux::Testing {
     // Return named Random
     IRandom::pointer get_random(const std::string& name="default");
 
-    // A number of named detectors are 'known' here.
-    const std::vector<std::string>& known_detectors();
-
-    // Return some configured anodes for a known detector.
+    // Return configured anodes for a known detector.
     IAnodePlane::vector anodes(const std::string detector);
-
-    // Initialize WCT logging with argv[0].
-    // void loginit(const char* argv0);
 
 }
 

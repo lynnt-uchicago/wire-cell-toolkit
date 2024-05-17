@@ -73,14 +73,14 @@ Points::node_ptr make_simple_pctree()
 
     // Insert a child with a set of named points clouds with one point
     // cloud from a track.
-    debug("node 1 inset");
+    debug("node 1 insert");
     auto* n1 = root->insert(Points({ {"3d", make_janky_track()} }));
 
     debug("node 1 get 3d");
     const Dataset& pc1 = n1->value.local_pcs().at("3d");
 
     // Ibid from a different track
-    debug("node 2 inset");
+    debug("node 2 insert");
     auto* n2 = root->insert(Points({ {"3d", make_janky_track(
                         Ray(Point(-1, 2, 3), Point(1, -2, -3)))} }));
 
@@ -101,9 +101,9 @@ TEST_CASE("point tree with points")
     debug("got simple tree");
     CHECK(root.get());
 
-    auto& rval = root->value;
+    Points& rval = root->value;
 
-    CHECK(root->children().size() == 2);
+    CHECK(root->nchildren() == 2);
     CHECK(root.get() == rval.node());
     CHECK(rval.local_pcs().empty());
     
@@ -122,53 +122,65 @@ TEST_CASE("point tree with points")
             CHECK(pc3d.has("y"));
             CHECK(pc3d.has("z"));
             CHECK(pc3d.has("q"));
+            auto sel = pc3d.selection({"x","y","z","q"});
+            for (size_t ind=0; ind< pc3d.size_major(); ++ind) {
+                debug("\t{} pt=({},{},{}) q={}", ind,
+                      sel[0]->element<double>(ind),
+                      sel[1]->element<double>(ind),
+                      sel[2]->element<double>(ind),
+                      sel[3]->element<double>(ind));
+            }
         }
     }
 
     Scope scope{ "3d", {"x","y","z"}};
 
     debug("request scoped PC at scope = {}", scope);
-    auto& pc3d = rval.scoped_view(scope).pcs();
-    debug("got scoped PC at scope = {} at {}", scope, (void*)&pc3d);
+    ScopedView<double>& sview1 = rval.scoped_view(scope);
+    auto& pc3d = sview1.pcs();
+    debug("got scoped PC at scope = {} at {} with {} PCs",
+          scope, (void*)&pc3d, pc3d.size());
     CHECK(pc3d.size() == 2);
+    CHECK(sview1.nodes().size() == 2);
+    CHECK(sview1.npoints() > 100);
 
+    // reget sview to also check if that causes any monkey business 
     debug("request k-d tree at scope = {}", scope);
-    auto& kd = rval.scoped_view(scope).kd();
-    debug("got scoped k-d tree at scope = {} at {}", scope, (void*)&kd);
+    ScopedView<double>& sview = rval.scoped_view(scope);
+    const auto& kd = sview.kd();
+    debug("got scoped k-d tree at scope = {} at {} with {} points and {} dimensions",
+          scope, (void*)&kd, kd.npoints(), kd.ndim());
 
-    std::vector<double> origin = {0,0,0};
+    CHECK(kd.ndim() == 3);      // 
+    CHECK(kd.nblocks() == 2);   // 2 blocks of ~75 points
+    CHECK(kd.npoints() > 100);  // 
+    CHECK(kd.npoints() == sview1.npoints());
+
+    const auto& pts = kd.points();
     {
-        auto& pts = kd.points();
-        size_t npts = pts.size();
-        debug("kd has {} points", npts);
-        {
-            size_t count = 0;
-            for (auto& pt : pts) {
-                REQUIRE(count < npts);
-                ++count;
-                CHECK(pt.size() == 3);
-            }
-        }
-        for (size_t ind=0; ind<npts; ++ind) {
-            auto pt = pts.at(ind);
-            CHECK(pt.size() == 3);
+        const size_t ndim = pts.size();
+        debug("kd has {} dimensions", ndim);
+
+        CHECK(ndim == 3);
+
+        for (const auto& dim : pts) {
+            CHECK(dim.size() == kd.npoints());
         }
     }
 
+    const std::vector<double> origin = {0,0,0};
     auto knn = kd.knn(6, origin);
-    for (auto [it,dist] : knn) {
-        auto& pt = *it;
+    for (const auto& [index, metric] : knn) {
         debug("knn: pt=({},{},{}) dist={}",
-              pt[0], pt[1], pt[2], dist);
+              pts[0][index], pts[1][index], pts[2][index], metric);
     }
     CHECK(knn.size() == 6);
 
 
     auto rad = kd.radius(.001, origin);
-    for (auto [it,dist] : rad) {
-        auto& pt = *it;
+    for (const auto& [index, metric] : rad) {
         debug("rad: pt=({},{},{}) dist={}",
-              pt[0], pt[1], pt[2], dist);
+              pts[0][index], pts[1][index], pts[2][index], metric);
     }
     CHECK(rad.size() == 6);
 
@@ -189,34 +201,33 @@ TEST_CASE("point tree remove node")
     
     SUBCASE("remove child one") {
         const size_t nleft = pc3d_two.size_major();
-        auto it = root->children().begin();
+        auto cptr = root->children()[0];
         // We get back as unique_ptr so node "dead" stays alive for the context.
-        auto dead = root->remove(it);
+        auto dead = root->remove(cptr);
         CHECK(dead);
-        CHECK(root->children().size() == 1);
+        CHECK(root->nchildren() == 1);
 
         const auto& pc3d = rval.scoped_view(scope).pcs();
         CHECK(pc3d.size() == 1);
         CHECK(pc3d[0].get() == pc3d_two);
 
         const auto& kd = rval.scoped_view(scope).kd();
-        CHECK(kd.points().size() == nleft);
+        CHECK(kd.npoints() == nleft);
     }
     SUBCASE("remove child two") {
         const size_t nleft = pc3d_one.size_major();
-        auto it = root->children().begin();
-        ++it;
+        auto cptr = root->children()[1];
         // We get back as unique_ptr so node "dead" stays alive for the context.
-        auto dead = root->remove(it);
+        auto dead = root->remove(cptr);
         CHECK(dead);
-        CHECK(root->children().size() == 1);
+        CHECK(root->nchildren() == 1);
 
         const auto& pc3d = rval.scoped_view(scope).pcs();
         CHECK(pc3d.size() == 1);
         CHECK(pc3d[0].get() == pc3d_one);
 
         const auto& kd = rval.scoped_view(scope).kd();
-        CHECK(kd.points().size() == nleft);
+        CHECK(kd.npoints() == nleft);
     }
     SUBCASE("shared cached point cloud") {
         Scope sxy{ "3d", {"x","y"}};

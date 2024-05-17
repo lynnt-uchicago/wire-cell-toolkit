@@ -1,7 +1,7 @@
 #include "WireCellSio/ClusterFileSource.h"
 
 #include "WireCellAux/ClusterHelpers.h"
-#include "WireCellAux/ClusterArrays.h"
+#include "WireCellAux/ClusterArrays.h" // to_cluster
 // debugging
 #include "WireCellUtil/GraphTools.h"
 #include "WireCellAux/BlobTools.h"
@@ -166,7 +166,8 @@ ICluster::pointer ClusterFileSource::load_numpy(int ident)
         if (! m_cur.fsize) {    // first pass filename is preloaded
             bool ok = load_filename();
             if (!ok) {
-                return nullptr;
+                break;
+                // return nullptr;
             }                    
         }
 
@@ -182,8 +183,8 @@ ICluster::pointer ClusterFileSource::load_numpy(int ident)
         if (shape.size() != 2) {
             THROW(ValueError() << errmsg{"illegal shape"});
         }
-        // log->debug("file {} with type={} code={} ident={} shape=({},{})",
-        //            m_cur.fname, pf.type, pf.code, ident, shape[0], shape[1]);
+        log->debug("file {} with type={} code={} ident={} shape=({},{})",
+                   m_cur.fname, pf.type, pf.code, ident, shape[0], shape[1]);
         
         if (pf.type == ParsedFilename::node) {
             const node_element_t* data = pig.as_type<node_element_t>();
@@ -205,26 +206,31 @@ ICluster::pointer ClusterFileSource::load_numpy(int ident)
         }
         clear();
             
-        if (nas.size() == 5 and eas.size() == 7) {
-            // log->debug("completed numpy load for ident={}", ident);
-            break;
-        }
+        /// originally, we had the number of arrays hard wired to be a full
+        /// ICluster.  When running, eg, BlobClustering but BlobGrouping there
+        /// may not be any "m" nodes.  But, in general, make judgment, best to
+        /// delay judgement.
+        // if (nas.size() == 5 and eas.size() == 7) {
+        //     // log->debug("completed numpy load for ident={}", ident);
+        //     break;
+        // }
     };
 
-    if (nas.size() != 5) {
-        log->error("ident={} failed to load all node arrays, loaded {}:", ident, nas.size());
-        for (const auto& [code,arr] : nas) {
-            log->error("\t{}: ({},{})", code, arr.shape()[0], arr.shape()[1]);
-        }
-        return nullptr;
-    }
-    if (eas.size() != 7) {
-        log->error("ident={} failed to load all edge arrays, loaded {}:", ident, eas.size());
-        for (const auto& [code,arr] : eas) {
-            log->error("\t{}: ({},{})", code, arr.shape()[0], arr.shape()[1]);
-        }
-        return nullptr;
-    }
+    //// See above comments
+    // if (nas.size() != 5) {
+    //     log->error("ident={} failed to load all node arrays, loaded {}:", ident, nas.size());
+    //     for (const auto& [code,arr] : nas) {
+    //         log->error("\t{}: ({},{})", code, arr.shape()[0], arr.shape()[1]);
+    //     }
+    //     return nullptr;
+    // }
+    // if (eas.size() != 7) {
+    //     log->error("ident={} failed to load all edge arrays, loaded {}:", ident, eas.size());
+    //     for (const auto& [code,arr] : eas) {
+    //         log->error("\t{}: ({},{})", code, arr.shape()[0], arr.shape()[1]);
+    //     }
+    //     return nullptr;
+    // }
 
     auto graph = to_cluster(nas, eas, m_anodes);
     return std::make_shared<SimpleCluster>(graph, ident);
@@ -255,6 +261,7 @@ bool ClusterFileSource::load_filename()
 {
     custard::read(m_in, m_cur.fname, m_cur.fsize);
     if (m_in.eof()) {
+        // log->debug("eof in file: {} size {}", m_cur.fname, m_cur.fsize);
         return false;
     }
     if (!m_in) {
@@ -284,13 +291,15 @@ ICluster::pointer ClusterFileSource::dispatch()
     if (endswith(m_cur.fname, ".npy")) {
         return load_numpy(pf.ident);
     }
+    log->warn("do not know how to dispatch file {} with type={} code={} ident={}",
+              m_cur.fname, pf.type, pf.code, pf.ident);
     return nullptr;
 }
 
 void ClusterFileSource::clear_load()
 {
-    log->warn("call={} skipping unsupported file {} in stream {}",
-              m_count, m_cur.fname, m_inname);
+    log->warn("call={} skipping unsupported file \"{}\" of size {} in stream: {}",
+              m_count, m_cur.fname, m_cur.fsize, m_inname);
     m_in.seekg(m_cur.fsize, m_in.cur);
     clear();
 }

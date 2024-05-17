@@ -163,9 +163,11 @@ class ValidationContext:
         # fixme: ugly layer-busting hack.
         self.script_environ['.bats'] = dict(BATS_LIB_PATH=bld.path.parent.find_dir("test").abspath())
 
-        if not self.bld.env.TESTS:
-            debug("smplpkgs: tests suppressed for " + self.bld.path.name)
-            return
+        # fixme: want to still build but just not run tests if --tests is omitted....
+        # if not self.bld.env.TESTS:
+        #     debug("smplpkgs: tests suppressed for " + self.bld.path.name)
+        #     return
+        debug(f"smplpkgs: test status: {self.bld.env.TESTS}")
 
         for group in test_group_sequence:
             self.do_group(group)
@@ -174,17 +176,21 @@ class ValidationContext:
 
     def do_group(self, group):
         self.bld.cycle_group("testing_"+group)
-        features = "" if group == "check" else "test"
+        features = ""
+        if group in ("atomic",) and self.bld.env.TESTS:
+            features = "test"   # run as unit test
 
         prefixes = [group]
         prefixes += self.extra_prefixes.get(group, [])
+
+        debug(f'tests: group "{group}" with features "{features}" and prefixes "{prefixes}"')
 
         for prefix in prefixes:
 
             for ext in self.compiled_extensions:
                 pat = self.source_glob(prefix, ext)
                 for one in self.bld.path.ant_glob(pat):
-                    debug("tests: (%s) %s" %(features, one))
+                    debug(f'tests: ({features}) source: "{one}"')
                     self.program(one, features)
 
             if group == "check":
@@ -199,8 +205,8 @@ class ValidationContext:
 
 
     def __enter__(self):
-        if not self.bld.env.TESTS:
-            debug("smplpkgs: variant checks will not be built nor run for " + self.bld.path.name)
+        # if not self.bld.env.TESTS:
+        #     debug("smplpkgs: variant checks will not be built nor run for " + self.bld.path.name)
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -246,11 +252,9 @@ class ValidationContext:
     def program(self, source, features=""):
         '''Compile a C++ program to use in validation.
 
-        Add "test" as a feature to also run as a unit test.
-
         '''
-        if not self.bld.env.TESTS:
-            return
+        # if not self.bld.env.TESTS:
+        #     return
         features = ["cxx","cxxprogram"] + to_list(features)
         rpath = self.bld.get_rpath(self.uses) # fixme
         source = self.nodify_resource(source)
@@ -306,8 +310,8 @@ class ValidationContext:
 
     def rule(self, rule, source="", target="", **kwds):
         'Simple wrapper for arbitrary rule'
-        if not self.bld.env.TESTS:
-            return
+        # if not self.bld.env.TESTS:
+        #     return
         self.bld(rule=rule, source=source, target=target, **kwds)
 
 

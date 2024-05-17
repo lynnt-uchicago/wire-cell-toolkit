@@ -12,7 +12,6 @@
 
 #include <vector>
 
-using spdlog::debug;
 using namespace WireCell;
 using namespace WireCell::PointCloud;
 using WireCell::String::format;
@@ -28,18 +27,64 @@ TEST_CASE("nfkd dataset atomic")
             {"two", Array({1.1,2.2,3.3})}});
     std::vector<std::string> names = {"x","y","z"};
     
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
     auto sel = ds.selection(names);
+    using coords_type = coordinate_array<double>;
+    using point_type = coords_type::point;
     coords_type coords(sel);
+    std::vector<coords_type> vcoords = { coords };
     
+    {
+        const size_t npoints = coords.size();
+        REQUIRE(npoints == 3);
+        for (size_t ind=0; ind<npoints; ++ind) {
+            const auto& pt = *(coords.begin() + ind);
+            REQUIRE(pt.size() == 3);
+            for (size_t dim=0; dim<3; ++dim) {
+                SPDLOG_TRACE("nfkd dataset atomic:\tdirect[{},{}] = {}", ind, dim, pt.at(dim));
+            }
+        }
+    }
+    {
+        using points_t = disjoint_range<coords_type>;
+        points_t points(vcoords);
+        SPDLOG_TRACE("nfkd dataset atomic: made disjoint points");
+        const size_t npoints = points.size();
+        REQUIRE(npoints == 3);
+        for (size_t ind=0; ind<npoints; ++ind) {
+            const point_type& pt = points.at(ind);
+            REQUIRE(pt.size() == 3);
+            for (size_t dim=0; dim<3; ++dim) {
+                REQUIRE(pt.size() == 3);
+                SPDLOG_TRACE("nfkd dataset atomic:\tdisjoint[{},{}] = {}", ind, dim, pt.at(dim));
+            }
+        }
+    }
+    {
+        using points_t = disjoint_range<coords_type>;
+        points_t points(vcoords);
+        const size_t npoints = points.size();
+        REQUIRE(npoints == 3);
+        SPDLOG_TRACE("nfkd dataset atomic: made points");
+        for (size_t ind=0; ind<npoints; ++ind) {
+            SPDLOG_TRACE("nfkd dataset atomic: getting point {}", ind);
+            const point_type& pt = points.at(ind); // ref
+            SPDLOG_TRACE("nfkd dataset atomic: point {} size={}", ind, pt.size());
+            REQUIRE(pt.size() == 3);
+            for (size_t dim=0; dim<3; ++dim) {
+                REQUIRE(pt.size() == 3);
+                SPDLOG_TRACE("nfkd dataset atomic:\t[{},{}] = {}", ind, dim, pt.at(dim));
+            }
+        }
+    }
+
+
     using kdtree_type = NFKD::Tree<coords_type, NFKD::IndexStatic>;
-    kdtree_type kd(names.size(), coords.begin(), coords.end());
+    kdtree_type kd(names.size(), vcoords);
 
     auto& points = kd.points();
 
     CHECK(points.size() == 3);
-    debug("nfkd: {} point calls", kd.point_calls());
+    SPDLOG_DEBUG("nfkd: {} point calls", kd.point_calls());
 
     {
         auto& point = points.at(0);
@@ -66,24 +111,28 @@ TEST_CASE("nfkd dataset atomic")
     // method are repeated.
     for (size_t count = 0; count < 3; ++count)
     {
-        debug("nfkd: radius query #{}", count);
+        SPDLOG_DEBUG("nfkd: radius query #{}", count);
         std::vector<double> pt = {1.0, 2.0, 1.0};
         auto res = kd.radius(0.01, pt);
         CHECK(res.size() == 1);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
         for (const auto& [it,dist] : res) {
-            debug("rad: #{} point=({},{},{}), dist={}, calls={}",
-                  count, it->at(0), it->at(1), it->at(2), dist, kd.point_calls());
+            SPDLOG_DEBUG("rad: #{} point=({},{},{}), dist={}, calls={}",
+                         count, it->at(0), it->at(1), it->at(2), dist, kd.point_calls());
         }
+#endif
     }
     for (size_t N = 1; N <= 3; ++N) {
-        debug("nfkd: knn={} query", N);
+        SPDLOG_DEBUG("nfkd: knn={} query", N);
         auto res = kd.knn<std::vector<double>>(N, {0,0,0});
         REQUIRE(res.size() == N);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
         for (const auto& [it,dist] : res) {
-            debug("knn: N={} point=({},{},{}), dist={}, calls={}",
+            SPDLOG_DEBUG("knn: N={} point=({},{},{}), dist={}, calls={}",
                   N, it->at(0), it->at(1), it->at(2),
                   dist, kd.point_calls());
         }
+#endif
     }
 
 }
@@ -96,7 +145,7 @@ TEST_CASE("nfkd dataset atomic")
 
 
 // Smallest point cloud to consider
-static const size_t start_size = 1024;
+static const size_t start_size = 128;
 
 // How many times we double the point cloud size in tests.  Want to
 // keep this somewhat small to allow the test to run quickly.  Feel
@@ -119,26 +168,26 @@ Dataset make_dataset(size_t npts,
                    return dist(mersenne_engine);
                };
 
-    debug("make_dataset with {} points", npts);
+    SPDLOG_DEBUG("make_dataset with {} points", npts);
     Dataset ds;
 
     for (const auto& name: names) {
         std::vector<double> arr(npts);
-        debug("make_dataset make array {} with {} points", name, npts);
+        SPDLOG_DEBUG("make_dataset make array {} with {} points", name, npts);
         generate(begin(arr), end(arr), gen);
         Array aa(arr);
         ds.add(name, std::move(aa));
-        debug("make_dataset add array {} with {} points", name, npts);
+        SPDLOG_DEBUG("make_dataset add array {} with {} points", name, npts);
     }
-    debug("make_dataset with {} points returning", npts);
+    SPDLOG_DEBUG("make_dataset with {} points returning", npts);
     return ds;
 }
 
 
 TEST_CASE("point cloud disjoint serialized construction")
 {
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
+    using coords_type = coordinate_array<double>;
+    // using point_type = coords_type::point;
 
     std::vector<Dataset> ds_store;
     std::vector<Dataset::selection_t> se_store;
@@ -149,7 +198,7 @@ TEST_CASE("point cloud disjoint serialized construction")
     const size_t npts = nper*ndses;
 
     for (size_t count=0; count<ndses; ++count)  {
-        debug("count={} make and emplace dataset", count);
+        SPDLOG_DEBUG("count={} make and emplace dataset", count);
         REQUIRE(count == ds_store.size());
         if (true) {
             ds_store.emplace_back(make_dataset(nper, coord_names));
@@ -159,30 +208,32 @@ TEST_CASE("point cloud disjoint serialized construction")
             ds_store.push_back(ds_actual);
         }
         Dataset& ds = ds_store.back();
-        debug("count={} added ds with {}", count, ds.size_major());
+        SPDLOG_DEBUG("count={} added ds with {}", count, ds.size_major());
         REQUIRE(nper == ds.size_major());
         REQUIRE(nper == ds_store[count].size_major());
     }
     for (size_t count=0; count<ndses; ++count)  {
         Dataset& ds = ds_store[count];
-        debug("count={} add selection from ds with {}", count, ds.size_major());
+        SPDLOG_DEBUG("count={} add selection from ds with {}", count, ds.size_major());
         se_store.push_back(ds.selection(coord_names));
         auto& se = se_store.back();
         auto arr0 = se[0];
-        debug("count={} add se with {} ({})", count, arr0->size_major(), se.size());
+        SPDLOG_DEBUG("count={} add se with {} ({})", count, arr0->size_major(), se.size());
     }
 
     for (size_t count=0; count<ndses; ++count)  {
         auto& se = se_store[count];
         auto arr0 = se[0];
-        debug("count={} add se with {} ({})", count, arr0->size_major(), se.size());
+        SPDLOG_DEBUG("count={} add se with {} ({})", count, arr0->size_major(), se.size());
         co_store.emplace_back(se);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
         auto& co = co_store.back();
-        debug("count={} add co with {}", count, co.size());
+        SPDLOG_DEBUG("count={} add co with {}", count, co.size());
+#endif
     }
 
     for (size_t count=0; count<ndses; ++count) {
-        debug("count={} check: ds={} se={}/{} co={}",
+        SPDLOG_DEBUG("count={} check: ds={} se={}/{} co={}",
               count, 
               ds_store[count].size_major(),
               se_store[count].size(),
@@ -196,7 +247,7 @@ TEST_CASE("point cloud disjoint serialized construction")
     using kdtree_type = NFKD::Tree<coords_type, NFKD::IndexDynamic>;
     kdtree_type kd(coord_names.size());
     for (size_t count=0; count<ndses; ++count) {
-        debug("count={} kd has {} adding: ds={} se={}/{} co={}",
+        SPDLOG_DEBUG("count={} kd has {} adding: ds={} se={}/{} co={}",
               count, kd.kdtree_get_point_count(), 
               ds_store[count].size_major(),
               se_store[count].size(),
@@ -212,8 +263,8 @@ TEST_CASE("point cloud disjoint serialized construction")
 
 TEST_CASE("point cloud disjoint staged construction")
 {
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
+    using coords_type = coordinate_array<double>;
+    // using point_type = coords_type::point;
 
     const size_t nper = 74;
     const size_t ndses = 2;
@@ -228,18 +279,18 @@ TEST_CASE("point cloud disjoint staged construction")
 
     for (size_t count=0; count<ndses; ++count)  {
         {
-            debug("count={} make and emplace dataset", count);
+            SPDLOG_DEBUG("count={} make and emplace dataset", count);
             REQUIRE(count == ds_store.size());
             {
                 Dataset ds_local = make_dataset(nper, coord_names);
-                debug("count={} made dataset ({}) with {}",
+                SPDLOG_DEBUG("count={} made dataset ({}) with {}",
                       count, (void*)&ds_local, ds_local.size_major());
                 ds_store[count] = ds_local;
-                debug("count={} placed dataset ({}) with {}",
+                SPDLOG_DEBUG("count={} placed dataset ({}) with {}",
                       count, (void*)&ds_store[count], ds_store[count].size_major());
             }
             Dataset& ds = ds_store[count];
-            debug("count={} added ds with {}", count, ds.size_major());
+            SPDLOG_DEBUG("count={} added ds with {}", count, ds.size_major());
             REQUIRE(nper == ds.size_major());
             REQUIRE(ds_store.size() == count+1);
             REQUIRE(nper == ds_store[count].size_major());
@@ -248,14 +299,14 @@ TEST_CASE("point cloud disjoint staged construction")
         REQUIRE(nper == ds_store[count].size_major());
         {
             Dataset& ds = ds_store[count];
-            debug("count={} add selection from ds with {}", count, ds.size_major());
+            SPDLOG_DEBUG("count={} add selection from ds with {}", count, ds.size_major());
             // se_store.push_back(std::make_unique<selection_t>(ds.selection(coord_names)));
             se_store[count] = ds.selection(coord_names);
             REQUIRE(se_store.size() == count + 1);
             REQUIRE(se_store[count].size() > 0);
             const auto* septr = &se_store[count];
             auto arr0 = septr->at(0);
-            debug("count={} add se with {} ({}) arr0@ {} se@ {}",
+            SPDLOG_DEBUG("count={} add se with {} ({}) arr0@ {} se@ {}",
                   count, arr0->size_major(), septr->size(),
                   (void*)arr0.get(),
                   (void*)septr);
@@ -266,7 +317,7 @@ TEST_CASE("point cloud disjoint staged construction")
                 Dataset& dsi = ds_store[ind];
                 auto new_se = dsi.selection(coord_names);
                 auto arr2 = new_se[0];
-                debug("count={} ind={} add se with {} ({}) arr0@ {} arr2@ {} se@ {} ds@ {}",
+                SPDLOG_DEBUG("count={} ind={} add se with {} ({}) arr0@ {} arr2@ {} se@ {} ds@ {}",
                       count, ind, arr->size_major(), selptr->size(),
                       (void*)arr.get(), (void*)arr2.get(),
                       (void*)selptr,
@@ -282,10 +333,12 @@ TEST_CASE("point cloud disjoint staged construction")
         {
             selection_t* septr = &se_store[count];
             auto arr0 = septr->at(0);
-            debug("count={} add se with {} ({})", count, arr0->size_major(), septr->size());
-            co_store.emplace_back(septr);
+            SPDLOG_DEBUG("count={} add se with {} ({})", count, arr0->size_major(), septr->size());
+            co_store.emplace_back(*septr);
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
             auto& co = co_store[count];
-            debug("count={} add co with {}", count, co.size());
+            SPDLOG_DEBUG("count={} add co with {}", count, co.size());
+#endif
         }
         REQUIRE(nper == ds_store[count].size_major());
         REQUIRE(se_store[count].size() > 0);
@@ -299,7 +352,7 @@ TEST_CASE("point cloud disjoint staged construction")
     }
 
     for (size_t count=0; count<ndses; ++count) {
-        debug("count={} check: ds={} se={}/{} co={}",
+        SPDLOG_DEBUG("count={} check: ds={} se={}/{} co={}",
               count, 
               ds_store[count].size_major(),
               se_store[count].size(),
@@ -314,7 +367,7 @@ TEST_CASE("point cloud disjoint staged construction")
     using kdtree_type = NFKD::Tree<coords_type, NFKD::IndexDynamic>;
     kdtree_type kd(coord_names.size());
     for (size_t count=0; count<ndses; ++count) {
-        debug("count={} kd has {} adding: ds={} se={}/{} co={}",
+        SPDLOG_DEBUG("count={} kd has {} adding: ds={} se={}/{} co={}",
               count, kd.kdtree_get_point_count(), 
               ds_store[count].size_major(),
               se_store[count].size(),
@@ -332,24 +385,24 @@ TEST_CASE("point cloud disjoint iteration")
 {
     ExecMon em("point cloud disjoint iteration");
 
-    using point_type = std::vector<double>;
+    // using point_type = std::vector<double>;
 
     for (size_t npts = start_size; npts <= (1<<max_doubling)*start_size; npts *= 2) {
 
         for (size_t nper = 16; nper <= npts; nper *= 8) {
             const size_t ndses = npts/nper;
 
-            debug("\n{}", em(format("%d points, %d datasets: start test", npts, ndses)));
+            SPDLOG_DEBUG("\n{}", em(format("%d points, %d datasets: start test", npts, ndses)));
 
             std::vector<Dataset> ds_store;
             for (size_t count=0; count<ndses; ++count) {
                 ds_store.emplace_back(make_dataset(nper, coord_names));
             }
 
-            debug("\n{}", em(format("%d points, %d datasets: built datasets", npts, ndses)));
+            SPDLOG_DEBUG("\n{}", em(format("%d points, %d datasets: built datasets", npts, ndses)));
         }
     }
-    debug("Time and memory usage:\n{}", em.summary());
+    SPDLOG_DEBUG("Time and memory usage:\n{}", em.summary());
 }
 
 
@@ -359,8 +412,8 @@ void do_monolithic(const std::string& index_name)
 
     ExecMon em("nfkd dataset monolithic " + index_name);
 
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
+    using coords_type = coordinate_array<double>;
+    // using point_type = coords_type::point;
     using kdtree_type = NFKD::Tree<coords_type, IndexType>;
 
     std::vector<double> origin = {0,0,0};
@@ -375,7 +428,8 @@ void do_monolithic(const std::string& index_name)
 
         auto sel = ds.selection(coord_names);
         coords_type coords(sel);
-        kdtree_type kd(coord_names.size(), coords.begin(), coords.end());
+        std::vector<coords_type> vcoords = {coords};
+        kdtree_type kd(coord_names.size(), vcoords);
         CHECK(kd.points().size() == npts);
 
         em(format("%d points: built k-d tree", npts));
@@ -393,7 +447,7 @@ void do_monolithic(const std::string& index_name)
             em(format("%d points: rad query returns %d (radius %f)", npts, rad.size(), radius));
         }
     }
-    debug("Time and memory usage:\n{}", em.summary());
+    SPDLOG_DEBUG("Time and memory usage:\n{}", em.summary());
 }
 
 
@@ -410,10 +464,10 @@ TEST_CASE("nfkd dataset performance disjoint")
 {
     ExecMon em("nfkd dataset disjoint");
 
-    using point_type = coordinate_point<double>;
-    using coords_type = coordinate_range<point_type>;
+    using coords_type = coordinate_array<double>;
+    // using point_type = coords_type::point;
     using kdtree_type = NFKD::Tree<coords_type, NFKD::IndexDynamic>;
-    std::vector<double> origin = {0,0,0};
+    const std::vector<double> origin = {0,0,0};
 
     for (size_t npts = start_size; npts <= (1<<max_doubling)*start_size; npts *= 2) {
 
@@ -430,10 +484,16 @@ TEST_CASE("nfkd dataset performance disjoint")
             em(format("%d points, %d datasets: built datasets", npts, ndses));
 
             std::vector<Dataset::selection_t> se_store;
-            std::vector<coords_type> co_store;
             for (size_t count=0; count<ndses; ++count) {
                 se_store.push_back(ds_store[count].selection(coord_names));
-                co_store.emplace_back(se_store.back());
+            }
+
+            em(format("%d points, %d datasets: built selections", npts, ndses));
+
+            std::vector<coords_type> co_store;
+            for (size_t count=0; count<ndses; ++count) {
+                Dataset::selection_t& sel = se_store[count];
+                co_store.emplace_back(sel);
             }
 
             em(format("%d points, %d datasets: built coords", npts, ndses));
@@ -441,7 +501,7 @@ TEST_CASE("nfkd dataset performance disjoint")
             kdtree_type kd(coord_names.size());
             for (size_t count=0; count<ndses; ++count) {
                 auto& co = co_store.back();
-                kd.append(co.begin(), co.end());
+                kd.append(co);
             }
             REQUIRE(kd.points().size() == npts);
 
@@ -465,5 +525,5 @@ TEST_CASE("nfkd dataset performance disjoint")
         }
 
     }
-    debug("Time and memory usage:\n{}", em.summary());
+    spdlog::debug("Time and memory usage:\n{}", em.summary());
 }
