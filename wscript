@@ -33,6 +33,9 @@ def options(opt):
     opt.add_option('--with-spdlog-static', type=str, default="yes",
                    help="Def is true, set to false if your spdlog is not compiled (not recomended)")
 
+    opt.add_option('--cxxstd', default='c++17',
+                   help="Set the value for the compiler's --std= option, default 'c++17'")
+
 def configure(cfg):
     # Save to BuildConfig.h and env
     cfg.define("WIRECELL_VERSION", VERSION)
@@ -64,7 +67,7 @@ int main(int argc,const char *argv[])
     cfg.env.CXXFLAGS += ['-Wno-deprecated-declarations']
     cfg.env.CXXFLAGS += ['-Wall', '-Wno-unused-local-typedefs', '-Wno-unused-function']
     # cfg.env.CXXFLAGS += ['-Wpedantic', '-Werror']
-    cfg.env.CXXFLAGS += ['-std=c++17']
+    cfg.env.CXXFLAGS += ['-std='+cfg.options.cxxstd.lower()]
     
     if cfg.options.with_spdlog_static.lower() in ("yes","on","true"):
         cfg.env.CXXFLAGS += ['-DSPDLOG_COMPILED_LIB=1']
