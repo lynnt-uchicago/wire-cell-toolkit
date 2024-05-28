@@ -75,9 +75,6 @@ int main(int argc,const char *argv[])
                   mandatory=False)
 
 
-    # boost 1.59 uses auto_ptr and GCC 5 deprecates it vociferously.
-    cfg.env.CXXFLAGS += ['-Wno-deprecated-declarations']
-    cfg.env.CXXFLAGS += ['-Wall', '-Wno-unused-local-typedefs', '-Wno-unused-function']
     # cfg.env.CXXFLAGS += ['-Wpedantic', '-Werror']
     cfg.env.CXXFLAGS += ['-std='+cfg.options.cxxstd.lower()]
     
