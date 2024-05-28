@@ -22,6 +22,9 @@ import os
 import sys
 sys.path.insert(0, os.path.realpath("./waft"))
 
+log_levels = "trace debug info warn error critical off "
+log_levels = (log_levels + log_levels.upper()).split()
+
 def options(opt):
     opt.load("wcb")
 
@@ -32,6 +35,10 @@ def options(opt):
     # fixme: add to spdlog entry in wcb.py
     opt.add_option('--with-spdlog-static', type=str, default="yes",
                    help="Def is true, set to false if your spdlog is not compiled (not recomended)")
+    opt.add_option('--with-spdlog-active-level',
+                   default = "info",
+                   choices = log_levels,
+                   help="The compiled minimum log level for SPDLOG_<LEVEL>() macros (def=info)")
 
     opt.add_option('--cxxstd', default='c++17',
                    help="Set the value for the compiler's --std= option, default 'c++17'")
@@ -40,6 +47,11 @@ def configure(cfg):
     # Save to BuildConfig.h and env
     cfg.define("WIRECELL_VERSION", VERSION)
     cfg.env.VERSION = VERSION
+    
+    # Set to DEBUG to activate SPDLOG_DEBUG() macros or TRACE to activate both
+    # those and SPDLOG_TRACE() levels.
+    lu = cfg.options.with_spdlog_active_level.upper()
+    cfg.define("SPDLOG_ACTIVE_LEVEL", 'SPDLOG_LEVEL_' + lu, quote=False)
 
     # See comments at top of Exceptions.h for context.
     cfg.load('compiler_cxx')
@@ -69,6 +81,9 @@ int main(int argc,const char *argv[])
     # cfg.env.CXXFLAGS += ['-Wpedantic', '-Werror']
     cfg.env.CXXFLAGS += ['-std='+cfg.options.cxxstd.lower()]
     
+    cfg.env.CXXFLAGS += ['-std=c++17']
+
+
     if cfg.options.with_spdlog_static.lower() in ("yes","on","true"):
         cfg.env.CXXFLAGS += ['-DSPDLOG_COMPILED_LIB=1']
 
@@ -83,6 +98,10 @@ int main(int argc,const char *argv[])
 
 
 def build(bld):
+    ### we used to be set sloppiness globally.  Now we use #pragma to
+    ### selectively quell warnings.  See util/docs/pragma.org for some info.
+    bld.env.CXXFLAGS += '-Wall -Wpedantic -Werror'.split()
+
     bld.load('wcb')
 
 def dumpenv(bld):

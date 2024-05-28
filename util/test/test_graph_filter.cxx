@@ -22,11 +22,11 @@
 
 
 
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graphviz.hpp>
-#include <boost/graph/copy.hpp>
+#include "WireCellUtil/Graph.h"
+
+
+
+
 
 #include <functional>
 #include <iostream>
@@ -83,7 +83,8 @@ int main()
     dump(g2, "g2");
 
 
-    std::unordered_set dead = {v2};
+    std::unordered_set<int> dead;
+    dead.insert(v2);
     Filtered fg2(g, {}, [&](vertex_t vtx) {
         return dead.count(g[vtx].num) == 0; });
     graph_t g3;

@@ -39,8 +39,8 @@ WireCell::Configuration Root::CelltreeSource::default_configuration() const
     // Give a URL for the input file.
     cfg["filename"] = "";
 
-    // which event in the celltree file to be processed
-    cfg["EventNo"] = "0";
+    // which entry of the /Event/Sim tree to process
+    cfg["entry"] = 0;
 
     // Give a list of frame/tree tags.
 
@@ -213,18 +213,12 @@ bool Root::CelltreeSource::operator()(IFrame::pointer& out)
     // tree->SetBranchStatus("subRunNo", 1);
     tree->SetBranchAddress("subRunNo", &subrun_no);
 
-    int frame_number = std::stoi(m_cfg["EventNo"].asString());
-
-    // loop entry
-    int siz = 0;
+    unsigned int ent = m_cfg["entry"].asUInt();
     unsigned int entries = tree->GetEntries();
-    unsigned int ent = 0;
-    for (; ent < entries; ent++) {
-        siz = tree->GetEntry(ent);
-        if (event_no == frame_number) {
-            break;
-        }
+    if (ent >= entries) {
+        THROW(ValueError() << errmsg{"entry number out of range"});
     }
+    int siz = tree->GetEntry(ent);
 
     // need run number and subrunnumber
     int frame_ident = event_no;
@@ -232,13 +226,8 @@ bool Root::CelltreeSource::operator()(IFrame::pointer& out)
     int time_scale = m_cfg["time_scale"].asInt();
 
     // some output using eventNo, runNo, subRunNO, ...
-    log->debug("frame number:{} ident:{} size:{} runNo:{}, subrunNo:{}, eventNo:{}, time_scale:{}, ent:{}",
-               frame_number, frame_ident, siz, run_no, subrun_no, event_no, time_scale, ent);
-
-    // std::cout << "CelltreeSource: frame_number " << frame_number << ", frame_ident " << frame_ident << ", siz " << siz << "\n";
-    // std::cout << "CelltreeSource: runNo " << run_no << ", subrunNo " << subrun_no << ", eventNo " << event_no << "\n";
-    // std::cout << "CelltreeSource: time_scale " << time_scale << "\n";
-    // std::cout << "CelltreeSource: ent " << ent << "\n";
+    log->debug("frame_ident:{} size:{} runNo:{}, subrunNo:{}, eventNo:{}, time_scale:{}, ent:{}",
+               frame_ident, siz, run_no, subrun_no, event_no, time_scale, ent);
     tfile->Close();
 
     ITrace::vector all_traces;

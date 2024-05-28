@@ -25,14 +25,26 @@ TEST_CASE("point cloud hough janky track")
 {
     const double pi = 3.141592653589793;
 
-    Dataset ds = PointTesting::make_janky_track();
+    /*
+    phi [-pi, pi]
+    pi/4 = 0.7853975
+    -3/4pi = -2.35619
+    cos(theta) [-1, 1]
+    0.5
+    -0.5
+    theta [0, pi]
+    pi/6 = 0.523598
+    5pi/6 = 2.18
+     */
+    Dataset ds = PointTesting::make_janky_track({Point(0,0,0), Point(sqrt(1.5), sqrt(1.5), 1)}, 0.01);
     auto x = ds.get("x")->elements<double>();
     auto y = ds.get("y")->elements<double>();
     auto z = ds.get("z")->elements<double>();
     auto q = ds.get("q")->elements<double>();
     const size_t nsteps = q.size();
+    spdlog::debug("nsteps: {}", nsteps);
 
-    const size_t nnn = 10;
+    const size_t nnn = 40;
     auto query = KDTree::query<double>(ds, {"x","y","z"});
     CHECK(query);
     
@@ -42,9 +54,9 @@ TEST_CASE("point cloud hough janky track")
     const Vector Z(0,0,1);
 
     const double r2min = 0.01;
-    size_t nhistbins = 100;
-    auto hist = bh::make_histogram(bh::axis::regular<>( nhistbins, -1.0, 1.0 ),
-                                   bh::axis::regular<>( nhistbins,  -pi, pi ) );
+    // size_t nhistbins = 100;
+    auto hist = bh::make_histogram(bh::axis::regular<>( 180, -1.0, 1.0 ),
+                                   bh::axis::regular<>( 360,  -pi, pi ) );
 
     for (size_t ipt=0; ipt<nsteps; ipt+=10) {
         hist.reset();
@@ -68,7 +80,9 @@ TEST_CASE("point cloud hough janky track")
             const double cth = Z.dot(dir);
             const double phi = atan2(Y.dot(dir), X.dot(dir));
 
-            hist(cth, phi, bh::weight(w));
+            spdlog::debug("pti: {} {} {} cth={} phi={} w={}", pti.x(), pti.y(), pti.z(), cth, phi, w);
+            // hist(cth, phi, bh::weight(w));
+            hist(cth, phi, bh::weight(1.0));
         }
         CHECK(0 < bha::sum(hist, bh::coverage::all));        
 

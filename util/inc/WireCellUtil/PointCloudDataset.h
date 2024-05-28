@@ -14,10 +14,6 @@ namespace WireCell::PointCloud {
 
         using metadata_t = Configuration;
 
-        // Arrays may be shared with caller but caller can not modify
-        // them.
-        using array_ptr = std::shared_ptr<const Array>;
-
         // copy constructor
         Dataset(const Dataset& other);
         // move constructor
@@ -35,6 +31,11 @@ namespace WireCell::PointCloud {
         explicit Dataset(const std::map<std::string, Array>& arrays);
 
         ~Dataset();
+
+        /// Return a dataset that consists of a slice of the arrays in this
+        /// dataset with count points starting at position.
+        Dataset slice(size_t position, size_t count) const;
+        Dataset slice(size_t position, size_t count, bool share);
 
         /// Return the common number of elements along the major axis
         /// of the arrays.  This returns the size of the first
@@ -58,8 +59,14 @@ namespace WireCell::PointCloud {
             an empty collection is returned.
         */
         using name_list_t = std::vector<std::string>;
+
+        using array_ptr = std::shared_ptr<Array>;
         using selection_t = std::vector<array_ptr>;
-        selection_t selection(const name_list_t& names) const;
+        selection_t selection(const name_list_t& names);
+
+        using const_array_ptr = std::shared_ptr<Array const>;
+        using const_selection_t = std::vector<array_ptr>;
+        const_selection_t selection(const name_list_t& names) const;
         
         /** Return named array or nullptr if not found.
 

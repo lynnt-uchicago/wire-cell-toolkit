@@ -111,7 +111,7 @@ local sp_override = {
     sparse: true,
     use_roi_debug_mode: false,
     use_multi_plane_protection: false,
-    mp_tick_resolution: 4,
+    mp_tick_resolution: 10,
 };
 local sp = sp_maker(params, tools, sp_override);
 local sp_pipes = [sp.make_sigproc(a) for a in tools.anodes];
@@ -179,7 +179,7 @@ local parallel_pipes = [
                 // dnnroi(tools.anodes[n], ts, output_scale=1.2),
                 // sinks.dnnroi_pipe[n],
                 // g.pnode({type: "DumpFrames", name: "dumpframes-%d"%tools.anodes[n].data.ident}, nin = 1, nout=0),
-                // img_pipes[n],
+                img_pipes[n],
           ], 
           'parallel_pipe_%d' % n) 
   for n in std.range(0, std.length(tools.anodes) - 1)];
@@ -228,7 +228,7 @@ local app = {
 local cmdline = {
     type: "wire-cell",
     data: {
-        plugins: ["WireCellGen", "WireCellPgraph", "WireCellSio", "WireCellSigProc", "WireCellRoot", "WireCellTbb", "WireCellImg", /*"WireCellPytorch"*/],
+        plugins: ["WireCellGen", "WireCellPgraph", "WireCellSio", "WireCellSigProc", "WireCellRoot", "WireCellTbb", "WireCellImg", "WireCellPytorch"],
         apps: ["TbbFlow"]
     }
 };

@@ -1,4 +1,4 @@
-/** Vector a 3-vector of double.
+/** Implement 3-vector arithmetic with std::vector store.
  *
  * See also WireCell::Point.
  */
@@ -43,7 +43,7 @@ namespace WireCell {
         D3Vector(const D3Vector& o)
             : m_v(3,0)
         {
-            if (o) {
+            if (o.size() == 3) {
                 this->set(o.x(), o.y(), o.z());
             }
             else {
@@ -65,7 +65,7 @@ namespace WireCell {
         // Assignment.
         D3Vector& operator=(const D3Vector& o)
         {
-            if (o) {
+            if (o.size()) {
                 this->set(o.x(), o.y(), o.z());
             }
             else {
@@ -128,6 +128,18 @@ namespace WireCell {
             return scalar;
         }
 
+        /// Return angle between this vector and the other.
+        T angle(const D3Vector& rhs) const
+        {
+            T m1 = this->magnitude();
+            T m2 = rhs.magnitude();
+            if (m1 <= 0 || m2 <= 0) {
+                return 0;
+            }
+            T cosine = this->dot(rhs) / (m1 * m2);
+            return std::acos(std::min(std::max(cosine, T(-1)), T(1)));
+        }
+
         /// Return the magnitude of this vector.
         T magnitude() const { return std::sqrt(x() * x() + y() * y() + z() * z()); }
 
@@ -176,8 +188,11 @@ namespace WireCell {
             return *this;
         }
 
-        bool operator!() const { return m_v.size() != 3; }
-        operator bool() const { return m_v.size() == 3; }
+        /// defining these opens a fairly nightmarish door.
+        /// https://www.artima.com/articles/the-safe-bool-idiom
+        // bool operator!() const { return m_v.size() != 3; }
+        // operator bool() const { return m_v.size() == 3; }
+
         // can call set(x,y,z) to revalidate.
         void invalidate()
         {

@@ -48,27 +48,26 @@ bool PointGraphProcessor::operator()(const input_pointer& ints, output_pointer& 
         return true;
     }
 
-    const auto& tens = *ints->tensors();
-    const auto pcgs = match_at(tens, m_inpath);
-    if (pcgs.size() != 1) {
+    TensorIndex ti(*ints->tensors());
+    const auto pcgten = ti.get(m_inpath, "pcgraph");
+    if (!pcgten) {
         outts = std::make_shared<SimpleTensorSet>(ints->ident());
-        log->warn("unexpected number of tensors ({}) matching {} at call={}",
-                  pcgs.size(), m_inpath, m_count++);
+        log->warn("no tensor at path {} at call={}", m_inpath, m_count++);
         return true;
     }
 
     // Convert tensor set to point graph
     PointGraph pg;
 
-    const auto md0 = pcgs[0]->metadata();
+    const auto md0 = pcgten->metadata();
     const std::string datatype = md0["datatype"].asString();
     const std::string datapath = md0["datapath"].asString();
 
     if (datatype == "pcgraph") {
-        pg = as_pointgraph(tens, datapath);
+        pg = as_pointgraph(ti, datapath);
     }
     else if (datatype == "pcdataset") {
-        auto nodes = as_dataset(tens, datapath);
+        auto nodes = as_dataset(ti, datapath);
         pg = PointGraph(nodes);
     }
     else {

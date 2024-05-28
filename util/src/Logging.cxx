@@ -5,6 +5,7 @@
 #include "spdlog/sinks/stdout_sinks.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/null_sink.h"
+#include "spdlog/cfg/env.h"
 
 #include <vector>
 
@@ -166,3 +167,21 @@ void Log::set_pattern(std::string pattern, std::string which)
     }
     logger(which)->set_pattern(pattern);
 }
+
+void Log::default_logging(const std::string& output, std::string level, bool with_env)
+{
+    if (output == "stderr") {
+        WireCell::Log::add_stderr(true, level);
+    }
+    else if (output == "stdout") {
+        WireCell::Log::add_stdout(true, level);
+    }
+    else {
+        WireCell::Log::add_file(output, level);
+    }
+    if (with_env) {
+        spdlog::cfg::load_env_levels();
+    }
+}
+
+
