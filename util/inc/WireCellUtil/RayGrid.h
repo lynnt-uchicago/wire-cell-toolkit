@@ -12,6 +12,7 @@
 #include "WireCellUtil/Point.h"
 #include "WireCellUtil/ObjectArray2d.h"
 #include "WireCellUtil/MultiArray.h"
+#include "WireCellUtil/FmtLib.h"
 #include <vector>
 #include <map>
 
@@ -168,10 +169,6 @@ namespace WireCell {
     }  // namespace RayGrid
 }  // namespace WireCell
 
-#include <fmt/core.h>
-#if FMT_VERSION >= 90000
-#include <fmt/ostream.h>
 template <> struct fmt::formatter<WireCell::RayGrid::coordinate_t> : fmt::ostream_formatter {};
-#endif
 
 #endif
