@@ -1,7 +1,7 @@
 #ifndef WIRECELL_CONFIGURATION
 #define WIRECELL_CONFIGURATION
 
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 #include <json/json.h>
 #include <boost/algorithm/string/split.hpp>

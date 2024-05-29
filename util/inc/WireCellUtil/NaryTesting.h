@@ -4,7 +4,7 @@
 #define WIRECELLUTIL_NARYTESTING
 
 #include "WireCellUtil/NaryTreeNotified.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 namespace WireCell::NaryTesting {
 

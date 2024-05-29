@@ -14,7 +14,7 @@
 #ifndef WIRECELLUTIL_MEASUREMENT
 #define WIRECELLUTIL_MEASUREMENT
 
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 #include "WireCellUtil/boost_units_measurement.h"
 

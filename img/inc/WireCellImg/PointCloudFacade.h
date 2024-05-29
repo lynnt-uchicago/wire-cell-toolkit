@@ -9,7 +9,7 @@
 #include "WireCellUtil/PointTree.h"
 #include "WireCellUtil/Point.h"
 #include "WireCellUtil/Units.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 // using namespace WireCell;  NO!  do not open up namespaces in header files!
 

@@ -12,7 +12,8 @@
 #include "WireCellUtil/Point.h"
 #include "WireCellUtil/ObjectArray2d.h"
 #include "WireCellUtil/MultiArray.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
+
 #include <vector>
 #include <map>
 

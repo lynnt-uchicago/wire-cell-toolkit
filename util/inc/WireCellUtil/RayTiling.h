@@ -13,7 +13,6 @@
 #include <string>
 
 #include "WireCellUtil/RayGrid.h"
-#include "WireCellUtil/FmtLib.h"
 
 namespace WireCell {
 

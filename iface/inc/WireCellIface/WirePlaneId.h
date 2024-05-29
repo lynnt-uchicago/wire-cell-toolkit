@@ -3,7 +3,7 @@
 
 // fixme: should move into WirePlaneIdCfg.h or similar. (more below)
 #include "WireCellUtil/Configuration.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 #include <ostream>
 #include <functional>
 

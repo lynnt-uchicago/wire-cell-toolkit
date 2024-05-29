@@ -13,8 +13,6 @@
 #include "WireCellUtil/NaryTreeFacade.h"
 #include "WireCellUtil/KDTree.h"
 
-#include "WireCellUtil/FmtLib.h"
-
 #include "WireCellUtil/Logging.h" // debug
 
 #include <boost/range/adaptors.hpp>

@@ -27,7 +27,7 @@
 
 #include "WireCellUtil/Waveform.h"
 #include "WireCellUtil/Eigen.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 #include <memory>
 #include <vector>

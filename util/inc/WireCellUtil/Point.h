@@ -3,7 +3,7 @@
 
 #include "WireCellUtil/D3Vector.h"
 #include "WireCellUtil/Configuration.h"
-#include "WireCellUtil/FmtLib.h"
+#include "WireCellUtil/Spdlog.h"
 
 #include <set>
 #include <memory>  // auto_ptr
