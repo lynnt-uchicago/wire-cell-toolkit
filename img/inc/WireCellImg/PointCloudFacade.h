@@ -9,6 +9,7 @@
 #include "WireCellUtil/PointTree.h"
 #include "WireCellUtil/Point.h"
 #include "WireCellUtil/Units.h"
+#include "WireCellUtil/Spdlog.h"
 
 // using namespace WireCell;  NO!  do not open up namespaces in header files!
 
@@ -366,5 +367,9 @@ namespace WireCell::PointCloud::Facade {
     }
 
 }  // namespace WireCell::PointCloud::Facade
+
+template <> struct fmt::formatter<WireCell::PointCloud::Facade::Blob> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<WireCell::PointCloud::Facade::Cluster> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<WireCell::PointCloud::Facade::Grouping> : fmt::ostream_formatter {};
 
 #endif
