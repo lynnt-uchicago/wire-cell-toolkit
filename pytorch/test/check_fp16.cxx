@@ -4,6 +4,8 @@
 /**
  * need to configure with torch_cpu on gpvm
  * e.g.--with-libtorch="$LIBTORCH_FQ_DIR/" --with-libtorch-libs torch,torch_cpu,c10
+ * model for testing can be founc here:
+ * https://www.phy.bnl.gov/~hyu/dunefd/dnn-roi-pdvd/Pytorch-UNet/ts-model/
 */
 
 int main(int argc, const char* argv[])
