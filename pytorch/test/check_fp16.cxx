@@ -1,6 +1,11 @@
 #include <torch/script.h>  // One-stop header.
 #include <chrono>
 
+/**
+ * need to configure with torch_cpu on gpvm
+ * e.g.--with-libtorch="$LIBTORCH_FQ_DIR/" --with-libtorch-libs torch,torch_cpu,c10
+*/
+
 int main(int argc, const char* argv[])
 {
     std::cout << "WireCell::pytorch : test loading TorchScript Model\n";
@@ -14,8 +19,8 @@ int main(int argc, const char* argv[])
     module = torch::jit::load(mname);
     module.to(at::kCPU, dtype);
     torch::TensorOptions options = torch::TensorOptions().dtype(dtype);
-    // torch::Tensor iten = torch::rand({1, 3, 800, 600}, options);
-    torch::Tensor iten = torch::zeros({1, 3, 800, 600}, options);
+    torch::Tensor iten = torch::rand({1, 3, 800, 600}, options);
+    // torch::Tensor iten = torch::zeros({1, 3, 800, 600}, options);
     std::vector<torch::IValue> itens {iten};
     auto otens = module.forward(itens).toTensor();
     auto end = std::chrono::high_resolution_clock::now();
