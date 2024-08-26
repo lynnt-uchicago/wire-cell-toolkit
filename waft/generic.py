@@ -113,7 +113,7 @@ def _configure(ctx, name, incs=(), libs=(), bins=(), pcname=None, mandatory=True
         if bins:
             if not bindir and instdir:
                 bindir = osp.join(instdir, 'bin')
-            if libdir:
+            if bindir:
                 setattr(ctx.env, 'PATH_'+UPPER, [bindir])
             
     
