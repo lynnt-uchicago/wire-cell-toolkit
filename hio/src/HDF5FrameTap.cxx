@@ -32,7 +32,7 @@ Hio::HDF5FrameTap::~HDF5FrameTap() {}
 
 void Hio::HDF5FrameTap::configure(const WireCell::Configuration &cfg)
 {
-    std::vector<std::string> ignored = {"anode","high_throughput","chunk","gzip"};
+    std::vector<std::string> ignored = {"anode","high_throughput"};
     for (const auto& ign : ignored) {
         if (cfg[ign.c_str()].isNull()) {
             continue;
