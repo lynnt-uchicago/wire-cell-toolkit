@@ -32,10 +32,20 @@ Hio::HDF5FrameTap::~HDF5FrameTap() {}
 
 void Hio::HDF5FrameTap::configure(const WireCell::Configuration &cfg)
 {
-    auto anode_tn = cfg["anode"].asString();
-    m_anode = Factory::find_tn<IAnodePlane>(anode_tn);
+    std::vector<std::string> ignored = {"anode","high_throughput","chunk","gzip"};
+    for (const auto& ign : ignored) {
+        if (cfg[ign.c_str()].isNull()) {
+            continue;
+        }
+        log->warn("The parameter \"{}\" is ignored, consider fixing your config", ign);
+    }
 
-    m_cfg = cfg;
+    m_digitize = get<bool>(cfg, "digitize", m_digitize);
+    m_baseline = get(cfg, "baseline", m_baseline);
+    m_scale = get(cfg, "scale", m_scale);
+    m_offset = get(cfg, "offset", m_offset);
+    log->debug("digitize={} baseline={} scale={} offset={}",
+               m_digitize, m_baseline, m_scale, m_offset);
 
     std::string fn = cfg["filename"].asString();
     if (fn.empty()) {
@@ -43,6 +53,14 @@ void Hio::HDF5FrameTap::configure(const WireCell::Configuration &cfg)
     }
 
     m_hfile = H5Fcreate(fn.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    if (m_hfile == H5I_INVALID_HID) {
+        raise<IOError>("Failed to create file %s", fn);
+    }
+    log->debug("created file {}", fn);
+
+    m_cfg = cfg;
+
+
 }
 void Hio::HDF5FrameTap::finalize()
 {
@@ -59,19 +77,19 @@ WireCell::Configuration Hio::HDF5FrameTap::default_configuration() const
 
     // This number is set to the waveform sample array before any
     // charge is added.
-    cfg["baseline"] = 0.0;
+    cfg["baseline"] = m_baseline;
 
     // This number will be multiplied to each waveform sample before
     // casting to dtype.
-    cfg["scale"] = 1.0;
+    cfg["scale"] = m_scale;
 
     // This number will be added to each scaled waveform sample before
     // casting to dtype.
-    cfg["offset"] = 0.0;
+    cfg["offset"] = m_offset;
 
-    cfg["anode"] = "AnodePlane";
-    cfg["nticks"] = 6000;
-    cfg["tick0"] = 0;
+    // Set these only if you want to override what the frame actually provides.
+    // cfg["nticks"] = 6000;
+    // cfg["tick0"] = 0;
 
     // The frame tags to consider for saving.  If null or empty then all traces are used.
     cfg["trace_tags"] = Json::arrayValue;
@@ -86,9 +104,10 @@ WireCell::Configuration Hio::HDF5FrameTap::default_configuration() const
     // it's old contents are not wanted.
     cfg["filename"] = "wct-frame.hdf5";
 
-    cfg["chunk"] = Json::arrayValue;
-    cfg["gzip"] = 9;
-    cfg["high_throughput"] = true;
+    // ignored, ...for now?
+    // cfg["chunk"] = Json::arrayValue;
+    // cfg["gzip"] = 9;
+    // cfg["high_throughput"] = true;
 
     return cfg;
 }
@@ -103,51 +122,28 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
 
     // Fixme: all this config machination should be in configure(), not here.
 
-    const int tick0 = m_cfg["tick0"].asInt();
-    const int nticks = m_cfg["nticks"].asInt();
-    const int tbeg = tick0;
-    const int tend = tick0 + nticks - 1;
-    auto channels = m_anode->channels();
-    const int cbeg = channels.front();
-    const int cend = channels.back();
-    log->debug("{}: t: {} - {}; c: {} - {}", m_cfg["anode"].asString(), tbeg, tend, cbeg, cend);
+    // const int tick0 = m_cfg["tick0"].asInt();
+    // const int nticks = m_cfg["nticks"].asInt();
+    // const int tbeg = tick0;
+    // const int tend = tick0 + nticks - 1;
+    // auto channels = m_anode->channels();
+    // const int cbeg = channels.front();
+    // const int cend = channels.back();
+    // log->debug("{}: t: {} - {}; c: {} - {}", m_cfg["anode"].asString(), tbeg, tend, cbeg, cend);
 
     outframe = inframe;  // pass through actual frame
 
     const std::string mode = "a";
-
-    const float baseline = m_cfg["baseline"].asFloat();
-    const float scale = m_cfg["scale"].asFloat();
-    const float offset = m_cfg["offset"].asFloat();
-    const bool digitize = m_cfg["digitize"].asBool();
-
     const std::string fname = m_cfg["filename"].asString();
 
     // Eigen3 array is indexed as (irow, icol) or (ichan, itick)
     // one row is one channel, one column is a tick.
-    // Numpy saves reversed dimensions: {ncols, nrows} aka {ntick, nchan} dimensions.
 
     if (m_cfg["trace_tags"].isNull() or m_cfg["trace_tags"].empty()) {
         m_cfg["trace_tags"][0] = "";
     }
 
-    log->warn("ignoring configs: chunk, high_throughput, gzip");
-
-    // if (m_cfg["chunk"].isNull() or m_cfg["chunk"].size() != 2) {
-    //     m_cfg["chunk"].resize(2);
-    //     m_cfg["chunk"][0] = 0;
-    //     m_cfg["chunk"][1] = 0;
-    // }
-
-    // size_t chunk_ncols = m_cfg["chunk"][0].asInt();
-    // size_t chunk_nrows = m_cfg["chunk"][1].asInt();
-    // log->debug("HDF5FrameTap: chunking ncols={} nrows={}", chunk_ncols, chunk_nrows);
-
-    // int gzip_level = m_cfg["gzip"].asInt();
-    // if (gzip_level < 0 or gzip_level > 9) gzip_level = 9;
-    // log->debug("HDF5FrameTap: gzip_level {}", gzip_level);
-
-    // const bool high_throughput = m_cfg["high_throughput"].asBool();
+    // fixme: chunking?  gzipping?
 
     // fixme: replace this logging with call to taginfo().
     std::stringstream ss;
@@ -169,64 +165,81 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
     for (auto jtag : m_cfg["trace_tags"]) {
         const std::string tag = jtag.asString();
         auto traces = Aux::tagged_traces(inframe, tag);
-        log->debug("HDF5FrameTap: save {} tagged as {}", traces.size(), tag);
         if (traces.empty()) {
-            log->warn("HDF5FrameTap: no traces for tag: \"{}\"", tag);
+            log->warn("no traces for tag: \"{}\"", tag);
             continue;
         }
 
-        // auto channels = Aux::channels(traces);
-        // std::sort(channels.begin(), channels.end());
-        // auto chmin = channels.front();
-        // auto chmax = channels.back();
-        // channels.resize(chmax-chmin+1);
-        // std::iota(std::begin(channels), std::end(channels), chmin);
-        // auto chbeg = channels.begin();
-        // auto chend = channels.end(); //std::unique(chbeg, channels.end());
-        // auto tbinmm = Aux::tbin_range(traces);
+        auto channels = Aux::channels(traces);
+        size_t nrows = channels.size();
 
-        // // fixme: may want to give user some config over tbin range to save.
-        // const size_t ncols = tbinmm.second-tbinmm.first;
-        // const size_t nrows = std::distance(chbeg, chend);
+        auto tbinmm = Aux::tbin_range(traces);
+        const int tbin = get(m_cfg, "tick0", tbinmm.first);
+        size_t ncols = get(m_cfg, "nticks", tbinmm.second - tbin);
 
-        const size_t ncols = nticks;
-        const size_t nrows = cend - cbeg + 1;
 
-        log->debug("HDF5FrameTap: saving ncols={} nrows={}", ncols, nrows);
+        Array::array_xxf arr = Array::array_xxf::Zero(nrows, ncols) + m_baseline;
+        Aux::fill(arr, traces, channels.begin(), channels.end(), tbin);
+        arr = arr * m_scale + m_offset;
 
-        // if (chunk_ncols < 1 or chunk_ncols > ncols) chunk_ncols = ncols;
-        // if (chunk_nrows < 1 or chunk_nrows > nrows) chunk_nrows = nrows;
-        // log->debug("HDF5FrameTap: chunking ncols={} nrows={}", chunk_ncols, chunk_nrows);
+        // log->debug("saving {}: ncols={} nrows={} with tbin={}, qtot={}",
+        //            tag, ncols, nrows, tbin, arr.sum());
 
-        Array::array_xxf arr = Array::array_xxf::Zero(nrows, ncols) + baseline;
-        // Aux::fill(arr, traces, channels.begin(), chend, tbinmm.first);
-        Aux::fill(arr, traces, channels.begin(), channels.end(), tick0);
-        arr = arr * scale + offset;
         int sequence = inframe->ident();
-        {  // the 2D frame array
+        {  // the 2D frame array, long hand....
             const std::string aname = String::format("/%d/frame_%s", sequence, tag.c_str());
 
+            hid_t dlcpl = H5Pcreate(H5P_LINK_CREATE);
+            if (dlcpl == H5I_INVALID_HID) {
+                raise<IOError>("failed to create link creation property list");
+            }
+            
+            if (H5Pset_char_encoding(dlcpl, H5T_CSET_UTF8) < 0) {
+                raise<IOError>("failed to set UTF encoding");
+            }
+
+            if (H5Pset_create_intermediate_group(dlcpl, 1) < 0) {
+                raise<IOError>("failed to set creation of intermediate groups");
+            }
+
             int ndims = 2;
-            hsize_t dims[2] = {ncols, nrows}; // fixme: is this really the right order? It is opposite from numpy.
+            // BIG WARNING: HDF5 is sanely C-order (row-major, column iteration
+            // is fastest) but eigen defaults to Fortran-order (column-major,
+            // row iteration is fastest).  We thus do a little transpose dance
+            // below, just before writing.
+            hsize_t dims[2] = {nrows, ncols};
             hid_t dspace = H5Screate_simple(ndims, dims, NULL);
+            if (dspace == H5I_INVALID_HID) {
+                raise<IOError>("failed to create data space of %d x %d", dims[0], dims[1]);
+            }
+
             hid_t dtype = 0;
-            if (digitize) {
+            if (m_digitize) {
                 dtype = H5Tcopy(H5T_NATIVE_SHORT);
             }
             else {
                 dtype = H5Tcopy(H5T_NATIVE_FLOAT);
             }
-            // endian order?
-            hid_t dset = H5Dcreate1(m_hfile, aname.c_str(), dtype, dspace, H5P_DEFAULT);
+            if (dtype == H5I_INVALID_HID) {
+                raise<IOError>("failed to make dtype for {}", m_digitize ? "short int" : "float");
+            }
 
+            // endian order?
+            hid_t dset = H5Dcreate2(m_hfile, aname.c_str(), dtype, dspace, dlcpl, H5P_DEFAULT, H5P_DEFAULT);
+            if (dset == H5I_INVALID_HID) {
+                raise<IOError>("failed to create dataset %s", aname);
+            }
+            
             herr_t status;
-            if (digitize) {
-                Array::array_xxs sarr = arr.cast<short>();
-                const short *sdata = sarr.data();
-                status = H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, sdata);
+            if (m_digitize) {
+                using ROWI = Eigen::Array<int16_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+                ROWI sarr = arr.cast<short>();
+                status = H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, sarr.data());
             }
             else {
-                status = H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, arr.data());
+                using ROWF = Eigen::Array<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+                ROWF farr = arr;
+                status = H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, farr.data());
             }
             if (status == H5I_INVALID_HID) {
                 raise<IOError>("HDF5FrameTap: failed to write samples");
@@ -236,33 +249,7 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
             H5Tclose(dtype);
             H5Sclose(dspace);
 
-            // if (digitize) {
-            //     Array::array_xxs sarr = arr.cast<short>();
-            //     const short *sdata = sarr.data();
-            //     // cnpy::npz_save(fname, aname, sdata, {ncols, nrows}, mode);
-            //     if (high_throughput) {
-
-            //         h5::write<short>(fd, aname, sdata, h5::count{ncols, nrows},
-            //                          h5::chunk{chunk_ncols, chunk_nrows} | h5::gzip{gzip_level}, h5::high_throughput);
-            //     }
-            //     else {
-            //         h5::write<short>(fd, aname, sdata, h5::count{ncols, nrows},
-            //                          h5::chunk{chunk_ncols, chunk_nrows} | h5::gzip{gzip_level});
-            //     }
-            // }
-            // else {
-            //     // cnpy::npz_save(fname, aname, arr.data(), {ncols, nrows}, mode);
-            //     if (high_throughput) {
-            //         h5::write<float>(fd, aname, arr.data(), h5::count{ncols, nrows},
-            //                          h5::chunk{chunk_ncols, chunk_nrows} | h5::gzip{gzip_level}, h5::high_throughput);
-            //     }
-            //     else {
-            //         h5::write<float>(fd, aname, arr.data(), h5::count{ncols, nrows},
-            //                          h5::chunk{chunk_ncols, chunk_nrows} | h5::gzip{gzip_level});
-            //     }
-            // }
-
-            log->debug("HDF5FrameTap: saved {} with {} channels {} ticks @t={} ms qtot={}", aname, nrows, ncols,
+            log->debug("saved {} with {} channels {} ticks @t={} ms qtot={}", aname, nrows, ncols,
                      inframe->time() / units::ms, arr.sum());
         }
 
@@ -281,14 +268,11 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
             H5Dclose(dset);
             H5Tclose(dtype);
             H5Sclose(dspace);
-            // cnpy::npz_save(fname, aname, channels.data(), {nrows}, mode);
-            // h5::write<int>(fd, aname, channels.data(), h5::count{nrows});
         }
 
         {  // the tick array
             const std::string aname = String::format("/%d/tickinfo_%s", sequence, tag.c_str());
-            // const std::vector<double> tickinfo{inframe->time(), inframe->tick(), (double)tbinmm.first};
-            const std::vector<double> tickinfo{inframe->time(), inframe->tick(), (double) tick0};
+            const std::vector<double> tickinfo{inframe->time(), inframe->tick(), (double) tbin};
 
             // fixme: this small array would perhaps be better as attributes.
             int ndims = 1;
@@ -303,9 +287,6 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
             H5Dclose(dset);
             H5Tclose(dtype);
             H5Sclose(dspace);
-
-            // cnpy::npz_save(fname, aname, tickinfo.data(), {3}, mode);
-            // h5::write<double>(fd, aname, tickinfo.data(), h5::count{3});
         }
     }
 

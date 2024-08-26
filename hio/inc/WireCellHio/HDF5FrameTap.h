@@ -4,7 +4,7 @@
 #ifndef WIRECELLHDF5_HDF5FRAMETAP
 #define WIRECELLHDF5_HDF5FRAMETAP
 
-#include "WireCellIface/IAnodePlane.h"
+//#include "WireCellIface/IAnodePlane.h"
 #include "WireCellIface/IConfigurable.h"
 #include "WireCellIface/IFrameSink.h"
 #include "WireCellIface/IFrameFilter.h"
@@ -28,8 +28,35 @@ namespace WireCell::Hio {
 
 
     private:
+        /** Configuration parameters.  All are optional.
+
+            filename (string) - Name the HDF5 file to produce.  Default: "wct-frame.hdf5"
+
+            trace_tags (list of string) - The tagged traces to save.  Default: whole frame
+
+            digitize (bool) - If true, truncate to int16.
+
+            baseline (float) - default 0, see below
+            scale (float) - default 1, see below
+            offset (float) - default 0, see below
+
+            These three apply linear transform to trace samples prior to digitize:
+
+                (sample + baseline)*scale + offset
+
+            Beware that baseline and offset are both additive.
+
+            tick0 (int) - force the output array to begin at this tick.  Default: not set.
+            nticks (int) - force the otput array to have this number of columns. Default: not set.
+            
+
+         */
+        float m_baseline{0.0}, m_scale{1.0}, m_offset{0.0};
+        bool m_digitize{false};
+
+
         Configuration m_cfg;           /// copy of configuration
-        IAnodePlane::pointer m_anode;  /// pointer to some APA, needed to associate chnnel ID to planes
+        //IAnodePlane::pointer m_anode;  /// pointer to some APA, needed to associate chnnel ID to planes
 
         size_t m_calls{0};
 

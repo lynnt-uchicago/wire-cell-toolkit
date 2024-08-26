@@ -3,7 +3,7 @@ local wc = high.wc;
 local pg = high.pg;
 
 
-function(infile, outfile, detector="uboone", variant="nominal", tags=[])
+function(infile, outfile, digitize="no", detector="uboone", variant="nominal", tags=[])
     local params = high.params(detector, variant);
     local mid = high.api(detector, params);
     local anode = mid.anodes()[0];
@@ -13,10 +13,11 @@ function(infile, outfile, detector="uboone", variant="nominal", tags=[])
         name: outfile,
         data: {
             filename: outfile,
-            anode: wc.tn(anode),
-            trace_tags: tags
+            //anode: wc.tn(anode),
+            trace_tags: tags,
+            digitize: digitize == "yes",
         },
-    }, nin=1, nout=1, uses=[anode]);
+    }, nin=1, nout=1, /*uses=[anode]*/);
     local sink = pg.pnode({
         type: "DumpFrames",
         name: ""
