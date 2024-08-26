@@ -10,7 +10,7 @@ mydir="$(dirname $(realpath $BASH_SOURCE))"
 
 set -e
 
-for gzqual in 0 5 9
+for gzqual in 1 2 3 4 # 0 5 9
 do
     for chunk in 32 64 128 256 512
     do
