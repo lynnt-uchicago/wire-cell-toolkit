@@ -1,0 +1,56 @@
+#+title: Move HDF5FrameTap to C API
+
+* Synopsis
+
+
+#+begin_example
+$ cp /path/to/some/adc-frame-format-file.npz adc.npz
+$ cp /path/to/some/sig-frame-format-file.npz sig.npz
+$ bash hio/test/frame-npz-to-hio.sh
+$ grep 'Timer: WireCell::Hio::HDF5FrameTap' adc-*.log sig-*.log 
+$ ls -sh sig-*.hdf adc-*.hdf
+#+end_example
+
+Here are results on i7-4770K
+
+| time (s) | size | tier-gz-chunk |
+|----------+------+---------------|
+|     0.29 | 30M  | adc-0-32.hdf  |
+|     0.27 | 30M  | adc-0-64.hdf  |
+|     0.27 | 30M  | adc-0-128.hdf |
+|     0.27 | 30M  | adc-0-256.hdf |
+|     0.27 | 30M  | adc-0-512.hdf |
+|----------+------+---------------|
+|     0.96 | 13M  | adc-5-32.hdf  |
+|     0.80 | 11M  | adc-5-64.hdf  |
+|     0.83 | 9.7M | adc-5-128.hdf |
+|     0.89 | 9.4M | adc-5-256.hdf |
+|     0.90 | 9.3M | adc-5-512.hdf |
+|----------+------+---------------|
+|     1.23 | 13M  | adc-9-32.hdf  |
+|     1.28 | 11M  | adc-9-64.hdf  |
+|     2.20 | 10M  | adc-9-128.hdf |
+|     3.31 | 9.5M | adc-9-256.hdf |
+|     3.61 | 9.3M | adc-9-512.hdf |
+|----------+------+---------------|
+|     0.29 | 59M  | sig-0-32.hdf  |
+|     0.29 | 59M  | sig-0-64.hdf  |
+|     0.29 | 59M  | sig-0-128.hdf |
+|     0.29 | 59M  | sig-0-256.hdf |
+|     0.29 | 59M  | sig-0-512.hdf |
+|----------+------+---------------|
+|     0.63 | 2.1M | sig-5-32.hdf  |
+|     0.26 | 1.3M | sig-5-64.hdf  |
+|     0.41 | 1.1M | sig-5-128.hdf |
+|     0.40 | 1.1M | sig-5-256.hdf |
+|     0.40 | 1.1M | sig-5-512.hdf |
+|----------+------+---------------|
+|     0.81 | 2.1M | sig-9-32.hdf  |
+|     0.72 | 1.3M | sig-9-64.hdf  |
+|     0.67 | 1.1M | sig-9-128.hdf |
+|     0.64 | 1.1M | sig-9-256.hdf |
+|     0.64 | 1.1M | sig-9-512.hdf |
+|----------+------+---------------|
+
+
+

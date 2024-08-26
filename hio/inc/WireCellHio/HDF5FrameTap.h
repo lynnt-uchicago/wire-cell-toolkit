@@ -49,11 +49,15 @@ namespace WireCell::Hio {
             tick0 (int) - force the output array to begin at this tick.  Default: not set.
             nticks (int) - force the otput array to have this number of columns. Default: not set.
             
+            gzip (int, [0,...,9]) - The gzip compression level.  Zero is the
+            default and compression is applied.
 
+            chunk (int or 2-int array) - The chunk size along each dimension used for gzip.
          */
         float m_baseline{0.0}, m_scale{1.0}, m_offset{0.0};
         bool m_digitize{false};
-
+        int m_gzip{0};
+        std::vector<size_t> m_chunk = {256,256};
 
         Configuration m_cfg;           /// copy of configuration
         //IAnodePlane::pointer m_anode;  /// pointer to some APA, needed to associate chnnel ID to planes

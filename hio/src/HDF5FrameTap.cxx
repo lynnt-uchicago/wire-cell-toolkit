@@ -44,8 +44,33 @@ void Hio::HDF5FrameTap::configure(const WireCell::Configuration &cfg)
     m_baseline = get(cfg, "baseline", m_baseline);
     m_scale = get(cfg, "scale", m_scale);
     m_offset = get(cfg, "offset", m_offset);
-    log->debug("digitize={} baseline={} scale={} offset={}",
-               m_digitize, m_baseline, m_scale, m_offset);
+    m_gzip = get(cfg, "gzip", m_gzip);
+
+    if (m_gzip) {
+        if (!H5Zfilter_avail(H5Z_FILTER_DEFLATE)) {
+            raise<ValueError>("HDF5 gzip filter not available");
+        }
+        unsigned int filter_info;
+        /*herr_t status = */H5Zget_filter_info (H5Z_FILTER_DEFLATE, &filter_info);
+        if ( !(filter_info & H5Z_FILTER_CONFIG_ENCODE_ENABLED) ||
+             !(filter_info & H5Z_FILTER_CONFIG_DECODE_ENABLED) ) {
+            raise<ValueError>("HDF5 gzip filter not available for encoding and decoding");
+        }
+
+        auto jchunk = cfg["chunk"];
+        if (jchunk.isInt()) {
+            int chunk = jchunk.asInt();
+            m_chunk[0] = chunk;
+            m_chunk[1] = chunk;
+        }
+        else if (jchunk.isArray()) {
+            m_chunk[0] = jchunk[0].asInt();
+            m_chunk[1] = jchunk[1].asInt();
+        }
+    }
+
+    log->debug("digitize={} baseline={} scale={} offset={} gzip={} chunking:[{},{}]",
+               m_digitize, m_baseline, m_scale, m_offset, m_gzip, m_chunk[0], m_chunk[1]);
 
     std::string fn = cfg["filename"].asString();
     if (fn.empty()) {
@@ -104,9 +129,10 @@ WireCell::Configuration Hio::HDF5FrameTap::default_configuration() const
     // it's old contents are not wanted.
     cfg["filename"] = "wct-frame.hdf5";
 
+    cfg["gzip"] = m_gzip;
+
     // ignored, ...for now?
     // cfg["chunk"] = Json::arrayValue;
-    // cfg["gzip"] = 9;
     // cfg["high_throughput"] = true;
 
     return cfg;
@@ -189,17 +215,30 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
         {  // the 2D frame array, long hand....
             const std::string aname = String::format("/%d/frame_%s", sequence, tag.c_str());
 
-            hid_t dlcpl = H5Pcreate(H5P_LINK_CREATE);
-            if (dlcpl == H5I_INVALID_HID) {
+            // link create property list
+            hid_t lcpl = H5Pcreate(H5P_LINK_CREATE);
+            if (lcpl == H5I_INVALID_HID) {
                 raise<IOError>("failed to create link creation property list");
             }
-            
-            if (H5Pset_char_encoding(dlcpl, H5T_CSET_UTF8) < 0) {
+            if (H5Pset_char_encoding(lcpl, H5T_CSET_UTF8) < 0) {
                 raise<IOError>("failed to set UTF encoding");
             }
-
-            if (H5Pset_create_intermediate_group(dlcpl, 1) < 0) {
+            if (H5Pset_create_intermediate_group(lcpl, 1) < 0) {
                 raise<IOError>("failed to set creation of intermediate groups");
+            }
+
+            // data set create property list
+            hid_t dcpl = H5Pcreate (H5P_DATASET_CREATE);
+            if (dcpl == H5I_INVALID_HID) {
+                raise<IOError>("failed to create dataset creation property list");
+            }
+            if (m_gzip) {
+                if (H5Pset_deflate (dcpl, m_gzip) < 0) {
+                    raise<IOError>("failed set gzip compression of {}", m_gzip);
+                }
+                if (H5Pset_chunk (dcpl, 2, m_chunk.data()) < 0) {
+                    raise<IOError>("failed set chunk of [{},{}]", m_chunk[0], m_chunk[1]);
+                }
             }
 
             int ndims = 2;
@@ -224,8 +263,8 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
                 raise<IOError>("failed to make dtype for {}", m_digitize ? "short int" : "float");
             }
 
-            // endian order?
-            hid_t dset = H5Dcreate2(m_hfile, aname.c_str(), dtype, dspace, dlcpl, H5P_DEFAULT, H5P_DEFAULT);
+            // The dataset
+            hid_t dset = H5Dcreate2(m_hfile, aname.c_str(), dtype, dspace, lcpl, dcpl, H5P_DEFAULT);
             if (dset == H5I_INVALID_HID) {
                 raise<IOError>("failed to create dataset %s", aname);
             }
@@ -248,6 +287,8 @@ bool Hio::HDF5FrameTap::operator()(const IFrame::pointer &inframe, IFrame::point
             H5Dclose(dset);
             H5Tclose(dtype);
             H5Sclose(dspace);
+            H5Pclose(dcpl);
+            H5Pclose(lcpl);
 
             log->debug("saved {} with {} channels {} ticks @t={} ms qtot={}", aname, nrows, ncols,
                      inframe->time() / units::ms, arr.sum());
