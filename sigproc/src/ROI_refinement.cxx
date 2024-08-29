@@ -1533,6 +1533,8 @@ void ROI_refinement::CleanUpInductionROIs(int plane)
         for (int i = 0; i != nwire_v; i++) {
             for (auto it = rois_v_loose.at(i).begin(); it != rois_v_loose.at(i).end(); it++) {
                 SignalROI *roi = *it;
+                // Historically, "mean_threshold" was not included in this condition.
+                // It has now been added to ensure consistency between iplane == 0 and iplane == 1.
                 if (roi->get_above_threshold(threshold).size() != 0 || roi->get_average_heights() > mean_threshold) Good_ROIs.insert(roi);
             }
         }
@@ -2761,9 +2763,12 @@ void ROI_refinement::MP2ROI(const int target_plane, const IAnodePlane::pointer a
     }
 
     std::map<int, int> map_wireid_roichid[3];
+    // Reusing the conversion vector (default: {0,1,2}) from OmnibusSigProc for simplicity.
+    // For a more flexible design, consider making this configurable.
+    std::vector<int> ilayer2plane = iplane2layer;
     for (auto chident : anode->channels()) {  // Anode chiid
-        auto iplane = anode->resolve(chident).index();
-        iplane = iplane2layer[iplane]; // iplane sync'd to OmnibusSigProc
+        auto ilayer = anode->resolve(chident).index();
+        auto iplane = ilayer2plane[ilayer];
         auto roichid = map_anodechid_roichid[chident];
         auto ch = anode->channel(chident);
         auto wires = ch->wires();
