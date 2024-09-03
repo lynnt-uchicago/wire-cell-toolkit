@@ -11,7 +11,6 @@ import os
 # fixme: move into waft/
 from waflib.Build import BuildContext
 from waflib.Logs import debug, info, error, warn
-import waflib.Utils
 
 TOP = '.'
 APPNAME = 'WireCell'
@@ -43,10 +42,14 @@ def options(opt):
     opt.add_option('--cxxstd', default='c++17',
                    help="Set the value for the compiler's --std= option, default 'c++17'")
 
+    opt.add_option('--libdir', default='lib',
+                   help="Directory under --prefix in which to install libraries")
+
 def configure(cfg):
     # Save to BuildConfig.h and env
     cfg.define("WIRECELL_VERSION", VERSION)
     cfg.env.VERSION = VERSION
+    cfg.env.LIBDIR = cfg.env.PREFIX + '/' + cfg.options.libdir
     
     # Set to DEBUG to activate SPDLOG_DEBUG() macros or TRACE to activate both
     # those and SPDLOG_TRACE() levels.
