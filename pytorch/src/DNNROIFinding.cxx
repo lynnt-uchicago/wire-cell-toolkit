@@ -204,10 +204,6 @@ ITrace::shared_vector Pytorch::DNNROIFinding::eigen_to_traces(const Array::array
 
 bool Pytorch::DNNROIFinding::operator()(const IFrame::pointer& inframe, IFrame::pointer& outframe)
 {
-
-    // Disable gradient computation, use like a mutex lock
-    torch::NoGradGuard no_grad;
-
     outframe = inframe;
     if (!inframe) {
         log->debug("EOS at call={}", m_save_count);
@@ -308,7 +304,6 @@ bool Pytorch::DNNROIFinding::operator()(const IFrame::pointer& inframe, IFrame::
     auto sp_charge_T = Array::mask(decon_charge_eigen.transpose(), mask_e, m_cfg.mask_thresh /*0.7*/);
     sp_charge_T = Array::baseline_subtraction(sp_charge_T) * m_cfg.output_scale + m_cfg.output_offset;
     Array::array_xxf sp_charge = sp_charge_T.transpose();
-    sp_charge = mask_e.transpose();
 
 #ifdef DNNROI_HDF5_DEBUG
     // hdf5 eval
