@@ -244,41 +244,14 @@ bool Pytorch::DNNROIFinding::operator()(const IFrame::pointer& inframe, IFrame::
     log->debug(tk(fmt::format("call={} calling model \"{}\" with {} chunks ",
                               m_save_count, m_cfg.forward, m_cfg.nchunks)));
     for (auto chunk : chunks) {
-        // std::cout << "chunk size: " << chunk.sizes() << std::endl;
         std::vector<torch::IValue> itens {chunk};
         auto iitens = Pytorch::to_itensor(itens);
         auto oitens = m_forward->forward(iitens);
         torch::Tensor ochunk = Pytorch::from_itensor({oitens}).front().toTensor().cpu();
-        // std::cout << "ochunk size: " << ochunk.sizes() << std::endl;
         outputs.push_back(ochunk.clone());
-        // auto tmp = chunk.index({torch::indexing::Slice(), torch::indexing::Slice(1, 2), torch::indexing::Slice(), torch::indexing::Slice()});
-        // auto tmp = itens[0].toTensor().cpu().index({torch::indexing::Slice(), torch::indexing::Slice(1, 2), torch::indexing::Slice(), torch::indexing::Slice()});
-        // std::cout << "tmp size: " << tmp.sizes() << std::endl;
-        // outputs.push_back(tmp);
     }
     torch::Tensor output = torch::cat(outputs, 2);
-    // std::cout << "output size: " << output.sizes() << std::endl;
     log->debug(tk(fmt::format("call={} inference done", m_save_count)));
-
-    // // Create a vector of inputs.
-    // std::vector<torch::jit::IValue> inputs;
-    // inputs.push_back(batch);
-
-    // log->debug(tk(fmt::format("call={} calling model \"{}\"",
-    //                           m_save_count, m_cfg.forward)));
-
-    // // Execute the model and turn its output into a tensor.
-    // auto iitens = Pytorch::to_itensor(inputs);
-    // ITensorSet::pointer oitens = m_forward->forward(iitens);
-
-    // if (!oitens or oitens->tensors()->size() != 1) {
-    //     log->critical("call={} unexpected tensor size {} 1= 1",
-    //                   m_save_count, oitens->tensors()->size());
-    //     THROW(ValueError() << errmsg{"oitens->tensors()->size()!=1"});
-    // }
-    // torch::Tensor output = Pytorch::from_itensor({oitens}).front().toTensor().cpu();
-
-    // log->debug(tk(fmt::format("call={} inference done", m_save_count)));
 
     // tensor to eigen
     Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data<float>(), output.size(3), output.size(2));
