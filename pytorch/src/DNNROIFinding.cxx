@@ -248,6 +248,8 @@ bool Pytorch::DNNROIFinding::operator()(const IFrame::pointer& inframe, IFrame::
         auto iitens = Pytorch::to_itensor(itens);
         auto oitens = m_forward->forward(iitens);
         torch::Tensor ochunk = Pytorch::from_itensor({oitens}).front().toTensor().cpu();
+        // NOTE: ochunk DOES NOT copy data from oitens!
+        // from_blob() in from_itensor() is used to create a tensor from the same memory.
         outputs.push_back(ochunk.clone());
     }
     torch::Tensor output = torch::cat(outputs, 2);
