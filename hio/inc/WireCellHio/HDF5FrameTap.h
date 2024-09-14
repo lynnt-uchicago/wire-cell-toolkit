@@ -57,7 +57,7 @@ namespace WireCell::Hio {
         float m_baseline{0.0}, m_scale{1.0}, m_offset{0.0};
         bool m_digitize{false};
         int m_gzip{0};
-        std::vector<size_t> m_chunk = {256,256};
+        std::vector<hsize_t> m_chunk = {256,256};
 
         Configuration m_cfg;           /// copy of configuration
         //IAnodePlane::pointer m_anode;  /// pointer to some APA, needed to associate chnnel ID to planes
