@@ -49,7 +49,7 @@ def _options(opt, name, incs=None, libs=None):
                        help="give %s include installation location"%name)
     if libs is None or len(libs):
         opt.add_option('--with-%s-lib'%lower, type='string', 
-                       help="give %s lib installation location"%name)
+                       help="list %s lib installation locations"%name)
         opt.add_option('--with-%s-libs'%lower, type='string', 
                        help="list %s link libraries"%name)
     return
@@ -108,7 +108,7 @@ def _configure(ctx, name, incs=(), libs=(), bins=(), pcname=None, mandatory=True
             if not libdir and instdir:
                 libdir = osp.join(instdir, 'lib')
             if libdir:
-                setattr(ctx.env, 'LIBPATH_'+UPPER, [libdir])
+                setattr(ctx.env, 'LIBPATH_'+UPPER, libdir.split(","))
 
         if bins:
             if not bindir and instdir:
