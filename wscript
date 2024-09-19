@@ -42,14 +42,16 @@ def options(opt):
     opt.add_option('--cxxstd', default='c++17',
                    help="Set the value for the compiler's --std= option, default 'c++17'")
 
-    opt.add_option('--libdir', default='lib',
-                   help="Directory under --prefix in which to install libraries")
 
 def configure(cfg):
     # Save to BuildConfig.h and env
     cfg.define("WIRECELL_VERSION", VERSION)
     cfg.env.VERSION = VERSION
-    cfg.env.LIBDIR = cfg.env.PREFIX + '/' + cfg.options.libdir
+
+    # See https://github.com/WireCell/wire-cell-toolkit/issues/337
+    if not cfg.options.libdir and cfg.env.LIBDIR.endswith("lib64"):
+        cfg.env.LIBDIR = cfg.env.LIBDIR[:-2]
+        debug(f'configure: forcing: {cfg.env.LIBDIR=} instead of lib64/, use explicit --libdir if you really want it')
     
     # Set to DEBUG to activate SPDLOG_DEBUG() macros or TRACE to activate both
     # those and SPDLOG_TRACE() levels.
@@ -104,8 +106,10 @@ def build(bld):
 
     bld.load('wcb')
 
+    
 def dumpenv(bld):
     bld.load('wcb')
+
 
 def packrepo(bld):
     bld.load('wcb')

@@ -49,15 +49,15 @@ def do_options(opt, *pkgdesc, **pkgmap):
 def _options(opt, name, incs=None, libs=None):
     lower = name.lower()
     opt = opt.add_option_group('%s Options' % name)
-    opt.add_option('--with-%s'%lower, type='string', default=None,
+    opt.add_option('--with-%s'%lower, type=str, default=None,
                    help="give %s installation location" % name)
     if incs is None or len(incs):
-        opt.add_option('--with-%s-include'%lower, type='string', 
+        opt.add_option('--with-%s-include'%lower, type=str, 
                        help="give %s include installation location"%name)
     if libs is None or len(libs):
-        opt.add_option('--with-%s-lib'%lower, type='string', 
+        opt.add_option('--with-%s-lib'%lower, type=str, 
                        help="list %s lib installation locations"%name)
-        opt.add_option('--with-%s-libs'%lower, type='string', 
+        opt.add_option('--with-%s-libs'%lower, type=str, 
                        help="list %s link libraries"%name)
     return
 
@@ -80,7 +80,7 @@ def _configure(ctx, name, incs=(), libs=(), bins=(), pcname=None, mandatory=True
         if maybe:
             libs = [s.strip() for s in maybe.split(",") if s.strip()]
     
-    debug ("CONFIGURE", name, instdir, incdir, libdir, mandatory, extuses)
+    debug (f"configure: {name=} {instdir=} {incdir=} {libdir=} {mandatory=} {extuses=}")
 
     if mandatory:
         if instdir:

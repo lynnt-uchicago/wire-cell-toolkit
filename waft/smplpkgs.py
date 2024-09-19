@@ -465,6 +465,7 @@ def smplpkg(bld, name, use='', app_use='', test_use=''):
         ei = ''
         if incdir:
             ei = 'inc' 
+        debug(f'smplpkgs: library: {name}')
         bld(features = 'cxx cxxshlib',
             name = name,
             source = source,
