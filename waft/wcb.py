@@ -60,10 +60,7 @@ def options(opt):
     opt.load('kokkos')
     #opt.load('protobuf')
 
-    for name,desc in package_descriptions:
-        generic._options(opt, name,
-                         desc.get("incs", None),
-                         desc.get("libs", None))
+    generic.do_options(opt, *package_descriptions)
 
     opt.add_option('--build-debug', default='-O2 -ggdb3',
                    help="Build with debug symbols")
@@ -82,8 +79,7 @@ def configure(cfg):
     cfg.load('boost')
     cfg.load('smplpkgs')
 
-    for name, args in package_descriptions:
-        generic._configure(cfg, name, **args)
+    generic.do_configure(cfg, *package_descriptions)
 
     if getattr(cfg.options, "with_libtorch", False) is False:
         info ("sans libtorch")

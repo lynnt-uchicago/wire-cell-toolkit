@@ -39,6 +39,13 @@ import sys
 import os.path as osp
 from waflib.Logs import debug
 
+def do_options(opt, *pkgdesc, **pkgmap):
+    for name, desc in list(pkgdesc) + list(pkgmap.items()):
+        _options(opt, name,
+                 desc.get("incs", None),
+                 desc.get("libs", None))
+        
+
 def _options(opt, name, incs=None, libs=None):
     lower = name.lower()
     opt = opt.add_option_group('%s Options' % name)
@@ -53,6 +60,11 @@ def _options(opt, name, incs=None, libs=None):
         opt.add_option('--with-%s-libs'%lower, type='string', 
                        help="list %s link libraries"%name)
     return
+
+def do_configure(cfg, *pkgdesc, **pkgmap):
+    for name, desc in list(pkgdesc) + list(pkgmap.items()):
+        _configure(cfg, name, **desc)
+    
 
 def _configure(ctx, name, incs=(), libs=(), bins=(), pcname=None, mandatory=True, extuses=()):
     lower = name.lower()

@@ -161,7 +161,9 @@ class ValidationContext:
         self.uses = to_list(uses)
 
         # fixme: ugly layer-busting hack.
-        self.script_environ['.bats'] = dict(BATS_LIB_PATH=bld.path.parent.find_dir("test").abspath())
+        tdir = bld.path.parent.find_dir("test")
+        if tdir:
+            self.script_environ['.bats'] = dict(BATS_LIB_PATH=tdir.abspath())
 
         # fixme: want to still build but just not run tests if --tests is omitted....
         # if not self.bld.env.TESTS:
