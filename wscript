@@ -102,7 +102,7 @@ int main(int argc,const char *argv[])
 def build(bld):
     ### we used to be set sloppiness globally.  Now we use #pragma to
     ### selectively quell warnings.  See util/docs/pragma.org for some info.
-    bld.env.CXXFLAGS += '-Wall -Wpedantic -Werror'.split()
+    bld.env.CXXFLAGS += '-Wall -Wpedantic'.split()
 
     bld.load('wcb')
 

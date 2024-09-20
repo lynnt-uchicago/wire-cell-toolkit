@@ -39,6 +39,29 @@ import sys
 import os.path as osp
 from waflib.Logs import debug
 
+def boolish(b):
+    '''
+    Convert b to Bool if true'ish or false'ish string, else return b.
+    '''
+    if not isinstance(b, str):
+        return b
+    if b.lower() in 'yes on true'.split():
+        return True
+    if b.lower() in 'no off false'.split():
+        return False
+    return b
+
+
+def with_p(opt, name):
+    '''
+    Return whether opt is with named package.
+    '''
+    return boolish(getattr(opt, f'with_{name}', None) \
+                   or getattr(opt, f'with_{name}_lib', None) \
+                   or getattr(opt, f'with_{name}_libs', None) \
+                   or getattr(opt, f'with_{name}_include', None))
+
+
 def do_options(opt, *pkgdesc, **pkgmap):
     for name, desc in list(pkgdesc) + list(pkgmap.items()):
         _options(opt, name,

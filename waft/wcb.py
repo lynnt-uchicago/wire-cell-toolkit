@@ -82,24 +82,20 @@ def configure(cfg):
 
     generic.do_configure(cfg, *package_descriptions)
 
-    if getattr(cfg.options, "with_libtorch", False) is False:
-        info ("sans libtorch")
-    else:
+    def with_p(name):
+        return generic.with_p(cfg.options, name)
+
+    debug(f'wcb: {cfg.options=}')
+    if with_p('libtorch'):
         cfg.load('libtorch')
 
-    if getattr(cfg.options, "with_cuda", False) is False:
-        info ("sans CUDA")
-    else:
+    if with_p('cuda'):
         cfg.load('cuda')
 
-    if getattr(cfg.options, "with_kokkos", False) is False:
-        info ("sans KOKKOS")
-    else:
+    if with_p('kokkos'):
         cfg.load('kokkos')
 
-    if getattr(cfg.options, "with_root", False) is False:
-        info ("sans ROOT")
-    else:
+    if with_p('root'):
         cfg.load('rootsys')
 
 
