@@ -34,6 +34,7 @@ package_descriptions = [
 
     # for faster parsing, consider:
     # ./wcb configure --with-jsonnet-libs=gojsonnet 
+    # see https://github.com/WireCell/wire-cell-toolkit/issues/342
     ('Jsonnet',  dict(incs=["libjsonnet.h"], libs=['jsonnet'])),
     ('TBB',      dict(incs=["tbb/parallel_for.h"], libs=['tbb'], pcname='tbb', mandatory=False)),
     ('HDF5',     dict(incs=["hdf5.h"], libs=['hdf5'], pcname='hdf5', mandatory=False)),
@@ -129,6 +130,7 @@ def configure(cfg):
     cfg.env.LIB += ['z']
     
     submodules = find_submodules(cfg)
+    debug(f'wcb: {submodules=}')
 
     # Remove WCT packages if they an optional dependency wasn't found
     for pkg,ext in [
@@ -211,9 +213,13 @@ def build(bld):
                     bld.install_files(bld.env.DOCS_INSTALL_PATH, out,
                                       cwd=bld_dir, relative_trick=True)
 
+    debug(f'wcb: {bld.smplpkg_names=}')
+    link_libs = 'WireCellAux WireCellIface WireCellUtil'.split()
+    debug(f'wcb: {link_libs=}')
     # Produce a pkg-config .pc file
     bld(source='wire-cell-toolkit.pc.in',
         name="pkg-config-file",
+        LLIBS = ' '.join([f'-l{n}' for n in link_libs]),
         REQUIRES = ' '.join(bld.env.REQUIRES),
         install_path = '${LIBDIR}/pkgconfig/')
 
