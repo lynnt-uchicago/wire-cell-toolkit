@@ -137,7 +137,7 @@ def _configure(ctx, name, incs=(), libs=(), bins=(), pcname=None, mandatory=True
             if not incdir and instdir:
                 incdir = osp.join(instdir, 'include')
             if incdir:
-                setattr(ctx.env, 'INCLUDES_'+UPPER, [incdir])
+                setattr(ctx.env, 'INCLUDES_'+UPPER, incdir.split(","))
 
         if libs:
             if not libdir and instdir:
