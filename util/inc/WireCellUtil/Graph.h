@@ -15,13 +15,29 @@
 // #define BOOST_ALLOW_DEPRECATED_HEADERS 1
 #include <boost/graph/graph_traits.hpp>
 
+#ifdef __clang__
+#  if defined(__has_warning)
+#    define HAS_WARNING(warning) __has_warning(warning)
+#  else
+#    define HAS_WARNING(warning) 1
+#  endif
+#else
+#  define HAS_WARNING(warning) 1
+#endif
+
+#if HAS_WARNING("-Wmaybe-uninitialized")
 #pragma GCC diagnostic push
 #pragma GCC diagnostic warning "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/connected_components.hpp>
+
+#if HAS_WARNING("-Wmaybe-uninitialized")
 #pragma GCC diagnostic pop
+#endif
 
 #include <boost/graph/filtered_graph.hpp>
 #include <boost/graph/copy.hpp>
