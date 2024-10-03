@@ -43,8 +43,10 @@ namespace WireCell {
                         const int nbounds_layers = 2);
 
             typedef std::multimap<std::pair<int, int>, std::pair<int, int>> MapMPROI;
-            MapMPROI get_mp2_rois() const { return mp_rois; }
-            MapMPROI get_mp3_rois() const { return proteced_rois; }
+            const MapMPROI& get_mp2_rois() const { return mp_rois; }
+            MapMPROI get_mp2_rois() { return mp_rois; }
+            const MapMPROI& get_mp3_rois() const { return proteced_rois; }
+            MapMPROI& get_mp3_rois() { return proteced_rois; }
 
             void CleanUpROIs(int plane);
             void generate_merge_ROIs(int plane);

@@ -173,6 +173,7 @@ void OmnibusSigProc::configure(const WireCell::Configuration& config)
     m_extend_roi_tag = get(config, "extend_roi_tag", m_extend_roi_tag);
 
     m_use_multi_plane_protection = get<bool>(config, "use_multi_plane_protection", m_use_multi_plane_protection);
+    m_do_not_mp_protect_traditional = get<bool>(config, "do_not_mp_protect_traditional", m_do_not_mp_protect_traditional);
     m_mp3_roi_tag = get(config, "mp3_roi_tag", m_mp3_roi_tag);
     m_mp2_roi_tag = get(config, "mp2_roi_tag", m_mp2_roi_tag);
     m_mp_th1 = get(config, "mp_th1", m_mp_th1);
@@ -1600,6 +1601,11 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
                 }
                 save_mproi(*itraces, mp3_roi_traces, iplane, roi_refine.get_mp3_rois());
                 save_mproi(*itraces, mp2_roi_traces, iplane, roi_refine.get_mp2_rois());
+                if (m_do_not_mp_protect_traditional) {
+                    // clear mp after saving to itraces
+                    roi_refine.get_mp3_rois().clear();
+                    roi_refine.get_mp2_rois().clear();
+                }
             }
         }
 
