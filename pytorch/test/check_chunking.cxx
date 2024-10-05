@@ -23,16 +23,16 @@ int main(int argc, const char* argv[])
 
     // Disable gradient computation, use like a mutex lock
     torch::NoGradGuard no_grad;
-    if (false) {
-        torch::Tensor a = torch::rand({1, 2, 3, 3});
-        std::cout << "Tensor shape: " << a.sizes() << std::endl;
-        std::cout << a << std::endl;
-        // Extract the desired sub-tensor using the slice method
-        torch::Tensor sub_tensor = a.index({torch::indexing::Slice(), torch::indexing::Slice(1, 2), torch::indexing::Slice(), torch::indexing::Slice()});
-        // Print the shape of the extracted tensor
-        std::cout << "Sub-tensor shape: " << sub_tensor.sizes() << std::endl;
-        std::cout << sub_tensor << std::endl;
-    }
+    // if (false) {
+    //     torch::Tensor a = torch::rand({1, 2, 3, 3});
+    //     std::cout << "Tensor shape: " << a.sizes() << std::endl;
+    //     std::cout << a << std::endl;
+    //     // Extract the desired sub-tensor using the slice method
+    //     torch::Tensor sub_tensor = a.index({torch::indexing::Slice(), torch::indexing::Slice(1, 2), torch::indexing::Slice(), torch::indexing::Slice()});
+    //     // Print the shape of the extracted tensor
+    //     std::cout << "Sub-tensor shape: " << sub_tensor.sizes() << std::endl;
+    //     std::cout << sub_tensor << std::endl;
+    // }
     {
         Eigen::MatrixXf ch_eigen = Eigen::MatrixXf::Identity(4, 4);
         std::cout << "matrix: \n" << ch_eigen << std::endl;
