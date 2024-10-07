@@ -15,7 +15,7 @@ def configure(cfg):
         libs += ['c10']
 
     generic._configure(cfg, "libtorch", 
-                       incs=["torch/torch.h", "torch/script.h", "ATen/ATen.h"],
+                       incs=["torch/script.h", "ATen/ATen.h"],
                        libs=libs,
                        mandatory=True)
 

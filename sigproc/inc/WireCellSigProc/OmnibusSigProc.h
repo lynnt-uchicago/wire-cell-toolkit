@@ -223,6 +223,7 @@ namespace WireCell {
             std::string m_frame_tag{"sigproc"};
 
             bool m_use_roi_debug_mode{false};
+            bool m_save_negtive_charge{false};
             bool m_use_roi_refinement{true};
             std::string m_tight_lf_tag{"tight_lf"};
             std::string m_loose_lf_tag{"loose_lf"};
@@ -233,6 +234,7 @@ namespace WireCell {
             std::string m_extend_roi_tag{"extend_roi"};
 
             bool m_use_multi_plane_protection{false};
+            bool m_do_not_mp_protect_traditional{false};
             std::string m_mp3_roi_tag{"mp3_roi"};
             std::string m_mp2_roi_tag{"mp2_roi"};
             double m_mp_th1{1000.};

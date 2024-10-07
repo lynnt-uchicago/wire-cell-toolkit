@@ -256,7 +256,7 @@ bool Pytorch::DNNROIFinding::operator()(const IFrame::pointer& inframe, IFrame::
     log->debug(tk(fmt::format("call={} inference done", m_save_count)));
 
     // tensor to eigen
-    Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data<float>(), output.size(3), output.size(2));
+    Eigen::Map<Eigen::ArrayXXf> out_e(output[0][0].data_ptr<float>(), output.size(3), output.size(2));
     auto mask_e = Array::upsample(out_e, m_cfg.tick_per_slice, 0);
 
     log->debug(tk(fmt::format("call={} tensor2eigen", m_save_count)));

@@ -162,6 +162,7 @@ void OmnibusSigProc::configure(const WireCell::Configuration& config)
     m_frame_tag = get(config, "frame_tag", m_frame_tag);
 
     m_use_roi_debug_mode = get(config, "use_roi_debug_mode", m_use_roi_debug_mode);
+    m_save_negtive_charge = get(config, "save_negtive_charge", m_save_negtive_charge);
     m_use_roi_refinement = get(config, "use_roi_refinement", m_use_roi_refinement);
     m_tight_lf_tag = get(config, "tight_lf_tag", m_tight_lf_tag);
     m_loose_lf_tag = get(config, "loose_lf_tag", m_loose_lf_tag);
@@ -172,6 +173,7 @@ void OmnibusSigProc::configure(const WireCell::Configuration& config)
     m_extend_roi_tag = get(config, "extend_roi_tag", m_extend_roi_tag);
 
     m_use_multi_plane_protection = get<bool>(config, "use_multi_plane_protection", m_use_multi_plane_protection);
+    m_do_not_mp_protect_traditional = get<bool>(config, "do_not_mp_protect_traditional", m_do_not_mp_protect_traditional);
     m_mp3_roi_tag = get(config, "mp3_roi_tag", m_mp3_roi_tag);
     m_mp2_roi_tag = get(config, "mp2_roi_tag", m_mp2_roi_tag);
     m_mp_th1 = get(config, "mp_th1", m_mp_th1);
@@ -432,7 +434,7 @@ void OmnibusSigProc::save_data(
             const float q = m_r_data[plane](och.wire, itick);
             // charge.at(itick) = q > 0.0 ? q : 0.0;
             // charge.at(itick) = q ;
-            if (m_use_roi_debug_mode) {
+            if (m_use_roi_debug_mode && m_save_negtive_charge) {
                 charge.at(itick) = q;  // debug mode: save all decons
             }
             else {              // nominal: threshold at zero.
@@ -1599,6 +1601,11 @@ bool OmnibusSigProc::operator()(const input_pointer& in, output_pointer& out)
                 }
                 save_mproi(*itraces, mp3_roi_traces, iplane, roi_refine.get_mp3_rois());
                 save_mproi(*itraces, mp2_roi_traces, iplane, roi_refine.get_mp2_rois());
+                if (m_do_not_mp_protect_traditional) {
+                    // clear mp after saving to itraces
+                    roi_refine.get_mp3_rois().clear();
+                    roi_refine.get_mp2_rois().clear();
+                }
             }
         }
 
