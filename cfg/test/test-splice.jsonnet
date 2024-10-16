@@ -51,33 +51,12 @@ local osink = pg.pnode({ type: 'Sink', name:"outsink", data:{} }, nin=1, nout=0)
 local out = pg.intern(innodes=[ofanin,], centernodes = [osink],
                       edges=[ pg.edge(ofanin, osink) ], name="outsgr");
 
+local edge_selector(e) = std.startsWith(e.tail.node, "Pipe:");
+local fanout_factory(n,e) = { type:'Fanout', name:"splice%d"%n };
 
-local spliced = pg.splice(orig, out, function(e) std.startsWith(e.tail.node, "Pipe:"));
+local spliced = pg.splice(orig, out, edge_selector, fanout_factory);
 
 local main(graph, engine='TbbFlow') = pg.uses(graph) + [{type:engine, data: { edges: pg.edges(graph) }}];
-
-// local hoist_edges(gr) =
-//     gr { edges:pg.edges(gr) };
-
-// main(out)
-
-// local graph = orig;
-
-// local app = {
-//     type: 'TbbFlow',
-//     data: {
-//         edges: pg.edges(graph),
-//     },
-// };
-
-// pg.uses(graph) + [app]
-
-
-// main(spliced)
-//main(out)
-// { orig: orig,
-//   hoised: hoist_edges(orig) }
-
 
 local maybe_output = {
     orig:main(orig),

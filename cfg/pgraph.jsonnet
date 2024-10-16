@@ -168,8 +168,20 @@ local wc = import "wirecell.jsonnet";
     insert_node(pnode, edge_to_break, newhead, newtail, iport=0, oport=0, name=null):: 
     self.insert_one(pnode, self.find_indices(pnode.edges, edge_to_break)[0], newhead, newtail, iport, oport, name),
 
-
-    splice(gr, sg, edge_selector, name_pattern="splice%d")::
+    // Splice a sink-like subgraph sg with a number of open ports into a graph gr
+    // by breaking the same number of edges.  Edges are selected by a function:
+    //
+    // edge_selector(e) -> true/false
+    //
+    // returning true if an edge should be broken and a fan-out inserted.
+    // Fanouts are provided with inode (no pnode) bodies returned by a function
+    // of a broken edge count and the broken edge:
+    //
+    // fanout_factory(n,e) -> { type:"XxxFanout", name:"blah", data: {} }
+    //
+    // The fanout is strictly 1->2.
+    //
+    splice(gr, sg, edge_selector, fanout_factory)::
         local gr_edges = $.edges(gr);
         local break_edges = std.filter(edge_selector, gr_edges);
         local same_size = std.assertEqual(std.length(break_edges), std.length(sg.iports));
@@ -178,7 +190,7 @@ local wc = import "wirecell.jsonnet";
         local orig_sink_ports = [e.head for e in break_edges];
         local patch_iota = std.range(0, std.length(break_edges) -1);
         local patch_fanouts = [
-            $.pnode({ type:'Fanout', name:name_pattern % num }, nin=1, nout=2)
+            $.pnode(fanout_factory(num, break_edges[num]), nin=1, nout=2)
             for num in patch_iota
         ];
         local new_edges = [ {
