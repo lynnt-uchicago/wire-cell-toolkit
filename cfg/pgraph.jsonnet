@@ -169,6 +169,33 @@ local wc = import "wirecell.jsonnet";
     self.insert_one(pnode, self.find_indices(pnode.edges, edge_to_break)[0], newhead, newtail, iport, oport, name),
 
 
+    splice(gr, sg, edge_selector, name_pattern="splice%d")::
+        local gr_edges = $.edges(gr);
+        local break_edges = std.filter(edge_selector, gr_edges);
+        local same_size = std.assertEqual(std.length(break_edges), std.length(sg.iports));
+        local keep_edges = std.filter(function(e) !edge_selector(e), gr_edges);
+        local orig_source_ports = [e.tail for e in break_edges];
+        local orig_sink_ports = [e.head for e in break_edges];
+        local patch_iota = std.range(0, std.length(break_edges) -1);
+        local patch_fanouts = [
+            $.pnode({ type:'Fanout', name:name_pattern % num }, nin=1, nout=2)
+            for num in patch_iota
+        ];
+        local new_edges = [ {
+            tail: patch_fanouts[ind].oports[1],
+            head: sg.iports[ind],
+        } for ind in patch_iota ];
+        local old_edges = [ {
+            tail: patch_fanouts[ind].oports[0],
+            head: orig_sink_ports[ind]
+        } for ind in patch_iota ];
+        local to_fans = [ {
+            tail: orig_source_ports[ind],
+            head: patch_fanouts[ind].iports[0],
+        } for ind in patch_iota ];
+        $.intern(centernodes = [gr { edges: keep_edges}, sg] + patch_fanouts,
+                 edges = keep_edges + new_edges + old_edges + to_fans),
+
     // Joint N sources using joiner, return pnode that looks like a
     // single source.  The joiner must be capable of handling and
     // N-join.  Each source is connected to joiner's input ports in
