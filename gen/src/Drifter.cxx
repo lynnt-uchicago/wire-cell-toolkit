@@ -93,7 +93,9 @@ void Gen::Drifter::configure(const WireCell::Configuration& cfg)
         THROW(ValueError() << errmsg{"no xregions given"});
     }
     for (auto jone : jxregions) {
-        m_xregions.emplace_back(Xregion(jone));
+        if (!jone.isNull()) {
+          m_xregions.emplace_back(Xregion(jone));
+        }
     }
     log->debug("time offset: {} ms, drift speed: {} mm/us", m_toffset / units::ms,
              m_speed / (units::mm / units::us));
