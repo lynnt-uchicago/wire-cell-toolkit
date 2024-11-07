@@ -162,16 +162,15 @@ void Gen::AnodePlane::configure(const WireCell::Configuration& cfg)
             sensitive_face = false;
             log->debug("anode {} face {} is not sensitive", m_ident, iface);
         }
-        // const double response_x = jface["response"].asDouble();
-        // const double anode_x = get(jface, "anode", response_x);
+        if (!jface["response"].isNumeric() or !jface["anode"].isNumeric()) {
+            log->critical("Non-scalar value for response_x or anode_x is not allowed.");
+            THROW(ValueError() << errmsg{"AnodePlane: error in configuration, expect scalar values for response_x and anode_x."});
+        }
+        const double response_x = jface["response"].asDouble();
+        const double anode_x = get(jface, "anode", response_x);
         // const double cathode_x = jface["cathode"].asDouble();
-        // FIXME: Due to a recent change in the xregion configuration (see
-        // https://github.com/WireCell/wire-cell-toolkit/pull/336), the
-        // fields (cathode, anode, response) may no longer be scalar values.
-        // In such cases, a backup scalar input is required.
-        const double response_x = jface["response"].isNumeric() ? jface["response"].asDouble() : jface["response_ref"].asDouble();
-        const double anode_x = jface["anode"].isNumeric() ? jface["anode"].asDouble() : jface["anode_ref"].asDouble();
-        const double cathode_x = jface["cathode"].isNumeric() ? jface["cathode"].asDouble() : jface["cathode_ref"].asDouble();
+        int sign = response_x > anode_x ? 1 : -1;
+        const double cathode_x = jface["cathode"].isNumeric() ? jface["cathode"].asDouble() : response_x + sign * 0.01*units::mm;
         log->debug("X planes: \"cathode\"@ {}m, \"response\"@{}m, \"anode\"@{}m", cathode_x / units::m,
                  response_x / units::m, anode_x / units::m);
 
