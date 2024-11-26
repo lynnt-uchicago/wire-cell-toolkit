@@ -169,14 +169,17 @@ void Gen::AnodePlane::configure(const WireCell::Configuration& cfg)
         const double response_x = jface["response"].asDouble();
         const double anode_x = get(jface, "anode", response_x);
         // const double cathode_x = jface["cathode"].asDouble();
-        double cathode_xref;
+        double cathode_xref = response_x; // illegal/insensitive
         if (jface["cathode"].isNumeric()) {
             cathode_xref = jface["cathode"].asDouble();
         }
-        if (jface["cathode"].isMember("x")) {
+        else if (jface["cathode"].isMember("x")) {
             auto xvec = get<std::vector<double>>(jface["cathode"], "x");
             const auto [vmin, vmax] = std::minmax_element(xvec.begin(), xvec.end());
             cathode_xref = *vmin < response_x ? *vmin : *vmax;
+        }
+        else {
+            log->warn("No 'cathode' location defined for xregion, making short drift for face {} anode {}", iface, m_ident);
         }
         const double cathode_x = cathode_xref;
 
