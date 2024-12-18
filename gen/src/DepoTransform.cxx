@@ -160,8 +160,8 @@ WireCell::Configuration Gen::DepoTransform::default_configuration() const
     // type-name for the DFT to use
     cfg["dft"] = "FftwDFT";
 
-    // Which plane to place charge onto
-    cfg["process_planes"] = Json::arrayValue;
+    // Need to remove this otherwise [] will be the default
+    // cfg["process_planes"] = Json::arrayValue;
 
     return cfg;
 }
@@ -191,7 +191,8 @@ bool Gen::DepoTransform::operator()(const input_pointer& in, output_pointer& out
 
 	    int plane_index = plane->planeid().index();
 
-	    if (std::find(m_process_planes.begin(),  m_process_planes.end(), plane_index) == m_process_planes.end()) {         
+	    if (std::find(m_process_planes.begin(),  m_process_planes.end(), plane_index) == m_process_planes.end()) {
+          log->debug("skip plane {}", plane_index);         
 	      continue;
 	    }
 
