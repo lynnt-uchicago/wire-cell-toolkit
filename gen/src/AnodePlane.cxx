@@ -162,7 +162,7 @@ void Gen::AnodePlane::configure(const WireCell::Configuration& cfg)
             sensitive_face = false;
             log->debug("anode {} face {} is not sensitive", m_ident, iface);
         }
-        if (!jface["response"].isNumeric() or !jface["anode"].isNumeric()) {
+        else if (!jface["response"].isNumeric() or !jface["anode"].isNumeric()) {
             log->critical("Non-scalar value for response_x or anode_x is not supported.");
             THROW(ValueError() << errmsg{"AnodePlane: error in configuration, expect scalar values for response_x and anode_x."});
         }
